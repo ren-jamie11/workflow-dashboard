@@ -1,0 +1,18 @@
+# App data (products, prices, sales) — stays on this computer
+data/
+
+# Business files — stay on this computer (the repo is public)
+Amazon Upload Templates/
+下单计划 Order Forms/
+工厂报价 Quote Sheets/
+库存销量 Inventory and Sales Records/
+采购计划 Purchase Forms/
+售价计算 Price Calcs/
+
+# Python / OS / Office clutter
+__pycache__/
+*.pyc
+*.tmp
+~$*
+Thumbs.db
+desktop.ini

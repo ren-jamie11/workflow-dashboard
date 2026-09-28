@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>亚马逊FBA批量售价计算器</title>
+<style>
+:root{
+  --primary:#4f46e5; --primary-dark:#4338ca; --secondary:#10b981;
+  --dark:#1e293b; --muted:#64748b; --line:#e2e8f0;
+  --warn-bg:#fffbeb; --warn-line:#f59e0b; --warn-text:#92400e;
+  --radius:12px;
+  --shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:#f1f5f9;color:var(--dark);line-height:1.6;margin:0;
+}
+.container{max-width:1400px;margin:0 auto;padding:2rem 1.5rem}
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.75rem;margin-bottom:1.5rem}
+.card-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:1rem;margin-bottom:1.25rem}
+h1{font-size:1.4rem;font-weight:600;color:var(--primary);margin:0}
+
+/* ---------- 参数设置 (extender) ---------- */
+details.params{border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:var(--shadow);margin-bottom:1.5rem}
+details.params summary{
+  cursor:pointer;padding:1rem 1.25rem;font-weight:600;color:var(--primary);
+  list-style:none;display:flex;align-items:center;gap:.5rem;user-select:none;
+}
+details.params summary::-webkit-details-marker{display:none}
+details.params summary::before{content:'▸';transition:transform .2s;display:inline-block}
+details.params[open] summary::before{transform:rotate(90deg)}
+.params-body{padding:0 1.25rem 1.25rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1.1rem;border-top:1px solid var(--line);padding-top:1.25rem}
+.form-label{display:block;font-size:.82rem;font-weight:500;color:var(--muted);margin-bottom:.35rem}
+.form-control{width:100%;padding:.6rem .75rem;border:1px solid var(--line);border-radius:8px;font-size:.95rem;font-family:inherit}
+.form-control:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+.toggle-group{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.toggle-btn{flex:1;padding:.6rem .5rem;background:#fff;border:none;cursor:pointer;font-family:inherit;font-size:.9rem;color:var(--muted);transition:.2s}
+.toggle-btn.active{background:var(--primary);color:#fff;font-weight:500}
+
+/* ---------- table ---------- */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:1150px}
+thead th{
+  background:#f8fafc;color:var(--muted);font-weight:600;font-size:.78rem;
+  text-align:left;padding:.65rem .55rem;border-bottom:2px solid var(--line);white-space:nowrap;
+}
+thead th.out{background:#eef2ff;color:var(--primary)}
+tbody td{padding:.3rem .35rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+tbody tr.warn td{background:var(--warn-bg)}
+tbody tr.warn td:first-child{box-shadow:inset 3px 0 0 var(--warn-line)}
+.cell-input{width:100%;padding:.5rem .55rem;border:1px solid var(--line);border-radius:6px;font-size:.9rem;font-family:inherit;background:#fff}
+.cell-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(79,70,229,.12)}
+.cell-input.num{text-align:right}
+.out-cell{padding:.5rem .55rem;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.out-cell.strong{font-weight:700;color:var(--secondary);font-size:1rem}
+.out-cell.empty{color:#cbd5e1}
+.warn-badge{display:inline-block;margin-left:.4rem;font-size:.7rem;color:var(--warn-text);background:#fef3c7;border:1px solid #fcd34d;border-radius:5px;padding:.05rem .3rem;white-space:nowrap;cursor:help}
+.del-btn{background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:1.15rem;line-height:1;padding:.25rem .45rem;border-radius:6px}
+.del-btn:hover{color:#ef4444;background:#fef2f2}
+
+.actions{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1.25rem}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.7rem 1.35rem;border-radius:8px;font-weight:500;font-size:.95rem;font-family:inherit;cursor:pointer;border:none;transition:.2s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-ghost{background:#fff;color:var(--muted);border:1px solid var(--line)}
+.btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+.hint{margin-top:1rem;font-size:.8rem;color:var(--muted)}
+.legend{display:inline-flex;align-items:center;gap:.35rem}
+.legend .swatch{width:10px;height:10px;border-radius:2px;background:var(--warn-line);display:inline-block}
+
+/* ---------- 保存 / 打开 ---------- */
+.container{position:relative}
+.topbar{display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap}
+.topbar .form-control{max-width:320px;background:#fff}
+.dd{position:relative;display:inline-block}
+.menu{display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:20;min-width:240px;max-height:360px;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:.3rem}
+.menu.right{left:auto;right:0}
+.dd.open > .menu{display:block}
+.menu-item{display:flex;align-items:center;justify-content:space-between;gap:.75rem;width:100%;padding:.45rem .6rem;border:none;background:none;border-radius:6px;font-family:inherit;font-size:.88rem;color:var(--dark);cursor:pointer;text-align:left;white-space:nowrap}
+.menu-item:hover{background:#eef2ff;color:var(--primary)}
+.menu-item .time{font-size:.75rem;color:var(--muted)}
+.menu-item .del-btn{font-size:1rem;padding:0 .3rem}
+.menu-empty{padding:.5rem .6rem;font-size:.85rem;color:var(--muted)}
+.menu-sep{border-top:1px solid var(--line);margin:.3rem 0}
+.split{margin-left:auto;display:inline-flex}
+.split .btn:first-child{border-radius:8px 0 0 8px}
+.split .btn.caret{border-radius:0 8px 8px 0;padding:.7rem .7rem;border-left:1px solid rgba(255,255,255,.35)}
+.gear-wrap{position:absolute;top:.4rem;right:.6rem}
+.gear{background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:.95rem;padding:.2rem .35rem;border-radius:6px;line-height:1}
+.gear:hover{color:var(--muted);background:#fff}
+.defaults-form{display:none;width:240px;padding:.3rem .6rem .5rem}
+.defaults-form.show{display:block}
+.defaults-form label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:.45rem}
+.defaults-form .form-control{padding:.35rem .5rem;font-size:.88rem;margin-top:.15rem}
+.defaults-actions{display:flex;justify-content:space-between;align-items:center;margin-top:.6rem}
+.menu-link{background:none;border:none;color:var(--muted);font-family:inherit;font-size:.78rem;cursor:pointer;padding:0;text-decoration:underline}
+.btn-sm{padding:.4rem .9rem;font-size:.85rem}
+
+/* HUB: embedded in the hub's expanded row */
+body{background:transparent}
+.container{max-width:none;padding:0}
+.card{margin-bottom:0;box-shadow:none;border:1px solid var(--line);padding:1.25rem 1.25rem 1rem}
+.saved-note{font-size:.8rem;color:var(--muted);align-self:center}
+.saved-note b{color:var(--dark);font-weight:500}
+.actions .push{margin-left:auto;display:flex;gap:.75rem;align-items:center}
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- HUB: 参数设置 / ⚙ 默认参数 / 表格名称·打开·新建 / 标题 are handled by the hub (设置 → 报价) -->
+
+  <!-- 表格 -->
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:34px"></th>
+            <th style="min-width:150px">商品名 / SKU</th>
+            <th style="width:100px">工厂价 (￥)</th>
+            <th style="width:78px">长 (cm)</th>
+            <th style="width:78px">宽 (cm)</th>
+            <th style="width:78px">高 (cm)</th>
+            <th class="out" style="width:88px">重量 (lb)</th>
+            <th class="out" style="width:98px">头程运费 ($)</th>
+            <th class="out" style="width:104px">入库配置费 ($)</th>
+            <th class="out" style="width:150px">尾程运费 ($)</th>
+            <th class="out" style="width:92px">成本 ($)</th>
+            <th class="out" style="width:104px">建议售价 ($)</th>
+            <th style="width:38px"></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-primary" id="calcBtn">计算售价</button>
+      <button type="button" class="btn btn-ghost" id="addBtn">+ 添加行</button>
+      <button type="button" class="btn btn-ghost" id="clearBtn">清空</button>
+      <!-- HUB: one table per row, autosaved; 保存 writes a file to 售价计算 Price Calcs -->
+      <div class="push">
+        <span class="saved-note" id="savedNote"></span>
+        <button type="button" class="btn btn-ghost" id="importBtn">导入</button>
+        <button type="button" class="btn btn-primary" id="saveBtn">保存</button>
+      </div>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+
+    <div class="hint">
+      <span class="legend"><span class="swatch"></span> 黄色行 = 尺寸/重量不落在任何尾程运费档位，尾程运费按 $0 计入，售价偏低，请人工复核。</span>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/api.js"></script>
+<script src="../shared/embed.js"></script>
+<script>
+(function(){
+  const tbody = document.getElementById('tbody');
+  /* HUB: 旺季 toggle lives in the hub's 设置 → 报价 */
+
+  /* ================= 计算逻辑（与原单品计算器完全一致） ================= */
+  function computeRow(factoryPrice, length, width, height, P){
+    const { shippingPrice, exchangeRate, profitMargin, storageFee, isPeak } = P;
+
+    // 计算重量（体积重）
+    const weightKg = (length * width * height) / 5000;
+    const weightLb = weightKg * 2.2;
+    const weightOz = weightLb * 16;
+
+    // 计算头程运费
+    const shippingVolume = (length * width * height) / 6000;
+    const shippingFee = (shippingVolume * shippingPrice) / exchangeRate;
+
+    // 转换为英寸并排序
+    const dimensions = [length/2.54, width/2.54, height/2.54].sort((a,b)=>b-a);
+    const longest = dimensions[0], middle = dimensions[1], shortest = dimensions[2];
+
+    // 计算尾程运费
+    let deliveryFee = 0;
+
+    // 小号标准尺寸
+    if (longest <= 15 && middle <= 12 && shortest <= 0.75) {
+      const factoryPriceUSD = factoryPrice / exchangeRate;
+      let assumeDeliveryFee = 0;
+      if (weightOz <= 2) assumeDeliveryFee = 2.43;
+      else if (weightOz <= 4) assumeDeliveryFee = 2.49;
+      else if (weightOz <= 6) assumeDeliveryFee = 2.56;
+      else if (weightOz <= 8) assumeDeliveryFee = 2.66;
+      else if (weightOz <= 10) assumeDeliveryFee = 2.77;
+      else if (weightOz <= 12) assumeDeliveryFee = 2.82;
+      else if (weightOz <= 14) assumeDeliveryFee = 2.92;
+      else assumeDeliveryFee = 2.95;
+
+      const tempCost = shippingFee + storageFee + factoryPriceUSD + assumeDeliveryFee;
+      const tempPrice = profitMargin > 0 ? tempCost / (1 - profitMargin / 100) : 0;
+
+      if (tempPrice < 5) {
+        if (weightOz <= 2) deliveryFee = 2.43;
+        else if (weightOz > 2 && weightOz <= 4) deliveryFee = 2.49;
+        else if (weightOz > 4 && weightOz <= 6) deliveryFee = 2.56;
+        else if (weightOz > 6 && weightOz <= 8) deliveryFee = 2.66;
+        else if (weightOz > 8 && weightOz <= 10) deliveryFee = 2.77;
+        else if (weightOz > 10 && weightOz <= 12) deliveryFee = 2.82;
+        else if (weightOz > 12 && weightOz <= 14) deliveryFee = 2.92;
+        else if (weightOz > 14 && weightOz <= 16) deliveryFee = 2.95;
+      } else if (tempPrice <= 25) {
+        if (weightOz <= 2) deliveryFee = isPeak ? 3.25 : 3.32;
+        else if (weightOz > 2 && weightOz <= 4) deliveryFee = isPeak ? 3.34 : 3.42;
+        else if (weightOz > 4 && weightOz <= 6) deliveryFee = isPeak ? 3.44 : 3.45;
+        else if (weightOz > 6 && weightOz <= 8) deliveryFee = isPeak ? 3.53 : 3.54;
+        else if (weightOz > 8 && weightOz <= 10) deliveryFee = isPeak ? 3.64 : 3.68;
+        else if (weightOz > 10 && weightOz <= 12) deliveryFee = isPeak ? 3.74 : 3.78;
+        else if (weightOz > 12 && weightOz <= 14) deliveryFee = isPeak ? 3.82 : 3.91;
+        else if (weightOz > 14 && weightOz <= 16) deliveryFee = isPeak ? 3.87 : 3.96;
+      } else {
+        if (weightOz <= 2) deliveryFee = 3.58;
+        else if (weightOz > 2 && weightOz <= 4) deliveryFee = 3.68;
+        else if (weightOz > 4 && weightOz <= 6) deliveryFee = 3.71;
+        else if (weightOz > 6 && weightOz <= 8) deliveryFee = 3.80;
+        else if (weightOz > 8 && weightOz <= 10) deliveryFee = 3.94;
+        else if (weightOz > 10 && weightOz <= 12) deliveryFee = 4.04;
+        else if (weightOz > 12 && weightOz <= 14) deliveryFee = 4.17;
+        else if (weightOz > 14 && weightOz <= 16) deliveryFee = 4.22;
+      }
+    }
+    // 大号标准尺寸
+    else if (longest <= 18 && middle <= 14 && shortest <= 8) {
+      const factoryPriceUSD = factoryPrice / exchangeRate;
+      let assumeDeliveryFee = 0;
+      if (weightOz <= 4) assumeDeliveryFee = 2.91;
+      else if (weightOz <= 8) assumeDeliveryFee = 3.13;
+      else if (weightOz <= 12) assumeDeliveryFee = 3.38;
+      else if (weightOz <= 16) assumeDeliveryFee = 3.78;
+      else if (weightLb <= 1.25) assumeDeliveryFee = 4.22;
+      else if (weightLb <= 1.5) assumeDeliveryFee = 4.60;
+      else if (weightLb <= 1.75) assumeDeliveryFee = 4.75;
+      else if (weightLb <= 2) assumeDeliveryFee = 5.00;
+      else if (weightLb <= 2.25) assumeDeliveryFee = 5.10;
+      else if (weightLb <= 2.5) assumeDeliveryFee = 5.28;
+      else if (weightLb <= 2.75) assumeDeliveryFee = 5.44;
+      else if (weightLb <= 3) assumeDeliveryFee = 5.85;
+      else assumeDeliveryFee = 6.15;
+
+      const tempCost = shippingFee + storageFee + factoryPriceUSD + assumeDeliveryFee;
+      const tempPrice = profitMargin > 0 ? tempCost / (1 - profitMargin / 100) : 0;
+
+      if (tempPrice < 5) {
+        if (weightOz <= 4) deliveryFee = 2.91;
+        else if (weightOz > 4 && weightOz <= 8) deliveryFee = 3.13;
+        else if (weightOz > 8 && weightOz <= 12) deliveryFee = 3.38;
+        else if (weightOz > 12 && weightOz <= 16) deliveryFee = 3.78;
+        else if (weightLb > 1 && weightLb <= 1.25) deliveryFee = 4.22;
+        else if (weightLb > 1.25 && weightLb <= 1.5) deliveryFee = 4.60;
+        else if (weightLb > 1.5 && weightLb <= 1.75) deliveryFee = 4.75;
+        else if (weightLb > 1.75 && weightLb <= 2) deliveryFee = 5.00;
+        else if (weightLb > 2 && weightLb <= 2.25) deliveryFee = 5.10;
+        else if (weightLb > 2.25 && weightLb <= 2.5) deliveryFee = 5.28;
+        else if (weightLb > 2.5 && weightLb <= 2.75) deliveryFee = 5.44;
+        else if (weightLb > 2.75 && weightLb <= 3) deliveryFee = 5.85;
+        else if (weightLb > 3 && weightLb <= 20) {
+          const baseFee = 6.15;
+          const extraWeight = Math.max(0, weightLb - 3);
+          const extraFee = Math.ceil(extraWeight * 16 / 4) * 0.08;
+          deliveryFee = baseFee + extraFee;
+        }
+      } else if (tempPrice <= 25) {
+        if (weightOz <= 4) deliveryFee = isPeak ? 3.92 : 3.73;
+        else if (weightOz > 4 && weightOz <= 8) deliveryFee = isPeak ? 4.16 : 3.95;
+        else if (weightOz > 8 && weightOz <= 12) deliveryFee = isPeak ? 4.43 : 4.20;
+        else if (weightOz > 12 && weightOz <= 16) deliveryFee = isPeak ? 4.84 : 4.60;
+        else if (weightLb > 1 && weightLb <= 1.25) deliveryFee = isPeak ? 5.29 : 5.04;
+        else if (weightLb > 1.25 && weightLb <= 1.5) deliveryFee = isPeak ? 5.68 : 5.42;
+        else if (weightLb > 1.5 && weightLb <= 1.75) deliveryFee = isPeak ? 5.84 : 5.57;
+        else if (weightLb > 1.75 && weightLb <= 2) deliveryFee = isPeak ? 6.10 : 5.82;
+        else if (weightLb > 2 && weightLb <= 2.25) deliveryFee = isPeak ? 6.24 : 5.92;
+        else if (weightLb > 2.25 && weightLb <= 2.5) deliveryFee = isPeak ? 6.44 : 6.10;
+        else if (weightLb > 2.5 && weightLb <= 2.75) deliveryFee = isPeak ? 6.61 : 6.26;
+        else if (weightLb > 2.75 && weightLb <= 3) deliveryFee = isPeak ? 7.03 : 6.67;
+        else if (weightLb > 3 && weightLb <= 20) {
+          const baseFee = isPeak ? 7.46 : 6.97;
+          const extraWeight = Math.max(0, weightLb - 3);
+          const extraFee = Math.ceil(extraWeight * 16 / 4) * 0.08;
+          deliveryFee = baseFee + extraFee;
+        }
+      } else {
+        if (weightOz <= 4) deliveryFee = 3.99;
+        else if (weightOz > 4 && weightOz <= 8) deliveryFee = 4.21;
+        else if (weightOz > 8 && weightOz <= 12) deliveryFee = 4.46;
+        else if (weightOz > 12 && weightOz <= 16) deliveryFee = 4.86;
+        else if (weightLb > 1 && weightLb <= 1.25) deliveryFee = 5.30;
+        else if (weightLb > 1.25 && weightLb <= 1.5) deliveryFee = 5.68;
+        else if (weightLb > 1.5 && weightLb <= 1.75) deliveryFee = 5.83;
+        else if (weightLb > 1.75 && weightLb <= 2) deliveryFee = 6.08;
+        else if (weightLb > 2 && weightLb <= 2.25) deliveryFee = 6.18;
+        else if (weightLb > 2.25 && weightLb <= 2.5) deliveryFee = 6.36;
+        else if (weightLb > 2.5 && weightLb <= 2.75) deliveryFee = 6.52;
+        else if (weightLb > 2.75 && weightLb <= 3) deliveryFee = 6.93;
+        else if (weightLb > 3 && weightLb <= 20) {
+          const baseFee = 7.23;
+          const extraWeight = Math.max(0, weightLb - 3);
+          const extraFee = Math.ceil(extraWeight * 16 / 4) * 0.08;
+          deliveryFee = baseFee + extraFee;
+        }
+      }
+    }
+    // 超大件
+    else if (longest > 59 || middle > 33 || shortest > 33 || (longest + middle + shortest >= 130) || weightLb >= 50) {
+      const roundedWeight = Math.ceil(weightLb);
+      if (roundedWeight < 50) {
+        const baseFee = isPeak ? 29.06 : 26.33;
+        deliveryFee = baseFee + (roundedWeight - 1) * 0.38;
+      } else if (roundedWeight > 50 && roundedWeight <= 70) {
+        const baseFee = isPeak ? 42.93 : 37.32;
+        deliveryFee = baseFee + (roundedWeight - 51) * 0.75;
+      } else if (roundedWeight > 70 && roundedWeight <= 150) {
+        const baseFee = isPeak ? 59.23 : 51.32;
+        deliveryFee = baseFee + (roundedWeight - 71) * 0.75;
+      } else if (roundedWeight > 150) {
+        const baseFee = isPeak ? 203.46 : 194.95;
+        deliveryFee = baseFee + (roundedWeight - 151) * 0.19;
+      }
+    }
+    // 小号大件
+    else if (longest <= 37 && middle <= 28 && shortest <= 20) {
+      const roundedWeight = Math.ceil(weightLb);
+      let packagingFee = 0;
+      if (roundedWeight <= 5) packagingFee = 1.51;
+      else if (roundedWeight <= 10) packagingFee = 1.68;
+      else if (roundedWeight <= 15) packagingFee = 1.97;
+      else if (roundedWeight <= 20) packagingFee = 2.60;
+      else if (roundedWeight <= 25) packagingFee = 2.92;
+      else if (roundedWeight <= 30) packagingFee = 3.47;
+      else if (roundedWeight <= 35) packagingFee = 3.60;
+      else if (roundedWeight <= 40) packagingFee = 3.78;
+      else if (roundedWeight <= 45) packagingFee = 3.80;
+      else packagingFee = 4.04;
+
+      if (roundedWeight <= 50) {
+        const baseFee = isPeak ? 10.65 : 7.55;
+        deliveryFee = baseFee + (roundedWeight - 1) * 0.38 + packagingFee;
+      }
+    }
+    // 大号大件
+    else if (longest <= 59 && middle <= 33 && shortest <= 33 && weightLb <= 50) {
+      const roundedWeight = Math.ceil(weightLb);
+      let packagingFee = 0;
+      if (roundedWeight <= 5) packagingFee = 1.51;
+      else if (roundedWeight <= 10) packagingFee = 1.68;
+      else if (roundedWeight <= 15) packagingFee = 1.97;
+      else if (roundedWeight <= 20) packagingFee = 2.60;
+      else if (roundedWeight <= 25) packagingFee = 2.92;
+      else if (roundedWeight <= 30) packagingFee = 3.47;
+      else if (roundedWeight <= 35) packagingFee = 3.60;
+      else if (roundedWeight <= 40) packagingFee = 3.78;
+      else if (roundedWeight <= 45) packagingFee = 3.80;
+      else packagingFee = 4.04;
+
+      if (roundedWeight <= 50) {
+        const baseFee = isPeak ? 10.65 : 9.35;
+        deliveryFee = baseFee + (roundedWeight - 1) * 0.38 + packagingFee;
+      }
+    }
+
+    // 计算成本
+    const factoryPriceUSD = factoryPrice / exchangeRate;
+    const cost = shippingFee + storageFee + factoryPriceUSD + deliveryFee;
+
+    // 计算建议售价
+    const price = cost / (1 - profitMargin / 100);
+
+    return { weightLb, shippingFee, storageFee, deliveryFee, cost, price, uncovered: deliveryFee === 0 };
+  }
+  /* ============================================================== */
+
+  /* HUB: parameters are global and live — read from settings.step1 instead of the page */
+  let P = {};
+  function getParams(){
+    return {
+      shippingPrice: parseFloat(P.shippingPrice) || 0,
+      exchangeRate:  parseFloat(P.exchangeRate)  || 7,
+      profitMargin:  parseFloat(P.profitMargin)  || 0,
+      storageFee:    parseFloat(P.storageFee)    || 0,
+      isPeak:        !!P.isPeak
+    };
+  }
+
+  function addRow(data){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="text-align:center;color:#cbd5e1;font-size:.8rem" class="idx"></td>
+      <td><input type="text" class="cell-input f-sku" placeholder="可选"></td>
+      <td><input type="number" step="any" class="cell-input num f-price" placeholder="0"></td>
+      <td><input type="number" step="any" class="cell-input num f-l" placeholder="0"></td>
+      <td><input type="number" step="any" class="cell-input num f-w" placeholder="0"></td>
+      <td><input type="number" step="any" class="cell-input num f-h" placeholder="0"></td>
+      <td class="out-cell empty o-weight">—</td>
+      <td class="out-cell empty o-ship">—</td>
+      <td class="out-cell empty o-storage">—</td>
+      <td class="out-cell empty o-delivery">—</td>
+      <td class="out-cell empty o-cost">—</td>
+      <td class="out-cell strong empty o-price">—</td>
+      <td style="text-align:center"><button type="button" class="del-btn" title="删除该行">×</button></td>`;
+    tr.querySelector('.del-btn').addEventListener('click', ()=>{
+      tr.remove();
+      if(!tbody.children.length) addRow();
+      renumber();
+      scheduleSave();   /* HUB */
+    });
+    if (data) ROW_FIELDS.forEach(([k, sel]) => { tr.querySelector(sel).value = data[k] ?? ''; });
+    tbody.appendChild(tr);
+    renumber();
+    return tr;
+  }
+
+  function renumber(){
+    [...tbody.children].forEach((tr,i)=> tr.querySelector('.idx').textContent = i+1);
+  }
+
+  function clearRowOutputs(tr){
+    tr.classList.remove('warn');
+    ['.o-weight','.o-ship','.o-storage','.o-delivery','.o-cost','.o-price'].forEach(sel=>{
+      const c = tr.querySelector(sel);
+      c.textContent = '—';
+      c.classList.add('empty');
+    });
+  }
+
+  function calcAll(){
+    const P = getParams();
+    [...tbody.children].forEach(tr=>{
+      const price  = parseFloat(tr.querySelector('.f-price').value);
+      const length = parseFloat(tr.querySelector('.f-l').value);
+      const width  = parseFloat(tr.querySelector('.f-w').value);
+      const height = parseFloat(tr.querySelector('.f-h').value);
+
+      // 尺寸必须齐全且为正数，否则该行留空
+      if (!(length > 0 && width > 0 && height > 0)) { clearRowOutputs(tr); return; }
+
+      const r = computeRow(isNaN(price) ? 0 : price, length, width, height, P);
+
+      const set = (sel, val) => {
+        const c = tr.querySelector(sel);
+        c.textContent = val;
+        c.classList.remove('empty');
+      };
+      set('.o-weight',   r.weightLb.toFixed(2));
+      set('.o-ship',     r.shippingFee.toFixed(2));
+      set('.o-storage',  r.storageFee.toFixed(2));
+      set('.o-cost',     r.cost.toFixed(2));
+      set('.o-price',    r.price.toFixed(2));
+
+      const dc = tr.querySelector('.o-delivery');
+      dc.classList.remove('empty');
+      if (r.uncovered) {
+        dc.innerHTML = '0.00<span class="warn-badge" title="该尺寸/重量不落在任何尾程运费档位，尾程运费按 $0 计入，售价偏低，请人工复核。">⚠ 未覆盖</span>';
+        tr.classList.add('warn');
+      } else {
+        dc.textContent = r.deliveryFee.toFixed(2);
+        tr.classList.remove('warn');
+      }
+    });
+  }
+
+  document.getElementById('calcBtn').addEventListener('click', calcAll);
+  document.getElementById('addBtn').addEventListener('click', ()=> addRow().querySelector('.f-sku').focus());
+  document.getElementById('clearBtn').addEventListener('click', ()=>{
+    tbody.innerHTML = '';
+    for(let i=0;i<6;i++) addRow();
+    scheduleSave();   /* HUB */
+  });
+
+  // Enter 键跳到下一行同列 / Tab 到行尾自动加行
+  tbody.addEventListener('keydown', e=>{
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      calcAll();
+    }
+  });
+
+  /* ================= HUB: 存储（每个产品一张表，自动保存到 data/rows/<id>/step1.json） ================= */
+  const ROW_FIELDS = [['sku','.f-sku'],['price','.f-price'],['l','.f-l'],['w','.f-w'],['h','.f-h']];
+  const ROW_ID = embed.row;
+  const DATA_PATH = 'rows/' + ROW_ID + '/step1.json';
+  const savedNote = document.getElementById('savedNote');
+
+  function readRows(){
+    return [...tbody.children].map(tr => {
+      const r = {};
+      ROW_FIELDS.forEach(([k, sel]) => r[k] = tr.querySelector(sel).value);
+      return r;
+    });
+  }
+  function writeRows(rows){
+    tbody.innerHTML = '';
+    if (rows && rows.length) rows.forEach(r => addRow(r));
+    else for(let i=0;i<6;i++) addRow();
+  }
+  function hasContent(){
+    return readRows().some(r => ROW_FIELDS.some(([k]) => String(r[k] || '').trim()));
+  }
+
+  let saveTimer = null;
+  function scheduleSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveNow, 400);
+  }
+  function saveNow(){
+    clearTimeout(saveTimer); saveTimer = null;
+    return api.put(DATA_PATH, { rows: readRows() }).catch(() => {});
+  }
+  /* the hub can remove this iframe at any time (collapse, filter) — flush the pending save */
+  window.addEventListener('pagehide', () => {
+    if (!saveTimer) return;
+    clearTimeout(saveTimer);
+    try {
+      fetch('/api/data/' + DATA_PATH, { method: 'PUT', keepalive: true,
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: readRows() }) });
+    } catch (e) {}
+  });
+  document.querySelector('.container').addEventListener('input', scheduleSave);
+
+  function note(html){
+    savedNote.innerHTML = html;
+  }
+  api.onError = err => note('<span style="color:#ef4444">' + (err.offline ? err.message : '保存失败：' + err.message) + '</span>');
+
+  /* 保存 → 售价计算 Price Calcs/<品名>_<SKU>_售价.json */
+  document.getElementById('saveBtn').addEventListener('click', async () => {
+    const b = document.getElementById('saveBtn');
+    b.disabled = true;
+    try {
+      await saveNow();
+      const meta = (await api.get('rows/' + ROW_ID + '/meta.json')) || {};
+      const clean = s => String(s || '').trim().replace(/[\/:*?"<>|]/g, '_');
+      const fname = [clean(meta.name) || '未命名', clean(meta.sku)].filter(Boolean).join('_') + '_售价.json';
+      const body = { name: meta.name || '', sku: meta.sku || '', savedAt: Date.now(), params: getParams(), rows: readRows() };
+      const saved = await api.output('售价计算 Price Calcs', fname,
+        new Blob([JSON.stringify(body, null, 2)], { type: 'application/json' }));
+      b.textContent = '已保存 ✓';
+      setTimeout(() => b.textContent = '保存', 1200);
+      note('已保存：<b></b>');
+      savedNote.querySelector('b').textContent = '售价计算 Price Calcs/' + saved;
+    } catch (e) {
+    } finally { b.disabled = false; }
+  });
+
+  /* 导入：本工具保存的 JSON，或旧版「导出全部」的备份文件 */
+  const importFile = document.getElementById('importFile');
+  document.getElementById('importBtn').addEventListener('click', () => importFile.click());
+  importFile.addEventListener('change', () => {
+    const f = importFile.files[0];
+    importFile.value = '';
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let data;
+      try { data = JSON.parse(reader.result); } catch(e){ alert('文件格式错误'); return; }
+      let rows = data && Array.isArray(data.rows) ? data.rows : null;
+      if (!rows) {                                   // old export: { <表格名>: {name, rows, ...}, ... }
+        const tables = Object.values(data || {}).filter(t => t && Array.isArray(t.rows));
+        if (!tables.length) { alert('文件中没有可导入的表格'); return; }
+        let pick = tables[0];
+        if (tables.length > 1) {
+          const ans = prompt('文件中有 ' + tables.length + ' 个表格，请输入要导入的序号：\n' +
+            tables.map((t, i) => (i + 1) + '. ' + t.name).join('\n'), '1');
+          if (ans === null) return;
+          pick = tables[(parseInt(ans, 10) || 1) - 1];
+          if (!pick) { alert('序号无效'); return; }
+        }
+        rows = pick.rows;
+      }
+      if (hasContent() && !confirm('导入会覆盖当前表格的内容，确定继续？')) return;
+      writeRows(rows.map(r => {
+        const o = {};
+        ROW_FIELDS.forEach(([k]) => o[k] = r[k] == null ? '' : r[k]);
+        return o;
+      }));
+      calcAll();
+      saveNow();
+      note('已导入 ' + rows.length + ' 行（参数使用 设置 → 报价 中的全局参数）');
+    };
+    reader.readAsText(f);
+  });
+
+  /* 设置 → 报价 修改后实时重算 */
+  embed.on('settings-changed', async () => {
+    try { P = (await api.settings()).step1; calcAll(); } catch (e) {}
+  });
+
+  (async function init(){
+    embed.autoHeight();
+    try {
+      P = (await api.settings()).step1;
+      const saved = await api.get(DATA_PATH);
+      writeRows(saved && saved.rows);
+    } catch (e) {
+      writeRows(null);
+    }
+    calcAll();
+  })();
+})();
+</script>
+</body>
+</html>
