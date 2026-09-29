@@ -36,7 +36,8 @@ Columns: **图片 · 品名 · 类目 · 材质 · SKU (父ASIN sub-line) · 状
 - **材质:** (added 2026-09-29) an optional type-to-filter dropdown over `settings.materials`, `—` = none. A value
   no longer in settings still shows for the rows that use it.
 - **Type-to-filter dropdowns (`combo.bind(root, getConfig)`):** focus or click opens the list; typing filters it
-  (substring, case-insensitive); ↑ ↓ move; Enter / Tab pick the highlighted option; Esc reverts. Leaving
+  (substring, case-insensitive, or pinyin via `shared/pinyin.js`: a syllable prefix like `shi` / `shimu` / `mu`, or
+  initials like `sm`, all match 实木); ↑ ↓ move; Enter / Tab pick the highlighted option; Esc reverts. Leaving
   the box keeps an exact match or the only match, and empty text means `—`. Anything else reverts, with the
   toast `没有材质「…」，请从列表中选择…`. The table's own `change` / Enter / Esc handlers skip
   `input[data-combo]`. `comboConfig(el)` in index.html builds the options for each box.

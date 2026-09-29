@@ -32,6 +32,7 @@ app/
     embed.js           iframe ↔ parent postMessage (resize, settings-changed, events)
     datepicker.js      small popover calendar that can open on a given month
     combo.js           type-to-filter dropdown on a text input (existing values only)
+    pinyin.js          pinyin matching for combo.js (shi / shimu / sm → 实木), ~5 KB, no dictionary
 data/                  the saved data; back up this folder to back up everything
 售价计算 Price Calcs/    Step 1 outputs
 下单计划 Order Forms/    Step 2 outputs

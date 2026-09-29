@@ -7,7 +7,7 @@
      onPick(v)  called when the value changes
      onReject(text)  optional: typed text that matches nothing (the input reverts)
    }
-   Keys: typing filters · ↑ ↓ move · Enter / Tab pick the highlighted option · Esc reverts.
+   Keys: typing filters (text or pinyin, e.g. shi → 实木) · ↑ ↓ move · Enter / Tab pick the highlighted option · Esc reverts.
    Leaving the box keeps an exact (or the only) match; anything else reverts. */
 (function () {
 'use strict';
@@ -15,6 +15,8 @@
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = s => String(s == null ? '' : s).trim().toLowerCase();
 const labelOf = o => o.label != null ? o.label : o.value;
+/* the typed text is part of the label, or pinyin for it (shi / shimu / sm → 实木; shared/pinyin.js, optional) */
+const matches = (label, q) => norm(label).includes(q) || (!!window.pinyin && window.pinyin.match(label, q));
 
 let cur = null;             // {input, cfg, el, typed, hi, list}
 
@@ -54,7 +56,7 @@ function close() {
 function draw() {
   const c = cur, q = c.typed ? norm(c.input.value) : '';
   let list = c.cfg.options.slice();
-  if (q) list = list.filter(o => norm(labelOf(o)).includes(q));
+  if (q) list = list.filter(o => matches(labelOf(o), q));
   else if (c.cfg.empty != null) list.unshift({ value: '', label: c.cfg.empty, none: true });
   c.list = list;
   c.hi = Math.min(c.hi, list.length - 1);
