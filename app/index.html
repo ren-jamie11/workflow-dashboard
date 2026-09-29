@@ -350,6 +350,7 @@ const byId = id => rows.find(r => r.id === id);
 function visibleRows(){ return ROWS.filterRows(rows, ui, justAdded); }
 
 function render(){
+  if (tg) { tg.rerender = true; return; }             // never rebuild the table under a thumb drag (see reposition)
   const focus = captureFocus();
   renderChips();
   renderHead();
@@ -882,6 +883,8 @@ $('tbody').addEventListener('keydown', e => {
    zooms out until the whole image fits (white padding), so nothing is ever lost — the full image is never changed */
 const CROP_MIN = 0.1;                                   // 10× zoom
 function clampCrop(c, W, H){
+  const d = centerCrop(W, H);
+  ['x', 'y', 's'].forEach(k => { if (!Number.isFinite(c[k])) c[k] = d[k]; });   // repair a missing / broken value
   const m = Math.min(W, H);
   c.s = Math.min(Math.max(W, H) / m, Math.max(CROP_MIN, c.s));
   const side = c.s * m;
@@ -932,6 +935,7 @@ async function openFrame(r){
 function commitCrop(r, f, c){
   const rd = v => Math.round(v * 1e4) / 1e4, o = r.thumbCrop;
   const n = { x: rd(c.x), y: rd(c.y), s: rd(c.s) };
+  if (![n.x, n.y, n.s].every(Number.isFinite)) return false;
   if (o && o.x === n.x && o.y === n.y && o.s === n.s) return false;
   r.thumbCrop = n;
   r.thumb = makeThumb(f.img, n);
@@ -941,20 +945,20 @@ function commitCrop(r, f, c){
 
 /* ---- row thumb (saved rows and drafts): press + drag moves the image, Ctrl + wheel zooms;
    a click without moving opens the viewer (a draft: the file picker) ---- */
-let tg = null;              // {r, el, x0, y0, dx, dy, moved, f, c0, c}
+let tg = null;              // {r, el, size, x0, y0, dx, dy, moved, f, c0, c, rerender}
 let skipThumbClick = false;
 function thumbPan(g){
   if (!g.f) return;
-  const size = g.el.clientWidth;
-  g.c = panCrop(Object.assign({}, g.c0), g.f.W, g.f.H, g.dx / size, g.dy / size);
-  layoutFrame(g.el.querySelector('img'), size, g.f, g.c);
+  g.c = panCrop(Object.assign({}, g.c0), g.f.W, g.f.H, g.dx / g.size, g.dy / g.size);
+  layoutFrame(g.el.querySelector('img'), g.size, g.f, g.c);
 }
 $('tbody').addEventListener('pointerdown', e => {
   const t = e.target.closest('.thumb.has');
   if (!t || e.button !== 0 || e.target.closest('.clear')) return;
   const r = byId(t.dataset.id);
   if (!r) return;
-  const g = tg = { r, el: t, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, moved: false, f: null };
+  if (wz) wheelEnd(true);                               // save a zoom still in progress so the drag starts from it
+  const g = tg = { r, el: t, size: t.clientWidth || 96, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, moved: false, f: null };
   t.setPointerCapture(e.pointerId);
   openFrame(r).then(f => {
     if (tg !== g || !f) return;
@@ -975,7 +979,10 @@ $('tbody').addEventListener('pointermove', e => {
   const g = tg;
   if (!g) return;
   tg = null;
-  if (!g.moved) return;                                 // a plain click: the click handler takes it
+  if (!g.moved) {                                       // a plain click: the click handler takes it
+    if (g.rerender) setTimeout(render, 0);              // after the click, so its target still exists
+    return;
+  }
   skipThumbClick = true;
   setTimeout(() => { skipThumbClick = false; }, 0);
   if (g.c) commitCrop(g.r, g.f, g.c);
@@ -989,6 +996,7 @@ $('tbody').addEventListener('wheel', e => {
   const r = t && byId(t.dataset.id);
   if (!r) return;
   e.preventDefault();                                   // no browser zoom
+  if (tg) return;                                       // no zooming in the middle of a drag
   if (wz && wz.r !== r) wheelEnd();
   if (!wz) {
     const z = wz = { r, f: null, c: null, q: [] };
@@ -999,7 +1007,7 @@ $('tbody').addEventListener('wheel', e => {
       wheelFlush();
     }).catch(() => { if (wz === z) wz = null; });
   }
-  const b = t.getBoundingClientRect(), size = t.clientWidth;
+  const b = t.getBoundingClientRect(), size = t.clientWidth || 96;
   wz.q.push([wheelFactor(e), (e.clientX - b.left - t.clientLeft) / size, (e.clientY - b.top - t.clientTop) / size]);
   wheelFlush();
   clearTimeout(wz.timer);
@@ -1012,13 +1020,13 @@ function wheelFlush(){
   const t = $('tbody').querySelector('.thumb[data-id="' + wz.r.id + '"]');
   if (t) layoutFrame(t.querySelector('img'), t.clientWidth, f, wz.c);
 }
-function wheelEnd(){
+function wheelEnd(noRender){
   const z = wz;
   wz = null;
   if (!z) return;
   clearTimeout(z.timer);
   if (z.f && z.c) commitCrop(z.r, z.f, z.c);
-  render();
+  if (!noRender) render();
 }
 
 /* ============ image viewer ============ */
@@ -1391,6 +1399,15 @@ $('liveOffset').addEventListener('change', e => {
     return;
   }
   render();
+  /* positions broken by an earlier bug (a value saved as null): keep the valid parts, re-centre the rest */
+  rows.filter(r => r.thumbCrop && !['x', 'y', 's'].every(k => Number.isFinite(r.thumbCrop[k]))).forEach(r =>
+    openFrame(r).then(f => {
+      if (!f) return;
+      const c = cropFor(r, f.W, f.H);
+      r.thumbCrop = null;
+      commitCrop(r, f, c);
+      render();
+    }).catch(() => {}));
   /* ?expand=<id> (from the workspace's 报价 step): open that row's 报价 panel */
   const want = new URLSearchParams(location.search).get('expand');
   const r = want && byId(want);

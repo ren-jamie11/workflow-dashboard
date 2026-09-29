@@ -88,7 +88,10 @@ again reverses the order.
   `setRowImage` replaces the main image, `deleteMainImage` promotes the next one, `loadRowImages` returns
   `[main, ...extras]` and is cached per session (`imgCache`). Section `reposition`: `clampCrop`,
   `panCrop`, `zoomCrop`, `layoutFrame` (full image inside a square frame), `openFrame` (decoded main
-  image, preloaded on thumb hover), `commitCrop` (rebuilds the thumb). Drafts live in the `drafts` Set;
+  image, preloaded on thumb hover), `commitCrop` (rebuilds the thumb). `render()` is deferred while a
+  row-thumb drag is in progress (rebuilding the table would detach the dragged element), and a pending
+  Ctrl+wheel zoom is saved when a drag starts. `clampCrop` replaces non-finite values; on load, rows
+  with a broken `thumbCrop` are repaired. Drafts live in the `drafts` Set;
   `saveRow()` on a draft calls `commitDraft()` instead of writing, and the draft's full image waits in
   `draftImg` until then.
 - **For Stage 3:** the sidebar should reuse `meta.thumb`. When Step 2 posts `image-changed`, the parent
