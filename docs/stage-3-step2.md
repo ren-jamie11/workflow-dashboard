@@ -35,6 +35,20 @@ journey bar) was dropped in scoping on 2026-09-29.
 | D3 | After 生成 the pop-up stays open with the `已保存：…` toast |
 | D4 | 导入已有 Excel: the file's first image becomes the main image (centred); without one, the current image stays |
 
+## 下单计划 simplification (scoping 2026-09-29)
+Shared values are entered once in 订单信息; the rows keep only what differs per SKU. The Excel layout is unchanged.
+| # | Decision |
+|---|---|
+| S1 | 订单信息 shows **品名** and **产品材质** = the hub row's `meta.name` / `meta.material`, editable in either place and synced (not stored in `step2.json`). An emptied 品名 reverts with `品名不能为空` |
+| S2 | 订单名称 removed; file name = `日期_运营_品名_下单计划.xlsx` |
+| S3 | The order-level 下单数量 default is removed; a new row starts with the row above's 下单数量 |
+| S4 | 订单信息 order: 工厂 · 品名 · 产品材质 · 是否含真植物 · 交货日期 · SKU 前缀 · 税率 · 运费. 交货日期 / SKU / 是否含真植物 apply to every row |
+| S5 | 货号 card: header = grip · 产品货号 input · `N 个颜色 / 尺寸` · 复制整个货号 · ×; body = image left, table right |
+| S6 | Row columns: 产品色号 · 产品尺寸 · 套数 · 单价 · 预估内盒尺寸 · 下单数量. 产品描述 is hidden and always automatic (`工厂 + 色号尺寸 + 品名`); hand edits are gone |
+| S7 | Older drafts: `order.date` / `order.sku` kept when set, else the latest row date / first row SKU; `order.plant` ← 货号 #1's `plant`; per-货号 品名 / 材质 and locked descriptions are ignored |
+| S8 | 导入已有 Excel: 交货日期 / SKU / 是否含真植物 = the first data row's; 品名 / 材质 stay the hub's; the file's 产品描述 is rebuilt |
+| S9 | 报价 → 下单: a fresh form fills 货号 #1 from 报价 when it opens (no banner). **从报价更新** re-syncs; nothing flows back to 报价 |
+
 ## Hub: the pop-up (`index.html`, section `下单 pop-up`)
 - `#s2Back` (the `.iv-back` backdrop) > `.s2`: the header, then `<iframe id="s2Frame">` filling the rest.
 - **One tool page, loaded once.** ExcelJS makes Step 2 about 1 MB, so the iframe loads `tools/step2.html` on the
@@ -49,8 +63,9 @@ journey bar) was dropped in scoping on 2026-09-29.
   | Message | Hub action |
   |---|---|
   | `main-changed {image?:{url,w,h}, crop}` | 货号 #1's image or position changed: `thumbCrop = crop`, rebuild `thumb` (`CROP.renderSquare`), update `imgCache[0]` when the image changed, `saveRow` |
-  | `delivery-changed {deliveryDate}` | the latest variant 交货日期 → `meta.deliveryDate` (the 上架时间 picker opens on it + `liveOffsetDays`) |
+  | `delivery-changed {deliveryDate}` | 订单信息 交货日期 → `meta.deliveryDate` (the 上架时间 picker opens on it + `liveOffsetDays`) |
   | `step2-generated {deliveryDate}` | status → at least 已下单, `meta.deliveryDate` |
+  | `meta-changed {name, material}` | 品名 / 产品材质 edited in 订单信息 → `meta.name` (if not empty) / `meta.material` (if empty or in `settings.materials`), `saveRow`, re-render the table and header |
   | `key`, `ready`, `loaded` | close / switch; send the pending `load-row`; focus the tool |
 - **Settings → 下单:** `settings.step2.operator/store`; an empty field goes back to the default. Saved, then
   `broadcast('settings-changed')` (after the PUT, so the tool reads the new file).
@@ -69,15 +84,21 @@ journey bar) was dropped in scoping on 2026-09-29.
 - **Row switching:** `loadRow(id)` saves the previous row's pending edits, dims the page (`body.loading`), reads
   settings, `meta.json`, `step2.json` and `step1.json`, rebuilds `S`, resets the selection / clipboard / drag state,
   then renders. `loadSeq` drops a load that a newer one overtook. `embed.row` is reassigned.
-- **Defaults (`applyDefaults`)**: a fresh draft (no `order` saved yet) gets 订单名称 and 货号 #1 产品名称 = 品名.
-  Always: an empty order SKU = `<category>_`, an empty order date = today + 2 months, an empty 货号 材质 = the row's
-  材质 (M4), and every 货号 has at least one variant.
+- **Order fields (S1–S4):** `S.order = {factory, date, sku, plant, taxRate, freight}`. 品名 / 材质 are read from `META`
+  and posted with `meta-changed`; `autoDesc`, the file name and the Excel 产品材质 column use them. `buildRows()` writes
+  T/U/W from `S.order` and Y from `META.material` on every row; `latestDate()` = `S.order.date`.
+- **Defaults (`applyDefaults`)**: an empty order SKU = `<category>_`, an empty order date = today + 2 months,
+  `plant` = 不含, and every 货号 has at least one variant. `foldOldDraft()` applies S7 before that.
 - **Settings:** `S.settings.operator/store` from `settings.step2`; `skuPrefixes = categories.map(c => c+'_')`. An
   imported SKU prefix that isn't a category only shows in that form's dropdowns; import never changes the global
   运营 / 店铺.
-- **Prefill banner:** shown while `!S.hub.prefillDone`, no variant is filled in, and `step1.json` has lines:
-  `从报价表导入 N 个尺寸？ [导入] [忽略]`. Import fills 货号 #1's variants one per line (`size ← sku`,
-  `price ← price`, `boxSize ← l x w x h cm` when all three are set), empty fields only. Both buttons set `prefillDone`.
+- **报价 auto-fill (S9, replaces the prefill banner):** `autoFillFromStep1()` runs on load while `!S.hub.prefillDone`, no
+  variant is filled in, and `step1.json` has lines: 货号 #1's variants one per line (`size ← sku`, `price ← price`,
+  `boxSize ← l x w x h cm` when all three are set), empty fields only, in memory (written with the first edit).
+- **从报价更新** (`syncFromStep1()`, shown while 报价 has lines): a labelled line updates every row whose 尺寸 equals the
+  label (trimmed, case-insensitive), an unlabelled line 货号 #1's row at the same position; 单价 (clears `gRaw`) and
+  内盒尺寸 are overwritten when 报价 has a value; unmatched labelled lines are added to 货号 #1. Toast
+  `已从报价更新 N 行，新增 M 行` with 撤销, or `已与报价一致`.
 - **Square images:** `squareImg()` places the full image inside the square from its crop (`shared/crop.js` math).
   `pointerdown/move/up` on `.imgbox.has` pans (4px threshold; a click without movement opens the picker),
   Ctrl + wheel zooms and saves 400ms after the wheel stops. A new image gets `CROP.centerCrop`. The old `frame`
@@ -90,7 +111,7 @@ journey bar) was dropped in scoping on 2026-09-29.
 - **Excel:** `squareForExport(url, crop)` renders the 900px square (`CROP.renderSquare`) for the 图片 and 色号
   columns (`imgOverride` from an import uses the centred square; 配件 `accImg` stays a whole image). `IMG_BOX =
   266 − 2×12 = 242`, `ROW_PAD = 24`, 色号 = 140px square. 生成 → `api.output('下单计划 Order Forms', fname, blob)`
-  → `savedToast(name)` → `step2-generated {deliveryDate: latest variant date}`. The button reads `生成 Excel`.
+  → `savedToast(name)` → `step2-generated {deliveryDate: 订单信息 交货日期}`. The button reads `生成 Excel`.
 
 ## `app/shared/crop.js`
 `CROP.centerCrop, clampCrop, cropOf(c, W, H), panCrop, zoomCrop, wheelFactor, layoutFrame, renderSquare(img, c, size, quality)`,

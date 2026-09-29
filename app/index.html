@@ -983,8 +983,8 @@ async function updateStep2Image(r, full){
   if (!Array.isArray(s2.products)) s2.products = [];
   if (!s2.products.length) {
     if (!full) return;
-    s2.products.push({ id: Math.random().toString(36).slice(2, 10), code: '', productName: r.name,
-      material: '', plant: '不含', image: null, imgNat: null, frame: null, variants: [] });
+    s2.products.push({ id: Math.random().toString(36).slice(2, 10), code: '',   // 品名 / 材质 are read from meta
+      image: null, imgNat: null, frame: null, variants: [] });
   }
   const p = s2.products[0];
   p.image = full ? full.url : null;
@@ -1601,6 +1601,15 @@ hubEmbed.listen((m, frame) => {
     case 'main-changed':
       orderMainChanged(r, d);
       break;
+    case 'meta-changed': {                              // 品名 / 材质 edited in 订单信息 (the same values as the table's)
+      if (!r) break;
+      const name = String(d.name || '').trim(), mat = String(d.material || '');
+      let ch = false;
+      if (name && name !== r.name) { r.name = name; ch = true; }
+      if (mat !== (r.material || '') && (!mat || settings.materials.includes(mat))) { r.material = mat; ch = true; }
+      if (ch) { saveRow(r); render(); renderOrderHead(); }
+      break;
+    }
     case 'delivery-changed':                            // the 上架时间 picker opens on 交货日期 + N days
       if (r && (d.deliveryDate || '') !== (r.deliveryDate || '')) { r.deliveryDate = d.deliveryDate || ''; saveRow(r); }
       break;

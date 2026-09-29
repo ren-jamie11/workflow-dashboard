@@ -58,6 +58,12 @@ textarea.form-control{resize:vertical;min-height:64px;line-height:1.5}
 .prod-title .sub{font-weight:400;color:var(--muted);font-size:.85rem;margin-left:.5rem}
 .prod-body{padding:1.15rem 1rem 1.25rem}
 .prod-grid{display:grid;grid-template-columns:210px repeat(auto-fit,minmax(150px,1fr));gap:1rem;align-items:start}
+/* HUB: 货号 in the card header; the image on the left, the colour / size table beside it */
+.prod-head .code-input{flex:1;max-width:320px;padding:.4rem .65rem;font-weight:600;font-size:.92rem}
+.prod-head .sub{font-weight:400;color:var(--muted);font-size:.85rem;flex:1}
+.prod-row{display:flex;gap:1.25rem;align-items:flex-start}
+.prod-rows{flex:1;min-width:0}
+.prod-rows .vwrap{margin-top:0;border-top:none;padding:0 0 .25rem}
 
 /* ---------- image drop ---------- */
 .imgbox{
@@ -92,7 +98,7 @@ textarea.form-control{resize:vertical;min-height:64px;line-height:1.5}
 body.marquee-on{user-select:none}
 td.gutter,th.gutter{cursor:pointer;user-select:none}
 td.gutter:hover{background:#eef2ff;color:var(--primary)}
-table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:1120px}
+table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:720px}/* HUB: was 1120px (交货日期 / SKU / 产品描述 columns removed) */
 thead th{
   background:#f8fafc;color:var(--muted);font-weight:600;font-size:.78rem;
   text-align:left;padding:.55rem .5rem;border-bottom:2px solid var(--line);white-space:nowrap;
@@ -107,10 +113,7 @@ tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--primary)}
 .cell-input.missing{border-color:var(--warn-line);background:var(--warn-bg)}
 .cell-input.locked{background:#f8fafc;color:var(--muted)}
 .colorcell{display:flex;align-items:center;gap:.35rem}
-.desc-cell{display:flex;align-items:center;gap:.25rem}
-.reset-btn{background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:.95rem;line-height:1;padding:.2rem .3rem;border-radius:5px;flex:none}
-.reset-btn.on{color:var(--warn-line)}
-.reset-btn:hover{color:var(--primary);background:#eef2ff}
+/* HUB: 产品描述 column removed (written automatically at 生成) */
 .del-btn{background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:1.15rem;line-height:1;padding:.25rem .45rem;border-radius:6px}
 .del-btn:hover{color:#ef4444;background:#fef2f2}
 
@@ -159,9 +162,6 @@ table.prev img{width:34px;height:34px;object-fit:cover;border-radius:4px;display
 /* HUB: embedded in the hub's 下单 pop-up */
 .container{max-width:none;padding:1.25rem 1.5rem 2rem}
 body.loading .container{opacity:.45;pointer-events:none;transition:opacity .1s .15s}
-.prefill{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;background:#eef2ff;border:1px solid #c7d2fe;
-  color:var(--primary-dark);border-radius:10px;padding:.7rem 1rem;margin-bottom:1.25rem;font-size:.9rem}
-.prefill span{flex:1;min-width:12rem}
 </style>
 </head>
 <body>
@@ -175,6 +175,7 @@ body.loading .container{opacity:.45;pointer-events:none;transition:opacity .1s .
       <h2>订单信息</h2><!-- HUB: the pop-up header shows the product -->
       <div style="display:flex;align-items:center;gap:.8rem">
         <span class="saved" id="savedAt"></span>
+        <button type="button" class="btn btn-ghost sm" id="syncBtn" style="display:none" title="把报价表的单价、内盒尺寸更新到尺寸相同的行，并添加新的尺寸">从报价更新</button><!-- HUB -->
         <button type="button" class="btn btn-ghost sm" id="importBtn">导入已有 Excel</button>
         <input type="file" id="importFile" accept=".xlsx" style="display:none">
       </div>
@@ -185,17 +186,22 @@ body.loading .container{opacity:.45;pointer-events:none;transition:opacity .1s .
         <input type="text" id="ofFactory" class="form-control" list="dlFactory" placeholder="例 Huazhi">
         <datalist id="dlFactory"></datalist>
       </div>
+      <!-- HUB: 品名 / 材质 = the hub row's (synced both ways); 是否含真植物 is order-wide; 订单名称 / 下单数量 removed -->
       <div>
-        <label class="form-label">订单名称（用于文件名）</label>
-        <input type="text" id="ofName" class="form-control" placeholder="例 HUAZHI_MUGS">
+        <label class="form-label">品名<span class="req">*</span></label>
+        <input type="text" id="ofPname" class="form-control" placeholder="例 狗狗金属相框">
+      </div>
+      <div>
+        <label class="form-label">产品材质</label>
+        <select id="ofMat" class="form-control"></select>
+      </div>
+      <div>
+        <label class="form-label">是否含真植物</label>
+        <select id="ofPlant" class="form-control"><option value="不含">不含</option><option value="含">含</option></select>
       </div>
       <div>
         <label class="form-label">交货日期<span class="req">*</span></label>
         <input type="date" id="ofDate" class="form-control">
-      </div>
-      <div>
-        <label class="form-label">下单数量<span class="req">*</span></label>
-        <input type="number" id="ofQty" class="form-control" placeholder="例 200">
       </div>
       <div>
         <label class="form-label">SKU 前缀<span class="req">*</span></label>
@@ -212,11 +218,8 @@ body.loading .container{opacity:.45;pointer-events:none;transition:opacity .1s .
         <datalist id="dlFreight"><option value="含运费"><option value="不含"></datalist>
       </div>
     </div>
-    <div class="hint">以上 交货日期 / 下单数量 / SKU 会自动带入每个新增货号，之后仍可单独修改。</div>
   </div>
-
-  <!-- HUB: 从报价表导入 banner -->
-  <div id="prefillBox"></div>
+  <!-- HUB: 从报价表导入 banner removed — a new form fills itself from 报价; 从报价更新 re-syncs -->
 
   <!-- 货号列表 -->
   <div id="prodList"></div>
@@ -349,8 +352,10 @@ const COL_H_PX = Math.round(COL_W[8]*7)+5;  // 配件列 H
 
 /* ============ state ============ */
 const DEFAULTS = {
-  settings:{operator:'Jamie', store:'Arborus-US（店铺+国家）', skuPrefixes:['MUG_','XK_']},
-  order:{factory:'',orderName:'',date:'',qty:'',sku:'',taxRate:'专票1%',freight:'含运费'},
+  settings:{operator:'Jamie', store:'Arborus-US（店铺+国家）', skuPrefixes:['MUG_','XK_'], materials:[]},
+  /* HUB: 交货日期 / SKU / 是否含真植物 are order-wide (every row); 订单名称 and the 下单数量 default are gone;
+     品名 / 材质 are the hub row's (META.name / META.material), never stored here */
+  order:{factory:'',date:'',sku:'',plant:'不含',taxRate:'专票1%',freight:'含运费'},
   products:[],
   memory:{factories:[],materials:[],productNames:[],colorNames:[]},
   hub:{}                                    /* HUB: {prefillDone} */
@@ -392,11 +397,7 @@ api.onError = err => toast(err.offline ? err.message : '保存失败：'+err.mes
 /* 货号 #1 = the hub row's main image; its square position = meta.thumbCrop. Tell the hub when either changes,
    and when the latest 交货日期 changes (the hub's 上架时间 estimate follows it) */
 function mainCrop(p){ return p.crop || (p.imgNat ? CROP.centerCrop(p.imgNat.w, p.imgNat.h) : null); }
-function latestDate(){
-  let d = '';
-  S.products.forEach(p=>p.variants.forEach(v=>{ if((v.date||'') > d) d = v.date; }));
-  return d;
-}
+function latestDate(){ return S.order.date || ''; }   /* HUB: one 交货日期 for the whole order */
 function mainKey(){
   const p = S.products[0];
   return p && p.image && p.imgNat ? p.image.length+':'+p.image.slice(-64)+'|'+JSON.stringify(mainCrop(p)) : '';
@@ -437,10 +438,15 @@ function todayParts(){ const d=new Date(); return d.getFullYear()+'_'+(d.getMont
 
 /* 产品描述： 工厂 + 色号 + 尺寸 + 品名 */
 function autoDesc(p,v){
-  const parts = [S.order.factory, (v.colorCode||'')+(v.size||''), p.productName];
+  const parts = [S.order.factory, (v.colorCode||'')+(v.size||''), META.name];   /* HUB: 品名 = the hub row's */
   return parts.map(x=>(x||'').trim()).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
 }
-function descOf(p,v){ return v.descLocked ? (v.desc||'') : autoDesc(p,v); }
+function descOf(p,v){ return autoDesc(p,v); }   /* HUB: always automatic (the column is hidden, no hand edits) */
+/* HUB: Excel file name = 日期_运营_品名_下单计划.xlsx */
+function fileName(){
+  const nm = (META.name||S.order.factory||'订单').trim().replace(/[\\/:*?"<>|]/g,'_');
+  return todayParts()+'_'+(S.settings.operator||'Jamie')+'_'+nm+'_下单计划.xlsx';
+}
 
 /* 图片：完整保留画面，只在超大时等比缩小 → {url,w,h} */
 function loadImageData(url, cb){
@@ -503,6 +509,9 @@ function ensureNat(){
 function validate(){
   const miss = [];
   if(!S.order.factory.trim()) miss.push('工厂');
+  if(!(META.name||'').trim()) miss.push('品名');           /* HUB: order-wide fields, checked once */
+  if(!(S.order.date||'').trim()) miss.push('交货日期');
+  if(!(S.order.sku||'').trim()) miss.push('SKU 前缀');
   if(!S.products.length) miss.push('至少一个产品货号');
   S.products.forEach((p,pi)=>{
     const tag = '货号 '+(p.code.trim()||('#'+(pi+1)));
@@ -513,10 +522,7 @@ function validate(){
       const vt = tag+' 第'+(vi+1)+'行';
       if(!String(v.price).trim()) miss.push(vt+'：产品单价');
       if(!(v.boxSize||'').trim()) miss.push(vt+'：预估内盒尺寸');
-      if(!String(v.qty).trim()) miss.push(vt+'：下单数量');
-      if(!(v.date||'').trim()) miss.push(vt+'：交货日期');
-      if(!(v.sku||'').trim()) miss.push(vt+'：SKU');
-      if(!descOf(p,v).trim()) miss.push(vt+'：产品描述');
+      if(!String(v.qty==null?'':v.qty).trim()) miss.push(vt+'：下单数量');
     });
   });
   return miss;
@@ -533,19 +539,22 @@ function renderSettings(){
 }
 function renderOrder(){
   $('ofFactory').value = S.order.factory;
-  $('ofName').value = S.order.orderName;
+  const pn = $('ofPname');                                  /* HUB: 品名 / 材质 = the hub row's */
+  if(document.activeElement !== pn) pn.value = META.name || '';
+  pn.classList.toggle('missing', !(pn.value||'').trim());
+  const mat = META.material || '', mats = (S.settings.materials||[]).slice();
+  if(mat && !mats.includes(mat)) mats.unshift(mat);
+  $('ofMat').innerHTML = '<option value="">—</option>'+mats.map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join('');
+  $('ofMat').value = mat;
+  $('ofPlant').value = S.order.plant === '含' ? '含' : '不含';
   $('ofDate').value = S.order.date;
-  $('ofQty').value = S.order.qty;
+  $('ofDate').classList.toggle('missing', !(S.order.date||'').trim());
+  $('ofSku').classList.toggle('missing', !(S.order.sku||'').trim());
   $('ofTax').value = S.order.taxRate || '';
   $('ofFreight').value = S.order.freight || '';
   $('dlFactory').innerHTML = S.memory.factories.map(f=>'<option value="'+esc(f)+'">').join('');
-  const nm = (S.order.orderName||S.order.factory||'订单').trim().replace(/[\\/:*?"<>|]/g,'_');
-  $('fnHint').textContent = '文件名：'+todayParts()+'_'+(S.settings.operator||'Jamie')+'_'+nm+'_下单计划.xlsx';
-}
-function skuOptions(val){
-  const list = S.settings.skuPrefixes.slice();
-  if(val && !list.includes(val)) list.unshift(val);
-  return '<option value="">—</option>'+list.map(s=>'<option value="'+esc(s)+'"'+(s===val?' selected':'')+'>'+esc(s)+'</option>').join('');
+  $('fnHint').textContent = '文件名：'+fileName();
+  $('syncBtn').style.display = step1Rows.length ? '' : 'none';
 }
 function renderProducts(){
   const wrap = $('prodList');
@@ -555,7 +564,6 @@ function renderProducts(){
   }
   wrap.innerHTML = S.products.map((p,pi)=>{
     const rows = p.variants.map((v,vi)=>{
-      const d = descOf(p,v);
       return '<tr data-vid="'+v.id+'">'+
         '<td class="gutter" style="width:40px;text-align:center;color:#cbd5e1;font-size:.8rem">'+(vi+1)+'</td>'+
         '<td style="min-width:190px"><div class="colorcell">'+
@@ -569,12 +577,8 @@ function renderProducts(){
         '<td style="width:86px"><input class="cell-input num" data-f="setQty" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.setQty)+'" placeholder="4"></td>'+
         '<td style="width:92px"><input class="cell-input num'+(String(v.price).trim()?'':' missing')+'" data-f="price" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.price)+'" placeholder="28"></td>'+
         '<td style="width:160px"><input class="cell-input'+((v.boxSize||'').trim()?'':' missing')+'" data-f="boxSize" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.boxSize)+'" placeholder="25.5x25.5x12cm"></td>'+
-        '<td style="width:92px"><input class="cell-input num'+(String(v.qty).trim()?'':' missing')+'" data-f="qty" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.qty)+'" placeholder="200"></td>'+
-        '<td style="width:140px"><input type="date" class="cell-input'+((v.date||'').trim()?'':' missing')+'" data-f="date" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.date)+'"></td>'+
-        '<td style="width:110px"><select class="cell-input'+((v.sku||'').trim()?'':' missing')+'" data-f="sku" data-pi="'+pi+'" data-vi="'+vi+'">'+skuOptions(v.sku)+'</select></td>'+
-        '<td class="out" style="min-width:230px"><div class="desc-cell">'+
-          '<input class="cell-input'+(v.descLocked?'':' locked')+(d.trim()?'':' missing')+'" data-f="desc" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(d)+'" placeholder="自动生成">'+
-          '<button class="reset-btn'+(v.descLocked?' on':'')+'" data-act="unlock" data-pi="'+pi+'" data-vi="'+vi+'" title="'+(v.descLocked?'已手动编辑，点击恢复自动生成':'自动生成中')+'">↺</button></div></td>'+
+        '<td style="width:92px"><input class="cell-input num'+(String(v.qty==null?'':v.qty).trim()?'':' missing')+'" data-f="qty" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.qty)+'" placeholder="200"></td>'+
+        /* HUB: 交货日期 / SKU are in 订单信息; 产品描述 is written automatically at 生成 */
         '<td style="width:64px;text-align:center">'+
           '<button class="del-btn" data-act="vdup" data-pi="'+pi+'" data-vi="'+vi+'" title="复制此行">⧉</button>'+
           '<button class="del-btn" data-act="vdel" data-pi="'+pi+'" data-vi="'+vi+'" title="删除此行">×</button></td>'+
@@ -584,15 +588,15 @@ function renderProducts(){
     return '<div class="prod" draggable="false" data-pi="'+pi+'">'+
       '<div class="prod-head">'+
         '<span class="grip" data-act="grip" draggable="true" data-pi="'+pi+'" title="拖动排序">⠿</span>'+
-        '<span class="prod-title">'+esc(p.code||'未命名货号')+
-          '<span class="sub">'+p.variants.length+' 个颜色 / 尺寸</span></span>'+
+        /* HUB: 产品货号 is edited in the card header; 产品名称 / 材质 / 是否含真植物 are in 订单信息 */
+        '<input class="form-control code-input'+(p.code.trim()?'':' missing')+'" data-pf="code" data-pi="'+pi+'" value="'+esc(p.code)+'" placeholder="产品货号 *  例 HZ5404">'+
+        '<span class="sub">'+p.variants.length+' 个颜色 / 尺寸</span>'+
         '<button class="btn btn-ghost sm" data-act="pdup" data-pi="'+pi+'">复制整个货号</button>'+
         '<button class="del-btn" data-act="pdel" data-pi="'+pi+'" title="删除货号">×</button>'+
       '</div>'+
       '<div class="prod-body">'+
-        '<div class="prod-grid">'+
+        '<div class="prod-row">'+
           '<div>'+
-            '<label class="form-label">图片<span class="req">*</span></label>'+
             (function(){
               if(!p.image)
                 return '<div class="imgbox empty sq missing" data-act="pimg" data-pi="'+pi+'" tabindex="0">'+
@@ -605,30 +609,19 @@ function renderProducts(){
                      '</div>';
             })()+
           '</div>'+
-          '<div><label class="form-label">产品货号<span class="req">*</span></label>'+
-            '<input class="form-control'+(p.code.trim()?'':' missing')+'" data-pf="code" data-pi="'+pi+'" value="'+esc(p.code)+'" placeholder="HZ5404"></div>'+
-          '<div><label class="form-label">产品名称（品名）</label>'+
-            '<input class="form-control" list="dlPname" data-pf="productName" data-pi="'+pi+'" value="'+esc(p.productName)+'" placeholder="咖啡杯"></div>'+
-          '<div><label class="form-label">产品材质</label>'+
-            '<input class="form-control" list="dlMaterial" data-pf="material" data-pi="'+pi+'" value="'+esc(p.material)+'" placeholder="陶瓷"></div>'+
-          '<div><label class="form-label">是否含真植物</label>'+
-            '<select class="form-control" data-pf="plant" data-pi="'+pi+'">'+
-              '<option value="不含"'+(p.plant==='不含'?' selected':'')+'>不含</option>'+
-              '<option value="含"'+(p.plant==='含'?' selected':'')+'>含</option></select></div>'+
-        '</div>'+
-        '<div class="vwrap"><table><thead><tr>'+
-          '<th class="gutter" style="width:40px"></th><th>产品色号</th><th>产品尺寸</th><th>套数</th>'+
-          '<th>单价 (￥)</th><th>预估内盒尺寸</th><th>下单数量</th><th>交货日期</th><th>SKU</th>'+
-          '<th class="out">产品描述</th><th style="width:64px"></th>'+
-        '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
-        '<div class="actions tight">'+
-          '<button class="btn btn-ghost sm" data-act="vadd" data-pi="'+pi+'">+ 添加颜色 / 尺寸</button>'+
+          '<div class="prod-rows">'+
+            '<div class="vwrap"><table><thead><tr>'+
+              '<th class="gutter" style="width:40px"></th><th>产品色号</th><th>产品尺寸</th><th>套数</th>'+
+              '<th>单价 (￥)</th><th>预估内盒尺寸</th><th>下单数量</th><th style="width:64px"></th>'+
+            '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
+            '<div class="actions tight">'+
+              '<button class="btn btn-ghost sm" data-act="vadd" data-pi="'+pi+'">+ 添加颜色 / 尺寸</button>'+
+            '</div>'+
+          '</div>'+
         '</div>'+
       '</div></div>';
   }).join('') +
-  '<datalist id="dlColor">'+S.memory.colorNames.map(c=>'<option value="'+esc(c)+'">').join('')+'</datalist>'+
-  '<datalist id="dlPname">'+S.memory.productNames.map(c=>'<option value="'+esc(c)+'">').join('')+'</datalist>'+
-  '<datalist id="dlMaterial">'+S.memory.materials.map(c=>'<option value="'+esc(c)+'">').join('')+'</datalist>';
+  '<datalist id="dlColor">'+S.memory.colorNames.map(c=>'<option value="'+esc(c)+'">').join('')+'</datalist>';
 }
 
 /* 生成 Excel 行数据 */
@@ -655,9 +648,10 @@ function buildRows(){
         L: price===''?'':(isNaN(Number(price))?price:Number(price)),
         M: descOf(p,v),
         N:keep('N'), O:keep('O'), P:v.boxSize, Q:keep('Q'), R:keep('R'),
-        S: String(v.qty).trim()===''?'':(isNaN(Number(v.qty))?v.qty:Number(v.qty)),
-        T: fmtDate(v.date), U:v.sku, V:keep('V'),
-        W:p.plant||'不含', X:keep('X'), Y:p.material,
+        S: String(v.qty==null?'':v.qty).trim()===''?'':(isNaN(Number(v.qty))?v.qty:Number(v.qty)),
+        /* HUB: 交货日期 / SKU / 是否含真植物 from 订单信息, 产品材质 = the hub row's — the same on every row */
+        T: fmtDate(S.order.date), U:S.order.sku, V:keep('V'),
+        W:S.order.plant||'不含', X:keep('X'), Y:META.material||'',
         Z:keep('Z'), AA:keep('AA'), AB:keep('AB'),
         AC: ps.AC!==undefined && ps.AC!==null ? ps.AC : (S.order.taxRate||'专票1%'),
         AD: ps.AD!==undefined && ps.AD!==null ? ps.AD : (S.order.freight||'含运费')
@@ -667,29 +661,58 @@ function buildRows(){
   return out;
 }
 function renderPreview(){ /* HUB: Excel 预览 removed */ }
-/* HUB: 从报价表导入 — offered while no variant has been filled in and the row's 报价 table has lines */
+/* HUB: 报价 → 下单. A fresh form (no variant filled in yet) fills 货号 #1 from the row's 报价 lines when it opens
+   (in memory: written with the first edit). 从报价更新 re-syncs later. Nothing flows back to 报价 */
 let step1Rows = [];
 const variantFilled = v => [v.colorCode, v.size, v.price, v.boxSize, v.colorImage].some(x => String(x||'').trim());
-function renderPrefill(){
-  const show = !S.hub.prefillDone && step1Rows.length && !S.products.some(p => p.variants.some(variantFilled));
-  $('prefillBox').innerHTML = show
-    ? '<div class="prefill"><span>从报价表导入 '+step1Rows.length+' 个尺寸？（尺寸、单价、内盒尺寸填入货号 #1）</span>'+
-      '<button type="button" class="btn btn-primary sm" data-act="prefill">导入</button>'+
-      '<button type="button" class="btn btn-ghost sm" data-act="prefillno">忽略</button></div>'
-    : '';
-}
-function prefillFromStep1(){
+const s1Box = r => [r.l, r.w, r.h].every(x => String(x==null?'':x).trim()) ? r.l+'x'+r.w+'x'+r.h+'cm' : '';
+const s1Val = x => String(x==null?'':x).trim();
+function autoFillFromStep1(){
   const p = S.products[0];
-  if(!p) return;
-  const box = r => [r.l, r.w, r.h].every(x => String(x||'').trim()) ? r.l+'x'+r.w+'x'+r.h+'cm' : '';
+  if(!p || S.hub.prefillDone || !step1Rows.length || S.products.some(q => q.variants.some(variantFilled))) return;
   step1Rows.forEach((r,i)=>{
     const v = p.variants[i] || (p.variants[i] = newVariant(p));
-    const fill = (k, val) => { if(!String(v[k]||'').trim() && val) v[k] = String(val).trim(); };
-    fill('size', r.sku); fill('price', r.price); fill('boxSize', box(r));
+    const fill = (k, val) => { if(!String(v[k]||'').trim() && val) v[k] = val; };
+    fill('size', s1Val(r.sku)); fill('price', s1Val(r.price)); fill('boxSize', s1Box(r));
   });
   S.hub.prefillDone = true;
-  save(); render();
-  toast('已从报价表导入 '+step1Rows.length+' 个尺寸');
+}
+/* 从报价更新: a labelled 报价 line updates every row (any 货号) whose 尺寸 equals its label; an unlabelled line updates
+   货号 #1's row at the same position. 单价 / 内盒尺寸 are overwritten when 报价 has a value. Labelled lines that match
+   no row are added to 货号 #1. Rows that aren't in 报价 are left alone */
+function syncFromStep1(){
+  const p0 = S.products[0];
+  if(!p0 || !step1Rows.length) return;
+  const key = s => String(s==null?'':s).trim().toLowerCase();
+  const before = S.products.map(p => [p, JSON.parse(JSON.stringify(p.variants))]);
+  const touched = new Set(), adds = [];
+  const put = (v, r) => {
+    const price = s1Val(r.price), box = s1Box(r);
+    let ch = false;
+    if(price && String(v.price==null?'':v.price).trim() !== price){ v.price = price; v.gRaw = ''; ch = true; }
+    if(box && (v.boxSize||'').trim() !== box){ v.boxSize = box; ch = true; }
+    if(ch) touched.add(v.id);
+  };
+  step1Rows.forEach((r,i)=>{
+    const label = key(r.sku);
+    if(!label){ if(p0.variants[i]) put(p0.variants[i], r); return; }
+    const hits = [];
+    S.products.forEach(p => p.variants.forEach(v => { if(key(v.size) === label) hits.push(v); }));
+    if(hits.length) hits.forEach(v => put(v, r)); else adds.push(r);
+  });
+  adds.forEach(r=>{
+    const v = newVariant(p0);
+    v.size = s1Val(r.sku); v.price = s1Val(r.price); v.boxSize = s1Box(r);
+    p0.variants.push(v);
+  });
+  S.hub.prefillDone = true;
+  if(!touched.size && !adds.length) return toast('已与报价一致');
+  clearSel(); save(); render();
+  showToast('已从报价更新 '+touched.size+' 行'+(adds.length ? '，新增 '+adds.length+' 行' : ''), {label:'撤销', fn:()=>{
+    before.forEach(([p, vs]) => { p.variants = vs; });
+    clearSel(); save(); render();
+    toast('已撤销');
+  }}, 4000);
 }
 function renderAlert(){
   const miss = validate();
@@ -699,16 +722,18 @@ function renderAlert(){
       (miss.length>12?'<li>…另有 '+(miss.length-12)+' 项</li>':'')+'</ul></div>'
     : '<div class="alert alert-ok">全部必填项已完成，可以生成 Excel。</div>';
 }
-function render(){ renderSettings(); renderOrder(); renderPrefill(); renderProducts(); renderPreview(); renderAlert(); applySel(); }
+function render(){ renderSettings(); renderOrder(); renderProducts(); renderPreview(); renderAlert(); applySel(); }
 
 /* ============ 数据操作 ============ */
 function newVariant(p){
+  /* HUB: 交货日期 / SKU are order-wide; 下单数量 starts as the row above's */
+  const last = p && p.variants.length ? p.variants[p.variants.length-1] : null;
   return {id:uid(),colorCode:'',colorImage:null,size:'',setQty:'',price:'',boxSize:'',
-    qty:S.order.qty,date:S.order.date,sku:S.order.sku,desc:'',descLocked:false,
+    qty: last && last.qty != null ? last.qty : '',
     imgOverride:null, accImg:null, colorNat:null, gRaw:'', pass:{}};
 }
 function addProduct(){
-  S.products.push({id:uid(),code:'',productName:'',material:META.material||'',plant:'不含',   /* HUB: 材质 = the row's */
+  S.products.push({id:uid(),code:'',   /* HUB: 品名 / 材质 / 是否含真植物 are in 订单信息 */
     image:null, imgNat:null, crop:null, variants:[]});
   const p = S.products[S.products.length-1];
   p.variants.push(newVariant(p));
@@ -1058,8 +1083,6 @@ document.addEventListener('click', e=>{
       if(confirm('删除货号「'+(S.products[pi].code||'未命名')+'」及其全部行？')){ S.products = next; save(); render(); }
       break;
     }
-    case 'prefill': prefillFromStep1(); break;             /* HUB */
-    case 'prefillno': S.hub.prefillDone = true; save(); renderPrefill(); break;
     case 'pdup': {
       const c = JSON.parse(JSON.stringify(S.products[pi]));
       c.id = uid(); c.variants.forEach(v=>v.id=uid());
@@ -1073,10 +1096,6 @@ document.addEventListener('click', e=>{
     case 'vdel':
       if(S.products[pi].variants.length<=1) return toast('每个货号至少保留一行');
       S.products[pi].variants.splice(vi,1); save(); render(); break;
-    case 'unlock': {
-      const v = S.products[pi].variants[vi];
-      v.descLocked=false; v.desc=''; save(); render(); break;
-    }
   }
 });
 
@@ -1087,11 +1106,8 @@ document.addEventListener('input', e=>{
   }
   if(el.dataset.f!==undefined && el.dataset.vi!==undefined){
     const v = S.products[+el.dataset.pi].variants[+el.dataset.vi];
-    if(el.dataset.f==='desc'){ v.desc=el.value; v.descLocked=true; }
-    else {
-      v[el.dataset.f] = el.value;
-      if(el.dataset.f==='price' || el.dataset.f==='setQty') v.gRaw = '';
-    }
+    v[el.dataset.f] = el.value;                  /* HUB: no 产品描述 input any more */
+    if(el.dataset.f==='price' || el.dataset.f==='setQty') v.gRaw = '';
     save(); softRefresh(); return;
   }
 });
@@ -1100,30 +1116,21 @@ let refreshTimer=null;
 function softRefresh(){
   clearTimeout(refreshTimer);
   refreshTimer = setTimeout(()=>{
-    // 更新自动生成的描述框
-    S.products.forEach((p,pi)=>p.variants.forEach((v,vi)=>{
-      if(v.descLocked) return;
-      const box = document.querySelector('input[data-f="desc"][data-pi="'+pi+'"][data-vi="'+vi+'"]');
-      if(box && document.activeElement!==box){
-        const d = autoDesc(p,v);
-        box.value = d;
-        box.classList.toggle('missing', !d.trim());
-      }
-    }));
+    /* HUB: 产品描述 is hidden; only the 货号 input's missing mark and the row count need refreshing */
     document.querySelectorAll('.prod').forEach((card,pi)=>{
       const p = S.products[pi]; if(!p) return;
-      const ttl = card.querySelector('.prod-title');
-      if(ttl) ttl.innerHTML = esc(p.code||'未命名货号')+'<span class="sub">'+p.variants.length+' 个颜色 / 尺寸</span>';
+      const ci = card.querySelector('.code-input');
+      if(ci) ci.classList.toggle('missing', !p.code.trim());
+      const sub = card.querySelector('.prod-head .sub');
+      if(sub) sub.textContent = p.variants.length+' 个颜色 / 尺寸';
     });
-    renderPreview(); renderAlert(); renderOrder(); renderPrefill();   /* HUB: renderPrefill */
+    renderPreview(); renderAlert(); renderOrder();
   },260);
 }
 document.addEventListener('change', e=>{
   const el = e.target;
   if(el.dataset.pf!==undefined || el.dataset.f!==undefined){
     if(el.dataset.f==='colorCode') remember('colorNames',el.value);
-    if(el.dataset.pf==='material') remember('materials',el.value);
-    if(el.dataset.pf==='productName') remember('productNames',el.value);
     save();
   }
 });
@@ -1173,10 +1180,20 @@ function keepsMainImage(next){
 /* HUB: 运营 / 店铺 / SKU 前缀 inputs removed (hub ⚙ 设置 → 下单 and 类目) */
 $('ofFactory').addEventListener('input',e=>{ S.order.factory=e.target.value; save(); softRefresh(); });
 $('ofFactory').addEventListener('change',e=>{ remember('factories',e.target.value); save(); });
-$('ofName').addEventListener('input',e=>{ S.order.orderName=e.target.value; save(); renderOrder(); });
-$('ofDate').addEventListener('input',e=>{ S.order.date=e.target.value; save(); });
-$('ofQty').addEventListener('input',e=>{ S.order.qty=e.target.value; save(); });
-$('ofSku').addEventListener('change',e=>{ S.order.sku=e.target.value; save(); });
+/* HUB: 品名 / 材质 are the hub row's: edited here, they update the main table (meta-changed); not stored in step2.json */
+function tellMeta(){ embed.post('meta-changed', {name: META.name || '', material: META.material || ''}); }
+$('ofPname').addEventListener('input', e=>{ e.target.classList.toggle('missing', !e.target.value.trim()); });
+$('ofPname').addEventListener('change', e=>{
+  const v = e.target.value.trim();
+  if(!v){ e.target.value = META.name || ''; e.target.classList.toggle('missing', !e.target.value); return toast('品名不能为空'); }
+  if(v === (META.name||'')) return;
+  META.name = v; tellMeta(); softRefresh();
+});
+$('ofMat').addEventListener('change', e=>{ META.material = e.target.value; tellMeta(); softRefresh(); });
+$('ofPlant').addEventListener('change', e=>{ S.order.plant = e.target.value; save(); });
+$('ofDate').addEventListener('input',e=>{ S.order.date=e.target.value; save(); softRefresh(); });
+$('ofSku').addEventListener('change',e=>{ S.order.sku=e.target.value; save(); softRefresh(); });
+$('syncBtn').addEventListener('click', syncFromStep1);
 $('ofTax').addEventListener('input',e=>{ S.order.taxRate=e.target.value; save(); softRefresh(); });
 $('ofFreight').addEventListener('input',e=>{ S.order.freight=e.target.value; save(); softRefresh(); });
 $('addProd').addEventListener('click',addProduct);
@@ -1186,9 +1203,9 @@ $('clearBtn').addEventListener('click',()=>{
   S = JSON.parse(JSON.stringify(DEFAULTS));
   S.settings = keep; S.memory = mem;
   /* HUB: start again from the row's defaults, keeping the main image and its position */
-  S.products = [{id:uid(), code:'', productName:'', material:'', plant:'不含',
+  S.products = [{id:uid(), code:'',
     image: main ? main.image : null, imgNat: main ? main.imgNat : null, crop: main ? main.crop : null, variants:[]}];
-  applyDefaults(true);
+  applyDefaults(); autoFillFromStep1();   /* HUB: starts again from 报价, like a new form */
   save(); render(); toast('已清空');
 });
 
@@ -1309,12 +1326,10 @@ async function importWorkbook(file){
     const pics = byRow[r] || {};
     const prodImg = await crop(pics[2]);
     if(!cur || key !== curKey){                       // 连续同货号才合并
-      cur = {id:uid(), code:String(rawCode==null?'':rawCode), productName:'',
+      /* HUB: 品名 / 材质 stay the hub row's; 是否含真植物 is read once for the order (below) */
+      cur = {id:uid(), code:String(rawCode==null?'':rawCode),
              imgNat: prodImg ? {w:prodImg.w, h:prodImg.h} : null,
              frame:  prodImg ? {w:prodImg.w, h:prodImg.h} : null,
-             material:String(cellText(ws.getCell(r,25))||''),
-             plant: String(cellText(ws.getCell(r,23))||'不含').indexOf('含')===0 &&
-                    String(cellText(ws.getCell(r,23))||'').indexOf('不含')!==0 ? '含' : '不含',
              image: prodImg ? prodImg.url : null, variants:[]};
       products.push(cur); curKey = key;
     }
@@ -1340,29 +1355,24 @@ async function importWorkbook(file){
       setQty: g.setQty, price: g.price, gRaw: g.raw,
       boxSize: String(cellText(ws.getCell(r,16))||''),
       qty: String(cellText(ws.getCell(r,19))||''),
-      date: parseImportDate(cellText(ws.getCell(r,20))),
-      sku: String(cellText(ws.getCell(r,21))||''),
-      desc: String(cellText(ws.getCell(r,13))||''),
-      descLocked: true,                                 // 导入的描述一律锁定
+      /* HUB: 交货日期 / SKU come from the first row (order-wide); 产品描述 is rebuilt at 生成 */
       imgOverride: (prodImg && prodImg.url !== cur.image) ? prodImg.url : null,
       accImg: accImg ? accImg.url : null, pass: pass
     });
   }
 
-  /* 订单名称：从文件名里剥掉日期、运营和后缀 */
+  /* HUB: 订单名称 removed (file name = 品名); 交货日期 / SKU / 是否含真植物 = the first data row's */
   const oper = String(cellText(ws.getCell(r0,1))||'').trim();
-  let nm = file.name.replace(/\.xlsx$/i,'').replace(/_?下单计划$/,'');
-  nm = nm.replace(/^\d{4}[_-]\d{1,2}[_-]?\d{0,2}_?/,'');
-  if(oper) nm = nm.replace(new RegExp('^'+oper.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'_?'), '');
   const factory = String(cellText(ws.getCell(r0,2))||'');
+  const w0 = String(cellText(ws.getCell(r0,23))||'不含');
 
   return {
     products,
     order: {
-      factory, orderName: nm.trim() || factory,
-      date: products[0] && products[0].variants[0] ? products[0].variants[0].date : '',
-      qty:  products[0] && products[0].variants[0] ? products[0].variants[0].qty  : '',
-      sku:  products[0] && products[0].variants[0] ? products[0].variants[0].sku  : '',
+      factory,
+      date: parseImportDate(cellText(ws.getCell(r0,20))),
+      sku:  String(cellText(ws.getCell(r0,21))||''),
+      plant: w0.indexOf('含')===0 && w0.indexOf('不含')!==0 ? '含' : '不含',
       taxRate: tax0===''?'专票1%':String(tax0),
       freight: fre0===''?'含运费':String(fre0)
     },
@@ -1393,11 +1403,8 @@ $('importFile').addEventListener('change', async e => {
     S.products = res.products;
     S.order    = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.order)), res.order);
     /* HUB: 运营 / 店铺 stay the global settings; an unknown SKU 前缀 only shows in this form's dropdowns */
-    S.products.forEach(p=>{
-      remember('factories', S.order.factory);
-      remember('materials', p.material);
-      p.variants.forEach(v=>remember('colorNames', v.colorCode));
-    });
+    remember('factories', S.order.factory);
+    S.products.forEach(p=>p.variants.forEach(v=>remember('colorNames', v.colorCode)));
     /* HUB: the file's first image becomes the product's main image (centred); without one, keep the current image */
     const p0 = S.products[0];
     if(p0.image) p0.crop = CROP.centerCrop(p0.imgNat.w, p0.imgNat.h);
@@ -1607,8 +1614,7 @@ async function generate(){
   /* 下载 */
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  const nm = (S.order.orderName||S.order.factory||'订单').trim().replace(/[\\/:*?"<>|]/g,'_');
-  const fname = todayParts()+'_'+(S.settings.operator||'Jamie')+'_'+nm+'_下单计划.xlsx';
+  const fname = fileName();   /* HUB: 日期_运营_品名_下单计划.xlsx */
 
   /* HUB: straight into 下单计划 Order Forms (no dialog); the hub then sets 已下单 and the 交货日期 */
   const saved = await api.output('下单计划 Order Forms', fname, blob);
@@ -1625,26 +1631,29 @@ $('genBtn').addEventListener('click',()=>{
 let SETTINGS = null;                        // S.settings from the hub's settings.json
 function applySettings(st){
   SETTINGS = {operator: st.step2.operator || 'Jamie', store: st.step2.store || 'Arborus-US（店铺+国家）',
-              skuPrefixes: st.categories.map(c => c+'_')};
+              skuPrefixes: st.categories.map(c => c+'_'), materials: (st.materials||[]).slice()};   /* HUB: 材质 list */
   S.settings = Object.assign({}, SETTINGS, {skuPrefixes: SETTINGS.skuPrefixes.slice()});
 }
-/* the row's defaults; they are shown but not written until the first edit (fresh = no 下单计划 saved yet) */
-function applyDefaults(fresh){
-  if(!S.products.length) S.products.push({id:uid(), code:'', productName:'', material:'', plant:'不含',
-    image:null, imgNat:null, crop:null, variants:[]});
-  if(fresh){
-    if(!S.order.orderName) S.order.orderName = META.name || '';
-    if(!S.products[0].productName) S.products[0].productName = META.name || '';
-  }
+/* the row's defaults; they are shown but not written until the first edit */
+function applyDefaults(){
+  /* HUB: 品名 / 材质 are read from the hub row (META), so nothing product-level is copied in */
+  if(!S.products.length) S.products.push({id:uid(), code:'', image:null, imgNat:null, crop:null, variants:[]});
   if(!S.order.sku && META.category) S.order.sku = META.category+'_';
   if(!S.order.date){
     const d = new Date(); d.setMonth(d.getMonth()+2);
     S.order.date = d.toISOString().slice(0,10);
   }
-  S.products.forEach(p=>{
-    if(!p.material && META.material) p.material = META.material;   // M4: the row's 材质, still editable per 货号
-    if(!p.variants.length) p.variants.push(newVariant(p));
-  });
+  if(S.order.plant !== '含') S.order.plant = '不含';
+  S.products.forEach(p=>{ if(!p.variants.length) p.variants.push(newVariant(p)); });
+}
+/* HUB: drafts saved before 交货日期 / SKU / 是否含真植物 became order-wide: fold the per-row values into the order */
+function foldOldDraft(saved){
+  const o = saved.order || {}, vs = [];
+  S.products.forEach(p => p.variants.forEach(v => vs.push(v)));
+  if(!o.date){ let d = ''; vs.forEach(v => { if((v.date||'') > d) d = v.date; }); S.order.date = d; }
+  if(!o.sku){ const v = vs.find(v => (v.sku||'').trim()); S.order.sku = v ? v.sku : ''; }
+  if(!o.plant) S.order.plant = (S.products[0] && S.products[0].plant) || '不含';
+  delete S.order.orderName; delete S.order.qty;   // no longer used
 }
 let loadSeq = 0;
 async function loadRow(id){
@@ -1668,13 +1677,15 @@ async function loadRow(id){
     S.order  = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.order)),  saved.order||{});
     S.memory = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.memory)), saved.memory||{});
     S.hub    = Object.assign({}, saved.hub||{});
+    foldOldDraft(saved);                    /* HUB */
   }
   applySettings(st);
-  applyDefaults(!(saved && saved.order));
+  applyDefaults();
   const p0 = S.products[0];
   if(p0 && META.thumbCrop) p0.crop = Object.assign({}, META.thumbCrop);   // 货号 #1's position = the table thumb's
   step1Rows = (s1 && Array.isArray(s1.rows) ? s1.rows : [])
     .filter(r => ['sku','price','l','w','h'].some(k => String(r[k]==null?'':r[k]).trim()));
+  autoFillFromStep1();                      /* HUB: a fresh form fills from 报价 (in memory until the first edit) */
   sel = {pid:null, ids:new Set()}; selAnchor = null; clip = null; mq = null; mqWait = null; dragFrom = null;
   sent = {main: mainKey(), delivery: META.deliveryDate || ''};
   $('savedAt').textContent = '';
@@ -1686,7 +1697,11 @@ async function loadRow(id){
   embed.post('loaded');
 }
 embed.on('load-row', d => loadRow(d.id));
-embed.on('flush', () => { if(wz) wheelEnd(); saveNow(); });
+embed.on('flush', () => {
+  if(wz) wheelEnd();
+  if(document.activeElement === $('ofPname')) $('ofPname').blur();   /* HUB: commit a 品名 being typed (change → hub) */
+  saveNow();
+});
 embed.on('settings-changed', async () => {
   try{ applySettings(await api.settings()); }catch(e){ return; }
   if(ROW && !loading) render();

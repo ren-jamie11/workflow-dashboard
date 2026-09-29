@@ -62,6 +62,8 @@ rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
 rows/<id>/step2.json  Step 2's `S` without settings: {order, products, memory, hub:{prefillDone}} (images as data URLs);
                       products[0].image = the row's main image. Square positions: products[i].crop,
                       variants[j].colorCrop (products[0].crop always follows meta.thumbCrop); `frame` is ignored.
+                      order = {factory, date, sku, plant, taxRate, freight}: 交货日期 / SKU / 是否含真植物 are order-wide;
+                      品名 / 材质 are never stored here (read from meta.json, edited in either place)
                       Written only after the first edit in the 下单 pop-up (the hub creates the minimal file)
 rows/<id>/images.json { extra:[{url,w,h}] }  up to 5 more images, shown only in the hub image viewer
 rows/<id>/step3.json  { seasonality:[12 numbers] }
@@ -137,7 +139,7 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 | M1b | The 类目 and 材质 cells are type-to-filter dropdowns (`combo.js`). Only existing values can be chosen; other text reverts with a toast. New values are added in Settings (or, for 类目, by typing a new SKU prefix) |
 | M2 | Settings → 通用 adds and removes 材质 values; removing one that a row uses is blocked (`仍有 N 个产品使用材质「…」`) |
 | M3 | The 材质 filter is a type-to-filter dropdown (全部 + each 材质 with its count), not chips |
-| M4 | Stage 3: Step 2's per-货号 产品材质 starts with the row's 材质 when empty (still editable there) |
+| M4 | ~~Stage 3: Step 2's per-货号 产品材质 starts with the row's 材质 when empty~~ *(Changed 2026-09-29: 下单计划 订单信息 shows the row's own 品名 / 材质, synced both ways — S1 in [stage-3-step2.md](stage-3-step2.md))* |
 
 ### Row images (scoping, 2026-09-28)
 | # | Decision |
