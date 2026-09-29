@@ -391,7 +391,7 @@ function restoreFocus(f){
   if (!f) return;
   const el = $('tbody').querySelector('[data-id="' + f.id + '"][data-f="' + f.f + '"]');
   if (!el) return;
-  el.focus();
+  el.focus({ preventScroll: true });
   if (f.start != null && el.setSelectionRange) try { el.setSelectionRange(f.start, f.end); } catch (e) {}
 }
 
@@ -571,27 +571,36 @@ function stepClick(r, step){
 
 /* ============ 报价：展开行 (one at a time) ============
    One panel (one iframe) sits over a spacer row under the open row. Opening, closing and switching rows animate the
-   spacer's .xp-gap and the panel's height together (renderBody → xpSync), and pinRow keeps the clicked row still on screen. */
+   spacer's .xp-gap and the panel's height together (renderBody → xpSync), and pinRow keeps the clicked row still on screen.
+   The page never scrolls by itself: a first open waits for the tool's height so it opens in one move, and holdScroll
+   stops a collapse near the bottom of the page from pulling the page down. */
 const XP_MS = 220;                // = the CSS height transition
-const XP_EST = 360;               // first-open height guess, until the tool reports its size
+const XP_EST = 360;               // fallback height when the tool doesn't report its size in time
+const XP_WAIT = 700;              // how long a first open waits for that report
 let expandedId = null;            // the open row
 let closingId = null;             // a row whose spacer is still closing
 let panelId = null;               // the row the panel sits over: the open row, or the one closing under it
 const gapT = {};                  // row id → target spacer height (open and closing rows only)
 const xpHeights = {};             // row id → last measured panel height (this session)
 let closeTimer = null;
+let xpPending = null;             // an open row still at 0, waiting for the tool's first height
+let pendTimer = null;
 const xpPanel = $('xpPanel'), xpFrame = $('xpFrame');
 
 function toggleExpand(r){
   if (drafts.has(r.id)) return toast('请先添加图片和品名，产品才会保存', true);
   if (expandedId === r.id) return collapse();
   const top0 = rowTop(r.id);
+  clearPending();
+  let fresh = false;                                    // a newly loaded tool: its height report opens the panel
   if (closingId === r.id && panelId === r.id) {         // re-opened while closing: the tool is still loaded
     clearTimeout(closeTimer);
     closingId = null;
   } else {
+    fresh = true;
     endClosing();
     if (expandedId) {                                   // switching rows: the old spacer closes on its own
+      holdScroll();
       closingId = expandedId;
       gapT[closingId] = 0;
       closeTimer = setTimeout(endClosing, XP_MS + 60);
@@ -602,19 +611,39 @@ function toggleExpand(r){
     xpFrame.src = 'tools/step1.html?row=' + encodeURIComponent(r.id);
   }
   expandedId = r.id;
-  gapT[r.id] = xpHeights[r.id] || XP_EST;
+  if (xpHeights[r.id] || !fresh) gapT[r.id] = xpHeights[r.id] || XP_EST;
+  else {                                                // first open: stay at 0 until the real height is known
+    gapT[r.id] = 0;
+    xpPending = r.id;
+    pendTimer = setTimeout(() => openPending(XP_EST), XP_WAIT);
+  }
   render();
   pinRow(r.id, top0);
+}
+/* the pending open row gets its height: grow 0 → h in one move */
+function openPending(h){
+  const id = xpPending;
+  clearPending();
+  if (!id || id !== expandedId) return;
+  gapT[id] = h;
+  xpSync(false);
+  pinRow(id, rowTop(id));
+}
+function clearPending(){
+  clearTimeout(pendTimer);
+  xpPending = null;
 }
 /* instant: no animation (the row is being deleted) */
 function collapse(instant){
   if (!expandedId) return;
   const id = expandedId, top0 = instant ? null : rowTop(id);
+  clearPending();
   endClosing();
   expandedId = null;
   closingId = id;
   gapT[id] = 0;
   if (instant) { endClosing(); return render(); }
+  holdScroll();
   closeTimer = setTimeout(endClosing, XP_MS + 60);
   render();
   pinRow(id, top0);
@@ -663,17 +692,31 @@ function placePanel(){
 }
 window.addEventListener('resize', placePanel);
 
-/* the row's top on screen, first scrolling it fully into view if it is cut off (or under the sticky header) */
+/* the row's top on screen (never scrolls, even when the row is cut off) */
 function rowTop(id){
   const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
-  if (!tr) return null;
-  const b = tr.getBoundingClientRect();
-  if (b.top < $('thead').getBoundingClientRect().bottom || b.bottom > window.innerHeight) {
-    tr.scrollIntoView({ block: 'nearest' });
-    return tr.getBoundingClientRect().top;
-  }
-  return b.top;
+  return tr ? tr.getBoundingClientRect().top : null;
 }
+/* a closing spacer shortens the page; near the bottom the browser would clamp the scroll and the page would slide down.
+   Keep the page at least down to the current viewport bottom; the spare room shrinks as the user scrolls back up */
+let scrollHold = 0;
+function holdScroll(){
+  scrollHold = Math.ceil(window.scrollY + window.innerHeight);
+  document.body.style.minHeight = scrollHold + 'px';
+}
+function releaseHold(){
+  scrollHold = 0;
+  document.body.style.minHeight = '';
+}
+window.addEventListener('scroll', () => {
+  if (!scrollHold) return;
+  const need = Math.ceil(window.scrollY + window.innerHeight);
+  if (need >= scrollHold) return;
+  if (document.querySelector('.container').offsetHeight >= need) return releaseHold();   // the content fills it again
+  scrollHold = need;
+  document.body.style.minHeight = need + 'px';
+}, { passive: true });
+window.addEventListener('resize', releaseHold);
 /* while the spacers animate, keep the row at top0 on screen (rows above it may be closing) and the panel on its spacer */
 let pinRaf = 0;
 function pinRow(id, top0){
@@ -696,7 +739,11 @@ hubEmbed.listen((m, frame) => {
     xpFrame.style.height = Math.max(120, m.data.h) + 'px';
     xpFrame.classList.add('ready');
     const h = $('xpInner').offsetHeight;                 // 0 while the panel is hidden by a filter
-    if (h) { gapT[expandedId] = xpHeights[expandedId] = h; xpSync(false); }
+    if (h) {
+      xpHeights[expandedId] = h;
+      if (xpPending === expandedId) openPending(h);
+      else { gapT[expandedId] = h; xpSync(false); }
+    }
   } else if (m.type === 'step1-saved') {                 // 保存 in 报价 completes the step
     const r = byId(m.row);
     if (r && !r.step1Confirmed) {
@@ -714,6 +761,17 @@ $('tbody').addEventListener('click', e => {
   const tr = e.target.closest('tr.row');
   const r = tr && byId(tr.dataset.row);
   if (r) toggleExpand(r);
+});
+/* clicking the grey page margins (outside the cards) collapses the open panel. Both press and release must be
+   on a margin (a text selection dragged out doesn't count), and a click that only closes a popup doesn't count */
+const isMargin = t => t === document.documentElement || t === document.body || !!(t.classList && t.classList.contains('container'));
+let downOnMargin = false;
+document.addEventListener('pointerdown', e => {
+  downOnMargin = isMargin(e.target) && !isDatePickerOpen() && !combo.isOpen();
+}, true);
+document.addEventListener('click', e => {
+  if (expandedId && downOnMargin && isMargin(e.target)) collapse();
+  downOnMargin = false;
 });
 
 function openDate(r, btn){

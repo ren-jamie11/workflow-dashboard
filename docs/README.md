@@ -120,6 +120,7 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 | G2 | Hub UI in Chinese |
 | G3 | One workspace page: sidebar + journey bar + tool |
 | G4 | Journey column 报价 — 下单 — 上架 in every row |
+| G5 | 报价 panel expand / collapse keeps the page still: it never auto-scrolls, and the clicked row doesn't move. Clicking the grey page margins collapses it. *(2026-09-29)* |
 
 ### 材质 (2026-09-29)
 | # | Decision |

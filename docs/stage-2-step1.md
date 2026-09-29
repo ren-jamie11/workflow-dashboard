@@ -75,11 +75,22 @@ Check `event.origin === location.origin` on every message.
   closes. `renderBody()` redraws each gap at its current animated height and `xpSync()` then sends it on
   to its target, so a redraw mid-animation doesn't jump. `panelId` is the row the panel sits over, which
   can be the closing row during a plain collapse. Opening uses `xpHeights[id]` (the last measured height)
-  or 360px until the tool's first `height` message. The iframe fades in on that message. `pinRow()` runs a
+  when known. Otherwise the row opens in **one move**: the spacer stays at 0 (`xpPending`) until the
+  tool's first `height` message, then `openPending(h)` grows it 0 → h, or to 360px if no message arrives
+  within 700ms. The iframe fades in on that message. `pinRow()` runs a
   rAF loop during the animation that scrolls the page to keep the clicked row still (for example while a
   row above it closes) and keeps the panel on its spacer. `.table-card` has `overflow-anchor:none` so the
-  browser's scroll anchoring doesn't interfere. The page scrolls only when the clicked row is cut off, or
-  for `?expand=`.
+  browser's scroll anchoring doesn't interfere.
+- **The page never scrolls by itself (2026-09-29),** not even when the clicked row is cut off. The only
+  exception is `?expand=`. A closing spacer would shorten the page and, near the bottom, make the browser clamp
+  the scroll. `holdScroll()` prevents this by setting `body.style.minHeight` to the current viewport bottom
+  on collapse and on a row switch. A `scroll` listener lowers that value as the user scrolls up and clears
+  it once the content fills the page again; `resize` clears it too. Known limit: switching to a row below
+  while the open row sits near the very top of the page can't scroll above 0, so the new row may move up.
+- **Click the grey margins to collapse (2026-09-29).** A click whose press and release both land on
+  `html`, `body` or `.container` (the grey space outside the cards) collapses the open panel. A click
+  doesn't count if it only closes an open date picker or 材质/类目 dropdown. Clicks on cards, rows, chips,
+  modals and inside the iframe never collapse it.
 - `embed.js` messages carry `{src:'workflow-hub', dir:'up'|'down', type, row, data}`. The height is
   measured from `body.getBoundingClientRect()`, not `scrollHeight`, so the panel can shrink as well
   as grow.
