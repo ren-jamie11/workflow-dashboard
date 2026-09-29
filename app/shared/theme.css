@@ -7,7 +7,7 @@
   --radius:12px;
   --shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
 
-  /* status: 未下单 / 已下单 / 生产中 / 已上架 */
+  /* status: 未下单 = s0 / 已下单 = s1 / 已上架 = s3 (s2 was 生产中, removed) */
   --s0-bg:#f1f5f9; --s0-tx:#64748b;
   --s1-bg:#eef2ff; --s1-tx:#4338ca;
   --s2-bg:#fffbeb; --s2-tx:#92400e;

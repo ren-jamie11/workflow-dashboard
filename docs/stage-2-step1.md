@@ -24,10 +24,13 @@ Settings → **报价** tab, and journey step 报价.
 - **Buttons in `.actions`:** 计算售价 · + 添加行 · 清空 · **导入** (loads a `售价…json`: accept
   `{rows:[…]}`, or the old export shape `{name:{rows}}` using its first table) · **保存**.
   保存 → `api.output('售价计算 Price Calcs', '<品名>_<SKU>_售价.json', {name, sku, savedAt, params, rows})`,
-  then the toast `已保存：<file>`.
+  then the button reads **✓** (the file name is in its tooltip) and the tool posts `step1-saved`.
+  The `黄色行 = …` legend under the table is removed; the `⚠ 未覆盖` badge's tooltip explains yellow rows.
 - **Page chrome:** hide the `h1` card header (the hub row already shows the product). Set the body
   background to `transparent` and the `.container` padding to a small value.
-- On load and on every resize (ResizeObserver on `body`), post the height through `embed.js`.
+- Once the rows are loaded, and on every resize after that (ResizeObserver on `body`), post the height
+  through `embed.js`. `autoHeight()` starts only after `writeRows()` + `calcAll()`, so the hub gets one
+  real first height instead of the 6-empty-rows height followed by a second one.
 
 ## shared/embed.js
 ```
@@ -43,8 +46,10 @@ Check `event.origin === location.origin` on every message.
   expanded at a time**; opening another row collapses the current one.
 - The panel holds `<iframe src="tools/step1.html?row=<id>">` with its height taken from the `height`
   messages. There is no inner scrollbar; the table's own horizontal scroll still works.
-- The panel footer has a **✓ 确认价格** toggle button. It sets `meta.step1Confirmed = true/false`
-  and redraws the journey column (报价 done, 下单 becomes next/unlocked).
+- **保存** in the tool completes 报价 (this replaced the ✓ 确认价格 button on 2026-09-29): after the file is written the tool posts `step1-saved`, and the hub sets `meta.step1Confirmed = true`
+  (no undo) and redraws the journey column (报价 done, 下单 becomes next). The button then shows **✓** until
+  the next change (typing, + 添加行, row ×, 清空, 导入, or a 设置 → 报价 change); the ✓ isn't remembered
+  after a collapse or reload. 保存 on an empty table only shows 表格为空.
 - **Settings → 报价 tab:** 头程运费 (￥/kg), 汇率, 毛利率 %, 入库配置费 $, 旺季 toggle. The defaults
   are the original's values (6 / 6.7 / 50 / 0 / 非旺季). On save, PUT `settings.json` and then
   `broadcast('settings-changed')`.
@@ -62,8 +67,19 @@ Check `event.origin === location.origin` on every message.
   absolutely positioned inside `.table-card`, over a `tr.xp-spacer` row that `renderBody()` inserts.
   `placePanel()` runs after every render, on resize and on `height` messages. If the expanded row is
   filtered out, the panel is hidden, not destroyed.
-- Collapsing sets `xpFrame.src = 'about:blank'`. The tool's `pagehide` handler flushes its pending
-  save with a keepalive `fetch`.
+- Collapsing sets `xpFrame.src = 'about:blank'` once the close animation ends. The tool's `pagehide`
+  handler flushes its pending save with a keepalive `fetch`.
+- **Smooth expand / collapse (2026-09-29).** The spacer holds a `.xp-gap` div. The gap and `#xpPanel`
+  (`overflow:hidden`) share one `height` transition (220ms), so the rows below move with the panel's
+  edge. `gapT` holds each spacer's target height: the open row, plus a `closingId` row while its gap
+  closes. `renderBody()` redraws each gap at its current animated height and `xpSync()` then sends it on
+  to its target, so a redraw mid-animation doesn't jump. `panelId` is the row the panel sits over, which
+  can be the closing row during a plain collapse. Opening uses `xpHeights[id]` (the last measured height)
+  or 360px until the tool's first `height` message. The iframe fades in on that message. `pinRow()` runs a
+  rAF loop during the animation that scrolls the page to keep the clicked row still (for example while a
+  row above it closes) and keeps the panel on its spacer. `.table-card` has `overflow-anchor:none` so the
+  browser's scroll anchoring doesn't interfere. The page scrolls only when the clicked row is cut off, or
+  for `?expand=`.
 - `embed.js` messages carry `{src:'workflow-hub', dir:'up'|'down', type, row, data}`. The height is
   measured from `body.getBoundingClientRect()`, not `scrollHeight`, so the panel can shrink as well
   as grow.
@@ -80,5 +96,6 @@ Check `event.origin === location.origin` on every message.
 3. Changing 汇率 in Settings → 报价 immediately recalculates the expanded table.
 4. 保存 writes `售价计算 Price Calcs/<品名>_<SKU>_售价.json`. 导入 of that file into another row
    restores the lines.
-5. ✓ 确认价格 → 报价 shows done and 下单 is highlighted as next. Un-confirming reverts it.
+5. 保存 → the button shows ✓, 报价 shows done and 下单 is highlighted as next. Editing a cell turns the
+   button back to 保存; 报价 stays done.
 6. Expanding a second row collapses the first.

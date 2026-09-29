@@ -3,7 +3,7 @@
 Context: [README.md](README.md) (architecture, data model, rules).
 
 ## Goal
-A working product tracker with no tools embedded yet. You can add, edit, filter, sort and delete
+A working product tracker with no tools embedded yet. You can add, edit, filter and delete
 product-group rows, and everything persists to `data/`.
 
 ## Scope
@@ -19,7 +19,7 @@ product-group rows, and everything persists to `data/`.
 | `shared/theme.css` | `:root` tokens + `.card .btn .btn-primary .btn-ghost .chip .form-control .del-btn .toast`, copied from the tools |
 | `shared/api.js` | `api.rows()`, `api.get(path)`, `api.put(path,obj)`, `api.delRow(id)`, `api.output(dir,name,blob)`, `api.settings()` (with defaults merged in) |
 | `shared/sku.js` | `parseSku(str) → {cat,from,to}|null`, `formatSku()`, `overlaps(a,b)`, `mskuInRow(msku,row)` |
-| `shared/rows.js` | `STATUSES`, `statusRank`, `journey(row) → [{key,label,state}]`, `filterRows(rows,ui)`, `sortRows(rows,sort)` |
+| `shared/rows.js` | `STATUSES`, `statusRank`, `journey(row) → [{key,label,state}]`, `filterRows(rows,ui)`, `sortRows(rows)`, `groupRows(rows,categories)` |
 | `shared/datepicker.js` | `openDatePicker(anchorEl, {value, openMonth, onPick, onClear})` |
 | `app/index.html` | the hub page |
 
@@ -50,12 +50,13 @@ Columns: **图片 · 品名 · 类目 · SKU (父ASIN sub-line) · 状态 · 上
   Price Calcs / Order Forms are **not** deleted.
 
 **Toolbar:** `+ 新建产品` (adds an empty row with 状态 未下单 and focuses 品名) · status chips
-(multi-select) · category chips (multi-select) · search (品名/SKU/父ASIN) · ⚙ at the top right.
+(one choice: 所有 / 未下单 / 已下单 / 已上架) · category chips (one choice: 所有 / each category) · search
+(品名/SKU/父ASIN) · ⚙ at the top right. `ui = {q, status, cat}`, `''` = 所有.
 
-**Grouping and sort:** rows are always grouped by category, each group with a header row
-`XK · 12 个`, and groups ordered as in the settings list. Within a group the default sort is 上架时间
-ascending with empty dates last. Clicking a column header sorts **within** the groups; clicking it
-again reverses the order.
+**Grouping and order:** rows are always grouped by category, each group with a header row
+`XK · 12 个`, and groups ordered as in the settings list. Within a group rows are newest first
+(`createdAt` descending), so a row never moves after it is created or edited. Column headers are not
+sortable (changed 2026-09-29).
 
 **Saving:** each edit PUTs that row's `meta.json` (debounced ~300ms). There is no Save button.
 
@@ -107,7 +108,8 @@ again reverses the order.
 4. Overlapping `XK_020-030` shows the warning toast and is still saved.
 5. Paste an image into a row. Restart the server and reload: the image and all fields are still there.
 6. Filter to 状态=未下单 plus 类目=XK, and search "相框": only the matching rows show, still grouped.
-7. Sort by 品名: rows are sorted inside each category and the groups aren't mixed.
+7. A new product appears at the top of its group; setting its SKU moves it to the top of that category, and
+   editing 上架时间 doesn't move it.
 8. The 上架时间 picker opens, picks a date and clears it.
 9. Delete a row and confirm: it disappears and `data/rows/<id>/` is gone.
 10. Removing a category that is in use is blocked.

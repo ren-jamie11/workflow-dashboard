@@ -72,7 +72,7 @@ here; show the note `SKU 前缀 = 类目（在「通用」中管理）`.
 4. The SKU 前缀 dropdown lists the categories and preselects the row's category.
 5. 生成 writes `下单计划 Order Forms/<date>_Jamie_<name>_下单计划.xlsx` with no dialog. The file
    opens in Excel exactly like one made by the original tool (images, styles, notes).
-6. After 生成 the row's status is 已下单 (it doesn't go back if it was 生产中/已上架). The 上架时间
+6. After 生成 the row's status is 已下单 (it doesn't go back if it was 已上架). The 上架时间
    picker opens on 交货日期 + 45 days.
 7. 导入已有 Excel with one of the existing order forms loads correctly into a row.
 8. Switching rows in the sidebar loads each row's own draft, and data doesn't leak between rows.

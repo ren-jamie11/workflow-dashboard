@@ -7,7 +7,7 @@ Read this file first, then only the stage doc you are working on.
 
 | Stage | Doc | Usable result after the stage |
 |---|---|---|
-| 1 | [stage-1-hub.md](stage-1-hub.md) | Product tracker: add/filter/sort/delete rows; data saved to `data/` |
+| 1 | [stage-1-hub.md](stage-1-hub.md) | Product tracker: add/filter/delete rows; data saved to `data/` |
 | 2 | [stage-2-step1.md](stage-2-step1.md) | Expand a row to price it (Step 1) and confirm the price |
 | 3 | [stage-3-step2.md](stage-3-step2.md) | Workspace page; Step 2 order form per row; Excel written to `下单计划 Order Forms/` |
 | 4 | [stage-4-step3.md](stage-4-step3.md) | Step 3 inventory per row; uploads set 已上架 automatically and fill 父ASIN |
@@ -71,11 +71,11 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 `meta.json`; `step2.json` (several MB) and `images.json` are read only when the image viewer opens.
 
 ### Status and journey rules
-- Status order: `未下单 < 已下单 < 生产中 < 已上架`. It changes automatically and only moves
+- Status order: `未下单 < 已下单 < 已上架`. It changes automatically and only moves
   forward: Step 2 生成 → 已下单, first sales in the row's SKU range → 已上架. The dropdown can always
-  override it. 生产中 is set by hand only.
+  override it. (生产中 was removed on 2026-09-29; a stored 生产中 loads as 已下单.)
 - Journey steps are **报价 — 下单 — 上架**. A step is:
-  - **done**: 报价 when `step1Confirmed`; 下单 when status ≥ 已下单; 上架 when status = 已上架
+  - **done**: 报价 when `step1Confirmed` (set by 保存 in the 报价 panel); 下单 when status ≥ 已下单; 上架 when status = 已上架
   - **next**: the first step that isn't done
   - **locked**: 下单 until 报价 is done; 上架 until 下单 is done
 - Soft lock: clicking a locked step shows `confirm('前一步未完成，仍要打开？')` and then opens it.
@@ -97,7 +97,7 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 | A3 | Lenient SKU input (`xk-012-023`, single `XK_406`), normalized; overlap = warning only; unknown prefix → "添加新类目？" or cancel |
 | A4 | One shared image: row image = Step 2 first 货号 image |
 | B1 | Status changes automatically (forward only) with manual override (see rules above) |
-| B2 | Step 1 is done when you click **✓ 确认价格** (can be undone) |
+| B2 | Step 1 is done when you click **保存** in the 报价 panel; it stays done after later edits (no undo). *(Changed 2026-09-29: replaced the ✓ 确认价格 button)* |
 | B3 | Soft lock on later steps |
 | B4 | 上架时间 typed by hand; picker opens on the estimated month |
 | C1 | One Step 1 table per row, autosaved; Open/Save-as/New menu removed |
@@ -115,7 +115,7 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 | F2 | Step 1 保存 → `售价计算 Price Calcs/<品名>_<SKU>_售价.json`; Step 2 生成 → `下单计划 Order Forms/` (no dialog) |
 | F3 | Files load back per row (Step 1 导入 JSON; Step 2 导入已有 Excel) |
 | F4 | Migrate only Step 3 history (old backup JSON → Settings → 上架) |
-| G1 | Search + sortable columns; categories always grouped; default sort within a group is 上架时间 |
+| G1 | Search + one-choice 状态 / 类目 chips (each with 所有); categories always grouped; within a group newest first (`createdAt`); no column sorting. *(Changed 2026-09-29)* |
 | G2 | Hub UI in Chinese |
 | G3 | One workspace page: sidebar + journey bar + tool |
 | G4 | Journey column 报价 — 下单 — 上架 in every row |

@@ -26,9 +26,6 @@ table.hub thead th{
   padding:.6rem .5rem;border-bottom:2px solid var(--line);white-space:nowrap;
   position:sticky;top:0;z-index:2;
 }
-table.hub thead th.sortable{cursor:pointer;user-select:none}
-table.hub thead th.sortable:hover{color:var(--primary)}
-table.hub thead th .arrow{font-size:.6rem;opacity:.6;margin-left:.2rem}
 table.hub td{padding:.4rem .5rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}
 table.hub tbody tr.row:hover td{background:#fafbff}
 tr.grp td{background:#f8fafc;color:var(--primary);font-weight:600;font-size:.82rem;padding:.45rem .75rem;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
@@ -69,7 +66,6 @@ tr.row.draft .step,tr.row.draft .step:hover{color:#cbd5e1;border-color:#f1f5f9;b
 .st-sel:focus{outline:none;box-shadow:0 0 0 2px rgba(79,70,229,.2)}
 .st0{background:var(--s0-bg);color:var(--s0-tx)}
 .st1{background:var(--s1-bg);color:var(--s1-tx)}
-.st2{background:var(--s2-bg);color:var(--s2-tx)}
 .st3{background:var(--s3-bg);color:var(--s3-tx)}
 .st-sel option{background:#fff;color:var(--dark);font-weight:400}
 
@@ -94,18 +90,21 @@ tr.row.draft .step,tr.row.draft .step:hover{color:#cbd5e1;border-color:#f1f5f9;b
 .empty-box{text-align:center;padding:3rem 1rem;color:var(--muted);font-size:.9rem}
 .empty-box b{display:block;color:var(--dark);font-size:1rem;margin-bottom:.3rem;font-weight:600}
 
-/* expanded row: 报价 (Step 1). The panel sits over a spacer row so re-rendering the table never reloads the iframe. */
-.table-card{position:relative}
+/* expanded row: 报价 (Step 1). The panel sits over a spacer row so re-rendering the table never reloads the iframe.
+   The spacer's .xp-gap and the panel animate their heights together, so the rows below slide with the panel's edge. */
+.table-card{position:relative;overflow-anchor:none}
+tr.row{scroll-margin-top:40px}
 tr.row.open td{background:#f8faff}
 tr.row.open td:first-child{box-shadow:inset 3px 0 0 var(--primary)}
 tr.row td.hit{cursor:pointer}
-tr.xp-spacer td{padding:0;border-bottom:1px solid var(--line)}
-.xp-panel{position:absolute;z-index:1;background:#f8faff;padding:.75rem .75rem .6rem;border-bottom:1px solid var(--line)}
-.xp-panel iframe{display:block;width:100%;border:0;background:transparent}
-.xp-foot{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:.6rem}
+tr.xp-spacer td{padding:0;border:0}
+.xp-gap{height:0;background:#f8faff;transition:height .22s ease}
+.xp-panel{position:absolute;z-index:1;background:#f8faff;height:0;overflow:hidden;transition:height .22s ease}
+.xp-inner{padding:.75rem .75rem .6rem;border-bottom:1px solid var(--line)}
+.xp-panel iframe{display:block;width:100%;border:0;background:transparent;opacity:0;transition:opacity .15s}
+.xp-panel iframe.ready{opacity:1}
+.xp-foot{display:flex;align-items:center;gap:1rem;margin-top:.6rem}
 .xp-foot .hint{margin:0}
-.btn-ok{background:var(--s3-bg);color:var(--s3-tx);border:1px solid #a7f3d0}
-.btn-ok:hover{background:#d1fae5}
 
 /* settings */
 .set-sec + .set-sec{margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid #f1f5f9}
@@ -188,18 +187,19 @@ tr.xp-spacer td{padding:0;border-bottom:1px solid var(--line)}
         <col style="width:112px"><col><col style="width:104px"><col style="width:170px">
         <col style="width:112px"><col style="width:132px"><col style="width:236px"><col style="width:44px">
       </colgroup>
-      <thead id="thead"></thead>
+      <thead id="thead"><tr><th>图片</th><th>品名</th><th>类目</th><th>SKU</th><th>状态</th><th>上架时间</th><th>流程</th><th></th></tr></thead>
       <tbody id="tbody"></tbody>
     </table>
     <div id="emptyBox" class="empty-box hidden"></div>
     <!-- 报价：展开行面板 -->
     <div class="xp-panel hidden" id="xpPanel">
-      <iframe id="xpFrame" title="报价" style="height:420px"></iframe>
-      <div class="xp-foot">
-        <span class="hint">参数（运费 / 汇率 / 毛利率 / 旺季）在
-          <button type="button" class="menu-link" data-act="quote-settings">⚙ 设置 → 报价</button>
-          中统一修改，所有产品实时生效。</span>
-        <button type="button" class="btn btn-primary btn-sm" id="confirmBtn">✓ 确认价格</button>
+      <div class="xp-inner" id="xpInner">
+        <iframe id="xpFrame" title="报价" style="height:300px"></iframe>
+        <div class="xp-foot">
+          <span class="hint">点击表格下方「保存」即完成报价。参数（运费 / 汇率 / 毛利率 / 旺季）在
+            <button type="button" class="menu-link" data-act="quote-settings">⚙ 设置 → 报价</button>
+            中统一修改，所有产品实时生效。</span>
+        </div>
       </div>
     </div>
   </div>
@@ -297,7 +297,7 @@ const IMG_LIMIT = 6;              // images per row: the main one + 5 more (view
 
 let settings = null;
 let rows = [];
-const ui = { q: '', statuses: [], cats: [], sort: { key: 'liveDate', dir: 1 } };
+const ui = { q: '', status: '', cat: '' };   // '' = 所有
 const justAdded = new Set();      // new rows stay visible whatever the filters, until reload
 const drafts = new Set();         // new rows that aren't saved yet: they need an image and 品名
 const draftImg = new Map();       // draft id → full image, written to step2.json once the draft is saved
@@ -353,7 +353,6 @@ function render(){
   if (tg) { tg.rerender = true; return; }             // never rebuild the table under a thumb drag (see reposition)
   const focus = captureFocus();
   renderChips();
-  renderHead();
   renderBody();
   restoreFocus(focus);
 }
@@ -381,36 +380,32 @@ function restoreFocus(f){
 }
 
 function renderChips(){
-  const count = (key, v) => rows.filter(r => r[key] === v).length;
-  $('statusChips').innerHTML = ROWS.STATUSES.map(s =>
-    '<button type="button" class="chip' + (ui.statuses.includes(s) ? ' active' : '') + '" data-status="' + esc(s) + '">' +
-    esc(s) + '<span class="n">' + count('status', s) + '</span></button>').join('');
-  $('catChips').innerHTML = settings.categories.map(c =>
-    '<button type="button" class="chip' + (ui.cats.includes(c) ? ' active' : '') + '" data-cat="' + esc(c) + '">' +
-    esc(c) + '<span class="n">' + count('category', c) + '</span></button>').join('');
-  const filtering = ui.q.trim() || ui.statuses.length || ui.cats.length;
+  /* one choice per group; value '' = 所有 */
+  const chips = (attr, key, cur, values) => [''].concat(values).map(v =>
+    '<button type="button" class="chip' + (v === cur ? ' active' : '') + '" data-' + attr + '="' + esc(v) + '">' +
+    esc(v || '所有') + '<span class="n">' + (v ? rows.filter(r => r[key] === v).length : rows.length) + '</span></button>').join('');
+  $('statusChips').innerHTML = chips('status', 'status', ui.status, ROWS.STATUSES);
+  $('catChips').innerHTML = chips('cat', 'category', ui.cat, settings.categories);
+  const filtering = ui.q.trim() || ui.status || ui.cat;
   $('clearFilters').classList.toggle('hidden', !filtering);
   const shown = visibleRows().length;
   $('countLine').textContent = '共 ' + rows.length + ' 个产品' + (filtering ? ' · 显示 ' + shown + ' 个' : '');
 }
 
-function renderHead(){
-  const th = (label, key) => {
-    if (!key) return '<th>' + label + '</th>';
-    const arrow = ui.sort.key === key ? '<span class="arrow">' + (ui.sort.dir > 0 ? '▲' : '▼') + '</span>' : '';
-    return '<th class="sortable" data-sort="' + key + '">' + label + arrow + '</th>';
-  };
-  $('thead').innerHTML = '<tr>' + th('图片') + th('品名', 'name') + th('类目') + th('SKU', 'sku') +
-    th('状态', 'status') + th('上架时间', 'liveDate') + th('流程') + th('') + '</tr>';
-}
-
 function renderBody(){
   const vis = visibleRows();
-  const groups = ROWS.groupRows(vis, settings.categories, ui.sort);
+  const groups = ROWS.groupRows(vis, settings.categories);
+  /* spacers (open row + a closing one): redrawn at their current animated height, then sent on to their target */
+  const cur = {};
+  $('tbody').querySelectorAll('.xp-gap').forEach(g => { cur[g.dataset.id] = g.offsetHeight; });
+  const spacer = id => id in gapT
+    ? '<tr class="xp-spacer" data-id="' + esc(id) + '"><td colspan="8"><div class="xp-gap" data-id="' + esc(id) +
+      '" style="height:' + (cur[id] || 0) + 'px"></div></td></tr>'
+    : '';
   $('tbody').innerHTML = groups.map(g =>
     '<tr class="grp' + (g.cat ? '' : ' none') + '"><td colspan="8">' + esc(g.label) +
     '<span class="n">' + g.rows.length + ' 个</span></td></tr>' +
-    g.rows.map(r => rowHtml(r) + (r.id === expandedId ? '<tr class="xp-spacer"><td colspan="8"></td></tr>' : '')).join('')
+    g.rows.map(r => rowHtml(r) + spacer(r.id)).join('')
   ).join('');
   const box = $('emptyBox');
   if (!rows.length) {
@@ -419,7 +414,7 @@ function renderBody(){
     box.innerHTML = '<b>没有符合筛选条件的产品</b><button type="button" class="menu-link" data-act="clearfilters">清除筛选</button>';
   }
   box.classList.toggle('hidden', vis.length > 0);
-  placePanel();
+  xpSync(!!panelId && !(panelId in cur));
 }
 
 function catOptions(cur){
@@ -429,12 +424,12 @@ function catOptions(cur){
     '<option value="' + esc(c) + '"' + (c === cur ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
 }
 
+const ST_CLASS = { '未下单': 'st0', '已下单': 'st1', '已上架': 'st3' };   // colours from theme.css --s0/--s1/--s3
 const STEP_TIPS = {
   done: '已完成', next: '下一步', open: '可打开', locked: '前一步未完成'
 };
 function rowHtml(r){
   const id = esc(r.id);
-  const rank = ROWS.statusRank(r.status);
   const j = ROWS.journey(r);
   const draft = drafts.has(r.id);
   const steps = j.map((s, i) =>
@@ -461,7 +456,7 @@ function rowHtml(r){
       (r.sku ? ' disabled title="由 SKU 前缀决定"' : '') + '>' + catOptions(r.category) + '</select></td>' +
     '<td><input class="cell-in mono" data-id="' + id + '" data-f="sku" value="' + esc(r.sku) + '" placeholder="XK_012-023" spellcheck="false">' +
       (r.parentAsin ? '<span class="sub-asin" title="父ASIN">' + esc(r.parentAsin) + '</span>' : '') + '</td>' +
-    '<td><select class="st-sel st' + rank + '" data-id="' + id + '" data-f="status">' +
+    '<td><select class="st-sel ' + (ST_CLASS[r.status] || 'st0') + '" data-id="' + id + '" data-f="status">' +
       ROWS.STATUSES.map(s => '<option' + (s === r.status ? ' selected' : '') + '>' + s + '</option>').join('') +
     '</select></td>' +
     '<td><button type="button" class="date-btn' + (r.liveDate ? '' : ' empty') + '" data-act="date" data-id="' + id + '" data-f="liveDate">' +
@@ -560,61 +555,143 @@ function stepClick(r, step){
   toast(STEP_STAGE[step]);
 }
 
-/* ============ 报价：展开行 (one at a time) ============ */
-let expandedId = null;
+/* ============ 报价：展开行 (one at a time) ============
+   One panel (one iframe) sits over a spacer row under the open row. Opening, closing and switching rows animate the
+   spacer's .xp-gap and the panel's height together (renderBody → xpSync), and pinRow keeps the clicked row still on screen. */
+const XP_MS = 220;                // = the CSS height transition
+const XP_EST = 360;               // first-open height guess, until the tool reports its size
+let expandedId = null;            // the open row
+let closingId = null;             // a row whose spacer is still closing
+let panelId = null;               // the row the panel sits over: the open row, or the one closing under it
+const gapT = {};                  // row id → target spacer height (open and closing rows only)
+const xpHeights = {};             // row id → last measured panel height (this session)
+let closeTimer = null;
 const xpPanel = $('xpPanel'), xpFrame = $('xpFrame');
 
 function toggleExpand(r){
   if (drafts.has(r.id)) return toast('请先添加图片和品名，产品才会保存', true);
   if (expandedId === r.id) return collapse();
+  const top0 = rowTop(r.id);
+  if (closingId === r.id && panelId === r.id) {         // re-opened while closing: the tool is still loaded
+    clearTimeout(closeTimer);
+    closingId = null;
+  } else {
+    endClosing();
+    if (expandedId) {                                   // switching rows: the old spacer closes on its own
+      closingId = expandedId;
+      gapT[closingId] = 0;
+      closeTimer = setTimeout(endClosing, XP_MS + 60);
+    }
+    panelId = r.id;
+    xpFrame.classList.remove('ready');                  // fades in once the tool reports its height
+    xpFrame.style.height = '300px';
+    xpFrame.src = 'tools/step1.html?row=' + encodeURIComponent(r.id);
+  }
   expandedId = r.id;
-  xpFrame.style.height = '420px';
-  xpFrame.src = 'tools/step1.html?row=' + encodeURIComponent(r.id);
-  syncConfirm();
+  gapT[r.id] = xpHeights[r.id] || XP_EST;
   render();
-  const tr = $('tbody').querySelector('tr[data-row="' + r.id + '"]');
-  if (tr) tr.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  pinRow(r.id, top0);
 }
-function collapse(){
+/* instant: no animation (the row is being deleted) */
+function collapse(instant){
   if (!expandedId) return;
+  const id = expandedId, top0 = instant ? null : rowTop(id);
+  endClosing();
   expandedId = null;
-  xpFrame.src = 'about:blank';          // unloading flushes the tool's pending save
+  closingId = id;
+  gapT[id] = 0;
+  if (instant) { endClosing(); return render(); }
+  closeTimer = setTimeout(endClosing, XP_MS + 60);
   render();
+  pinRow(id, top0);
 }
-/* position the panel over the spacer row; hidden while the expanded row is filtered out */
+/* a closing spacer has finished: drop it; if the panel was over it, unload the tool (that flushes its pending save) */
+function endClosing(){
+  clearTimeout(closeTimer);
+  const id = closingId;
+  if (!id) return;
+  closingId = null;
+  delete gapT[id];
+  const sp = $('tbody').querySelector('tr.xp-spacer[data-id="' + id + '"]');
+  if (sp) sp.remove();
+  if (panelId === id) {
+    panelId = null;
+    xpFrame.src = 'about:blank';
+    xpFrame.classList.remove('ready');
+  }
+  placePanel();
+}
+/* send the spacers and the panel to their target heights; CSS animates the change.
+   fromZero: the panel's spacer is new (just opened, or shown again after a filter), so the panel grows from 0 too */
+function xpSync(fromZero){
+  const gaps = $('tbody').querySelectorAll('.xp-gap');
+  if (gaps.length) void $('tbody').offsetHeight;         // commit the start heights first
+  gaps.forEach(g => { g.style.height = gapT[g.dataset.id] + 'px'; });
+  placePanel();                                          // un-hide first: a hidden panel can't animate
+  if (fromZero) {
+    xpPanel.style.transition = 'none';
+    xpPanel.style.height = '0px';
+    void xpPanel.offsetHeight;
+    xpPanel.style.transition = '';
+  }
+  xpPanel.style.height = (panelId in gapT ? gapT[panelId] : 0) + 'px';
+  placePanel();
+}
+/* position the panel over its spacer row; hidden while that row is filtered out */
 function placePanel(){
-  const spacer = $('tbody').querySelector('tr.xp-spacer');
+  const spacer = panelId && $('tbody').querySelector('tr.xp-spacer[data-id="' + panelId + '"]');
   xpPanel.classList.toggle('hidden', !spacer);
   if (!spacer) return;
   const table = spacer.closest('table');
   xpPanel.style.left = table.offsetLeft + 'px';
   xpPanel.style.width = table.offsetWidth + 'px';
-  spacer.firstChild.style.height = xpPanel.offsetHeight + 'px';
   xpPanel.style.top = (table.offsetTop + spacer.offsetTop) + 'px';
 }
 window.addEventListener('resize', placePanel);
 
+/* the row's top on screen, first scrolling it fully into view if it is cut off (or under the sticky header) */
+function rowTop(id){
+  const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
+  if (!tr) return null;
+  const b = tr.getBoundingClientRect();
+  if (b.top < $('thead').getBoundingClientRect().bottom || b.bottom > window.innerHeight) {
+    tr.scrollIntoView({ block: 'nearest' });
+    return tr.getBoundingClientRect().top;
+  }
+  return b.top;
+}
+/* while the spacers animate, keep the row at top0 on screen (rows above it may be closing) and the panel on its spacer */
+let pinRaf = 0;
+function pinRow(id, top0){
+  cancelAnimationFrame(pinRaf);
+  const end = performance.now() + XP_MS + 60;
+  const tick = () => {
+    const tr = top0 != null && $('tbody').querySelector('tr[data-row="' + id + '"]');
+    if (tr) {
+      const dy = tr.getBoundingClientRect().top - top0;
+      if (Math.abs(dy) >= 1) window.scrollBy(0, dy);
+    }
+    placePanel();
+    if (performance.now() < end) pinRaf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
 hubEmbed.listen((m, frame) => {
   if (m.type === 'height' && frame === xpFrame && m.row === expandedId) {
     xpFrame.style.height = Math.max(120, m.data.h) + 'px';
-    placePanel();
+    xpFrame.classList.add('ready');
+    const h = $('xpInner').offsetHeight;                 // 0 while the panel is hidden by a filter
+    if (h) { gapT[expandedId] = xpHeights[expandedId] = h; xpSync(false); }
+  } else if (m.type === 'step1-saved') {                 // 保存 in 报价 completes the step
+    const r = byId(m.row);
+    if (r && !r.step1Confirmed) {
+      r.step1Confirmed = true;
+      saveRow(r);
+      render();
+      toast('报价已完成，下一步：下单');
+    }
   }
-});
-
-function syncConfirm(){
-  const r = byId(expandedId), b = $('confirmBtn');
-  if (!r) return;
-  b.className = 'btn btn-sm ' + (r.step1Confirmed ? 'btn-ok' : 'btn-primary');
-  b.textContent = r.step1Confirmed ? '✓ 价格已确认 · 取消确认' : '✓ 确认价格';
-}
-$('confirmBtn').addEventListener('click', () => {
-  const r = byId(expandedId);
-  if (!r) return;
-  r.step1Confirmed = !r.step1Confirmed;
-  saveRow(r);
-  syncConfirm();
-  render();
-  toast(r.step1Confirmed ? '已确认价格，下一步：下单' : '已取消确认');
 });
 
 /* clicking an empty part of a row also toggles it */
@@ -651,7 +728,7 @@ async function deleteRow(r){
   clearTimeout(saveTimers[r.id]);
   delete saveTimers[r.id];
   try { await api.delRow(r.id); } catch (e) { return; }
-  if (expandedId === r.id) collapse();
+  if (expandedId === r.id) collapse(true);
   rows = rows.filter(x => x !== r);
   justAdded.delete(r.id);
   render();
@@ -659,7 +736,7 @@ async function deleteRow(r){
 }
 
 $('addBtn').addEventListener('click', () => {
-  const r = ROWS.newRow(ui.cats.length === 1 ? ui.cats[0] : '');
+  const r = ROWS.newRow(ui.cat);
   rows.push(r);
   justAdded.add(r.id);
   drafts.add(r.id);                 // saved once it has an image and 品名 (commitDraft)
@@ -1037,7 +1114,7 @@ let gridKey = '';
 
 /* ← → order = the table's visible order (groups + sort); saved rows with an image only */
 function viewerOrder(){
-  return ROWS.groupRows(visibleRows(), settings.categories, ui.sort)
+  return ROWS.groupRows(visibleRows(), settings.categories)
     .reduce((a, g) => a.concat(g.rows), [])
     .filter(r => r.thumb && !drafts.has(r.id));
 }
@@ -1282,31 +1359,22 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowRight') { e.preventDefault(); viewerRow(1); }
 });
 
-/* ============ filters / sort ============ */
+/* ============ filters (one choice per group; rows are always newest first, see ROWS.sortRows) ============ */
 $('search').addEventListener('input', e => { ui.q = e.target.value; render(); });
 $('statusChips').addEventListener('click', e => {
   const b = e.target.closest('.chip'); if (!b) return;
-  toggle(ui.statuses, b.dataset.status); render();
+  ui.status = b.dataset.status; render();
 });
 $('catChips').addEventListener('click', e => {
   const b = e.target.closest('.chip'); if (!b) return;
-  toggle(ui.cats, b.dataset.cat); render();
+  ui.cat = b.dataset.cat; render();
 });
 $('clearFilters').addEventListener('click', clearFilters);
 function clearFilters(){
-  ui.q = ''; ui.statuses = []; ui.cats = [];
+  ui.q = ''; ui.status = ''; ui.cat = '';
   $('search').value = '';
   render();
 }
-function toggle(arr, v){ const i = arr.indexOf(v); if (i > -1) arr.splice(i, 1); else arr.push(v); }
-
-$('thead').addEventListener('click', e => {
-  const th = e.target.closest('th[data-sort]'); if (!th) return;
-  const k = th.dataset.sort;
-  if (ui.sort.key === k) ui.sort.dir *= -1;
-  else ui.sort = { key: k, dir: 1 };
-  render();
-});
 
 /* ============ settings ============ */
 function openSettings(tab){
@@ -1378,7 +1446,7 @@ $('catList').addEventListener('click', e => {
   const used = rows.filter(r => r.category === c).length;
   if (used) return toast('仍有 ' + used + ' 个产品使用类目「' + c + '」，无法删除', true);
   settings.categories.splice(+b.dataset.i, 1);
-  ui.cats = ui.cats.filter(x => x !== c);
+  if (ui.cat === c) ui.cat = '';
   saveSettings(); renderSettings();
 });
 $('liveOffset').addEventListener('change', e => {
@@ -1411,7 +1479,11 @@ $('liveOffset').addEventListener('change', e => {
   /* ?expand=<id> (from the workspace's 报价 step): open that row's 报价 panel */
   const want = new URLSearchParams(location.search).get('expand');
   const r = want && byId(want);
-  if (r) toggleExpand(r);
+  if (r) {
+    const tr = $('tbody').querySelector('tr[data-row="' + r.id + '"]');
+    if (tr) tr.scrollIntoView({ block: 'start' });
+    toggleExpand(r);
+  }
 })();
 })();
 </script>
