@@ -42,7 +42,7 @@ tab (target days and legacy backup import).
 
 ## workspace.html: `sales-updated`
 For every row with a SKU range:
-- If any MSKU in the range `hasSales` and `statusRank(status) < 已上架` → set status to 已上架.
+- If any MSKU in the range `hasSales` and `statusRank(status) < 已上架` → set status to 已上架. Do it through the hub's `moveRow(r, change)` so the row re-sorts to the 已上架 tier and flashes.
 - If `parentAsin` is empty → set it to the first non-empty `parent` among its MSKUs.
 - Save each changed `meta.json`, refresh the sidebar, and show the toast `已更新 N 个产品的状态`.
 - `liveDate` isn't touched (B4: always typed by hand).

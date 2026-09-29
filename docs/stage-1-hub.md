@@ -124,8 +124,8 @@ re-opens a group when a row is added to it or moved into it (added 2026-09-29, R
 4. Overlapping `XK_020-030` shows the warning toast and is still saved.
 5. Paste an image into a row. Restart the server and reload: the image and all fields are still there.
 6. Filter to 状态=未下单 plus 类目=XK, and search "相框": only the matching rows show, still grouped.
-7. A new product appears at the top of its group; setting its SKU moves it to the top of that category, and
-   editing 上架时间 doesn't move it.
+7. A new product appears at the top of its group (待报价 tier, newest first); setting its SKU moves it into that
+   category. Within a group rows sort by stage, then 上架时间 (see README G1); a row that moves flashes.
 8. The 上架时间 picker opens, picks a date and clears it.
 9. Delete a row and confirm: it disappears and `data/rows/<id>/` is gone.
 10. Removing a category that is in use is blocked.

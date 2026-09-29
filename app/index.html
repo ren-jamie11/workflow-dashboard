@@ -104,6 +104,8 @@ tr.row.draft .step,tr.row.draft .step:hover{color:#cbd5e1;border-color:#f1f5f9;b
 tr.row{scroll-margin-top:40px}
 tr.row.open td{background:#f8faff}
 tr.row.open td:first-child{box-shadow:inset 3px 0 0 var(--primary)}
+@keyframes rowMoved{from{background:#e0e7ff}to{background:transparent}}
+tr.row.moved td{animation:rowMoved 1.4s ease-out}
 tr.row td{cursor:pointer}
 tr.xp-spacer td{padding:0;border:0}
 .xp-gap{height:0;background:#f8faff;transition:height .22s ease}
@@ -525,6 +527,40 @@ const byId = id => rows.find(r => r.id === id);
 /* ============ render ============ */
 function visibleRows(){ return ROWS.filterRows(rows, ui, justAdded); }
 
+/* a row keeps its progress (sort key) while its 报价 panel is open; it moves once the panel has closed */
+const held = {};                  // row id → progress frozen when its panel opened
+const progressOf = r => r.id in held ? held[r.id] : ROWS.progress(r);
+function releaseHold(id){
+  setTimeout(() => {                                    // after the closing / switching code has settled
+    if (!(id in held) || id === expandedId) return;
+    const before = around(id);
+    delete held[id];
+    if (byId(id) && around(id) !== before) { render(); flashRow(id); }
+  }, 0);
+}
+/* the row's neighbours in the table order; a change means the row moved */
+function around(id){
+  const o = ROWS.groupRows(visibleRows(), settings.categories, progressOf).reduce((a, g) => a.concat(g.rows.map(r => r.id)), []);
+  const i = o.indexOf(id);
+  return i < 0 ? '' : o[i - 1] + '|' + o[i + 1];
+}
+/* change a sort key (stage / 上架时间), save, re-render; a row that lands somewhere new flashes */
+function moveRow(r, change){
+  const before = around(r.id);
+  change();
+  saveRow(r);
+  renderSoon();
+  setTimeout(() => { if (around(r.id) !== before) flashRow(r.id); }, 0);   // runs after renderSoon's render
+}
+function flashRow(id){
+  const tr = $('tbody').querySelector('tr.row[data-row="' + id + '"]');
+  if (!tr) return;
+  tr.classList.remove('moved');
+  void tr.offsetWidth;                                  // restart the animation
+  tr.classList.add('moved');
+  tr.addEventListener('animationend', () => tr.classList.remove('moved'), { once: true });
+}
+
 function render(){
   if (tg) { tg.rerender = true; return; }             // never rebuild the table under a thumb drag (see reposition)
   const focus = captureFocus();
@@ -568,7 +604,7 @@ function renderChips(){
   const filtering = ui.q.trim() || ui.status || ui.cat || ui.mat;
   $('clearFilters').classList.toggle('hidden', !filtering);
   const vis = visibleRows(), shown = vis.length;
-  const cats = ROWS.groupRows(vis, settings.categories).map(g => g.cat);
+  const cats = ROWS.groupRows(vis, settings.categories, progressOf).map(g => g.cat);
   $('catToggle').classList.toggle('hidden', !cats.length);
   $('catToggle').textContent = cats.every(c => collapsedCats.has(c)) ? '全部展开' : '全部收起';
   $('countLine').textContent = '共 ' + rows.length + ' 个产品' + (filtering ? ' · 显示 ' + shown + ' 个' : '');
@@ -576,7 +612,7 @@ function renderChips(){
 
 function renderBody(){
   const vis = visibleRows();
-  const groups = ROWS.groupRows(vis, settings.categories);
+  const groups = ROWS.groupRows(vis, settings.categories, progressOf);
   /* spacers (open row + a closing one): redrawn at their current animated height, then sent on to their target */
   const cur = {};
   $('tbody').querySelectorAll('.xp-gap').forEach(g => { cur[g.dataset.id] = g.offsetHeight; });
@@ -661,8 +697,7 @@ $('tbody').addEventListener('change', e => {
       saveRow(r); renderSoon();
       break;
     case 'status':
-      r.status = el.value;
-      saveRow(r); renderSoon();
+      moveRow(r, () => { r.status = el.value; });
       break;
     case 'sku':
       commitSku(r, el);
@@ -784,6 +819,7 @@ function toggleExpand(r){
     xpFrame.src = 'tools/step1.html?row=' + encodeURIComponent(r.id);
   }
   expandedId = r.id;
+  if (!(r.id in held)) held[r.id] = ROWS.progress(r);
   if (xpHeights[r.id] || !fresh) gapT[r.id] = xpHeights[r.id] || XP_EST;
   else {                                                // first open: stay at 0 until the real height is known
     gapT[r.id] = 0;
@@ -836,6 +872,7 @@ function endClosing(){
     xpFrame.classList.remove('ready');
   }
   placePanel();
+  releaseHold(id);
 }
 /* send the spacers and the panel to their target heights; CSS animates the change.
    fromZero: the panel's spacer is new (just opened, or shown again after a filter), so the panel grows from 0 too */
@@ -920,9 +957,7 @@ hubEmbed.listen((m, frame) => {
   } else if (m.type === 'step1-saved') {                 // 保存 in 报价 completes the step
     const r = byId(m.row);
     if (r && !r.step1Confirmed) {
-      r.step1Confirmed = true;
-      saveRow(r);
-      render();
+      moveRow(r, () => { r.step1Confirmed = true; });   // held while its panel is open: moves on close
       toast('报价已完成，下一步：下单');
     }
   }
@@ -973,9 +1008,9 @@ function closeIfCollapsed(){
   else render();
 }
 $('catToggle').addEventListener('click', () => {
-  const cats = ROWS.groupRows(visibleRows(), settings.categories).map(g => g.cat);
+  const cats = ROWS.groupRows(visibleRows(), settings.categories, progressOf).map(g => g.cat);
   if (cats.every(c => collapsedCats.has(c))) { collapsedCats.clear(); return render(); }
-  ROWS.groupRows(rows, settings.categories).forEach(g => collapsedCats.add(g.cat));
+  ROWS.groupRows(rows, settings.categories, progressOf).forEach(g => collapsedCats.add(g.cat));
   closeIfCollapsed();
 });
 /* clicking the grey page margins (outside the cards) collapses the open panel. Both press and release must be
@@ -994,8 +1029,8 @@ function openDate(r, btn){
   const est = estimateLiveDate(r);
   openDatePicker(btn, {
     value: r.liveDate, openMonth: est, hint: est,
-    onPick: v => { r.liveDate = v; saveRow(r); render(); },
-    onClear: () => { r.liveDate = ''; saveRow(r); render(); }
+    onPick: v => moveRow(r, () => { r.liveDate = v; }),
+    onClear: () => moveRow(r, () => { r.liveDate = ''; })
   });
 }
 /* 交货日期 + N days, as 'YYYY-MM-DD'; '' when there is no delivery date yet */
@@ -1380,7 +1415,7 @@ let gridKey = '';
 
 /* ← → order = the table's visible order (groups + sort, collapsed groups skipped); saved rows only (drafts skipped) */
 function tableOrder(){
-  return ROWS.groupRows(visibleRows(), settings.categories)
+  return ROWS.groupRows(visibleRows(), settings.categories, progressOf)
     .filter(g => !collapsedCats.has(g.cat))
     .reduce((a, g) => a.concat(g.rows), [])
     .filter(r => !drafts.has(r.id));
@@ -2082,9 +2117,7 @@ hubEmbed.listen((m, frame) => {
     }
     case 'step2-generated':                             // 生成 completes 下单 (status only moves forward)
       if (!r) break;
-      if (ROWS.statusRank(r.status) < ROWS.statusRank('已下单')) r.status = '已下单';
-      saveRow(r);
-      render();
+      moveRow(r, () => { if (ROWS.statusRank(r.status) < ROWS.statusRank('已下单')) r.status = '已下单'; });
       renderOrderHead();
       ensureOrders(r).then(o => {
         const f = o.forms.find(x => x.id === d.form);
@@ -2107,7 +2140,7 @@ hubEmbed.listen((m, frame) => {
   }
 });
 
-/* ============ filters (at most one chip per group; rows are always newest first, see ROWS.sortRows) ============ */
+/* ============ filters (at most one chip per group; row order: see ROWS.sortRows) ============ */
 $('search').addEventListener('input', e => { ui.q = e.target.value; render(); });
 [['statusChips', 'status'], ['catChips', 'cat']].forEach(([el, k]) =>
   $(el).addEventListener('click', e => {

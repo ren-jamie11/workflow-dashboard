@@ -28,7 +28,7 @@ app/
     theme.css          tokens and components copied from the existing tools' :root
     api.js             fetch wrapper for the API below
     sku.js             parse/normalize SKU ranges, overlap check, mskuInRow()
-    rows.js            status order, journey state, filter + sort (hub and sidebar)
+    rows.js            status order, journey state, stage() sort tier, filter + sort (hub and sidebar)
     embed.js           iframe ↔ parent postMessage (resize, settings-changed, load-row, events)
     crop.js            square image positions (thumbCrop / crop): pan, zoom, render — hub and Step 2
     pricing.js         报价 price calculation (computeRow, moved unchanged from Step 1) — Step 1 and the 下单计划 picker
@@ -95,6 +95,9 @@ when the 下单 pop-up opens.
   - **done**: 报价 when `step1Confirmed` (set by 保存 in the 报价 panel); 下单 when status ≥ 已下单; 上架 when status = 已上架
   - **next**: the first step that isn't done
   - **locked**: 下单 until 报价 is done; 上架 until 下单 is done
+- Sort tier `ROWS.stage(r)` = furthest step reached: 0 待报价 · 1 报价✓ · 2 已下单 · 3 已上架 (status wins, so
+  已下单 without 报价 is tier 2). Within a tier a row that skipped 报价 sorts first (less progress): the sort key
+  is `ROWS.progress(r)` = stage × 2 + (报价 done ? 1 : 0).
 - Soft lock: clicking a locked step shows `confirm('前一步未完成，仍要打开？')` and then opens it. The 下单
   pop-up's ← → don't ask; its header shows `报价未完成` instead.
 - The 上架时间 date is always typed by hand. The picker opens on `deliveryDate + liveOffsetDays`, or
@@ -133,13 +136,14 @@ when the 下单 pop-up opens.
 | F2 | Step 1 保存 → `售价计算 Price Calcs/<品名>_<SKU>_售价.json`; Step 2 生成 → `下单计划 Order Forms/` (no dialog) |
 | F3 | Files load back per row (Step 1 导入 JSON; 下单计划 list → 从 Excel 导入 creates a new form) |
 | F4 | Migrate only Step 3 history (old backup JSON → Settings → 上架) |
-| G1 | Search + 状态 / 类目 chips, at most one per group (click the active chip again to clear it) + a 材质 dropdown; categories always grouped; within a group newest first (`createdAt`); no column sorting. *(Changed 2026-09-29)* |
+| G1 | Search + 状态 / 类目 chips, at most one per group (click the active chip again to clear it) + a 材质 dropdown; categories always grouped; no column sorting. *(Changed 2026-09-29: within a group rows sort by stage 待报价 → 报价✓ → 已下单 → 已上架 (within a stage, 报价 skipped first), then 上架时间 earliest first (blank last), then newest first (`createdAt`))* |
 | G2 | Hub UI in Chinese |
 | G3 | ~~One workspace page: sidebar + journey bar + tool~~ *(Changed 2026-09-29: no workspace page; 下单 opens in a pop-up over the hub, see [stage-3-step2.md](stage-3-step2.md))* |
 | G4 | Journey column 报价 — 下单 — 上架 in every row |
 | G5 | 报价 panel expand / collapse keeps the page still: it never auto-scrolls, and the clicked row doesn't move. Clicking the grey page margins collapses it. *(2026-09-29)* |
 | G6 | Clicking a category header (`XK 5 个`) collapses / expands its rows; **全部收起 / 全部展开** at the right of the filter bar does all groups. Session only (a reload shows everything). Filters and search don't auto-expand (the header count still shows the matches). Collapsing a group closes a 报价 panel open inside it; adding a row, or a SKU / 类目 change that moves a row into a collapsed group, expands that group. The image viewer's ← → skip collapsed groups. *(2026-09-29)* |
 | G7 | A click on a row's blank space toggles 报价, except within 1px of a field, button or sub-line (near misses), and only when press and release are on the same spot, once per double-click, and not when the click only closes a date picker / dropdown or leaves a text box. The 报价 pill always toggles. *(2026-09-29)* |
+| G8 | A row whose 报价 panel is open keeps its sort position until the panel has closed, then moves. A row that lands in a new spot after a stage / 上架时间 change flashes briefly (`moveRow` / `flashRow` in index.html). *(2026-09-29)* |
 
 ### 材质 (2026-09-29)
 | # | Decision |
