@@ -44,15 +44,23 @@ select.cell-in:disabled{background:#f8fafc;color:var(--dark);opacity:1;cursor:no
 .sub-asin{display:block;font-size:.7rem;color:#94a3b8;margin:.15rem 0 0 .15rem;font-variant-numeric:tabular-nums}
 
 /* image */
-.thumb{width:48px;height:64px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;position:relative;
+.thumb{width:96px;height:96px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;position:relative;
   display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
-.thumb span{font-size:.68rem;color:#94a3b8}
+.thumb span{font-size:.75rem;color:#94a3b8}
 .thumb:hover,.thumb.over,.thumb:focus-visible{border-color:var(--primary);background:#eef2ff;outline:none}
-.thumb.has{border-style:solid;border-color:var(--line);background:#fff}
+.thumb.has{border-style:solid;border-color:var(--line);background:#fff;cursor:zoom-in}
+.thumb.has.pick{cursor:pointer}
+.thumb.over{box-shadow:0 0 0 2px var(--primary)}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.thumb .clear{position:absolute;top:2px;right:2px;width:16px;height:16px;border:none;border-radius:4px;
-  background:rgba(15,23,42,.72);color:#fff;font-size:.65rem;line-height:1;cursor:pointer;opacity:0;padding:0}
+.thumb .clear{position:absolute;top:3px;right:3px;width:18px;height:18px;border:none;border-radius:4px;
+  background:rgba(15,23,42,.72);color:#fff;font-size:.7rem;line-height:1;cursor:pointer;opacity:0;padding:0}
 .thumb:hover .clear{opacity:1}
+
+/* draft row: not saved until it has an image and 品名 */
+tr.row.draft td{background:#fcfcfd}
+tr.row.draft td:first-child{box-shadow:inset 3px 0 0 #cbd5e1}
+.draft-tag{display:block;font-size:.7rem;color:var(--warn-text);margin:.15rem 0 0 .15rem}
+tr.row.draft .step,tr.row.draft .step:hover{color:#cbd5e1;border-color:#f1f5f9;background:#fff;font-weight:400;cursor:not-allowed}
 
 /* status */
 .st-sel{width:100%;border:1px solid transparent;border-radius:999px;padding:.3rem .55rem;font-family:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
@@ -102,6 +110,45 @@ tr.xp-spacer td{padding:0;border-bottom:1px solid var(--line)}
 .set-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem}
 .set-sec .form-label .note{font-weight:400;color:#94a3b8;margin-left:.35rem}
 #liveOffset{max-width:140px}
+
+/* image viewer */
+.iv-back{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:120;display:flex;align-items:center;justify-content:center;padding:4vh 3vw}
+.iv{background:#fff;border-radius:var(--radius);box-shadow:0 20px 40px rgba(15,23,42,.3);width:100%;height:100%;max-width:1700px;display:flex;overflow:hidden}
+.iv.over{box-shadow:0 0 0 3px var(--primary),0 20px 40px rgba(15,23,42,.3)}
+.iv-stage{flex:1;min-width:0;position:relative;background:#fff}
+.iv-img{position:absolute;inset:2rem 5.5rem;width:calc(100% - 11rem);height:calc(100% - 4rem);object-fit:contain;display:block;user-select:none;-webkit-user-drag:none}
+.iv-img.soft{filter:blur(1px);opacity:.85}
+.iv-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border:1px solid var(--line);border-radius:8px;background:#fff;
+  color:var(--dark);font-size:1.6rem;line-height:1;cursor:pointer;box-shadow:0 2px 6px rgba(15,23,42,.08);font-family:inherit}
+.iv-nav:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+.iv-nav:disabled{opacity:.35;cursor:default;box-shadow:none}
+.iv-nav.prev{left:1.25rem}
+.iv-nav.next{right:1.25rem}
+.iv-side{flex:0 0 280px;border-left:1px solid var(--line);padding:1.4rem 1.25rem;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem;position:relative}
+.iv-close{position:absolute;top:.9rem;right:.9rem;width:36px;height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;
+  color:var(--dark);font-size:1.2rem;line-height:1;cursor:pointer}
+.iv-close:hover{border-color:var(--primary);color:var(--primary)}
+.iv-title{font-weight:600;font-size:1rem;line-height:1.4;padding-right:2.6rem;word-break:break-word}
+.iv-meta{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.7}
+.iv-count{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.iv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.iv-tile{position:relative;aspect-ratio:1/1;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:#fff;padding:0}
+.iv-tile img{width:100%;height:100%;object-fit:cover;display:block}
+.iv-tile.on{border:2px solid var(--primary)}
+.iv-tile .tag{position:absolute;left:3px;bottom:3px;font-size:.62rem;line-height:1.4;background:rgba(15,23,42,.72);color:#fff;border-radius:3px;padding:0 .3rem}
+.iv-tile .del{position:absolute;top:3px;right:3px;width:18px;height:18px;border:none;border-radius:4px;background:rgba(15,23,42,.72);
+  color:#fff;font-size:.7rem;line-height:1;cursor:pointer;opacity:0;padding:0}
+.iv-tile:hover .del{opacity:1}
+.iv-tile.add{border:1px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;font-size:1.5rem;font-family:inherit;display:flex;align-items:center;justify-content:center}
+.iv-tile.add:hover{border-color:var(--primary);color:var(--primary);background:#eef2ff}
+.iv-actions{display:flex;gap:.5rem;flex-wrap:wrap}
+.iv-side .hint{margin:0}
+.iv-cropctl{display:flex;flex-direction:column;gap:.6rem;padding:.8rem;border:1px solid var(--line);border-radius:8px;background:#f8fafc}
+.iv-cropctl label{display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--muted)}
+.iv-cropctl input[type=range]{flex:1;accent-color:var(--primary)}
+.iv-crop{position:absolute;overflow:hidden;pointer-events:none}
+.iv-cropbox{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(15,23,42,.55);cursor:move;pointer-events:auto;touch-action:none;
+  outline:1px solid rgba(15,23,42,.35)}
 </style>
 </head>
 <body>
@@ -138,7 +185,7 @@ tr.xp-spacer td{padding:0;border-bottom:1px solid var(--line)}
   <div class="card table-card">
     <table class="hub">
       <colgroup>
-        <col style="width:68px"><col><col style="width:104px"><col style="width:170px">
+        <col style="width:112px"><col><col style="width:104px"><col style="width:170px">
         <col style="width:112px"><col style="width:132px"><col style="width:236px"><col style="width:44px">
       </colgroup>
       <thead id="thead"></thead>
@@ -206,6 +253,38 @@ tr.xp-spacer td{padding:0;border-bottom:1px solid var(--line)}
   </div>
 </div>
 
+<!-- 图片查看 -->
+<div class="iv-back hidden" id="ivBack">
+  <div class="iv" id="iv" role="dialog" aria-modal="true" aria-labelledby="ivTitle">
+    <div class="iv-stage" id="ivStage">
+      <img class="iv-img" id="ivImg" alt="">
+      <div class="iv-crop hidden" id="ivCrop"><div class="iv-cropbox" id="ivCropBox"></div></div>
+      <button type="button" class="iv-nav prev" id="ivPrev" title="上一张">‹</button>
+      <button type="button" class="iv-nav next" id="ivNext" title="下一张">›</button>
+    </div>
+    <div class="iv-side">
+      <button type="button" class="iv-close" id="ivClose" title="关闭（Esc）">×</button>
+      <div class="iv-title" id="ivTitle"></div>
+      <div class="iv-meta" id="ivMeta"></div>
+      <div class="iv-count" id="ivCount"></div>
+      <div class="iv-grid" id="ivGrid"></div>
+      <div class="iv-actions" id="ivActions">
+        <button type="button" class="btn btn-ghost btn-sm" id="ivReplace" title="用新图片替换主图">替换主图</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="ivCropBtn" title="选择表格中缩略图显示的区域">调整缩略图</button>
+      </div>
+      <div class="iv-cropctl hidden" id="ivCropCtl">
+        <div class="hint">拖动方框选择缩略图显示的区域，滚轮或滑块缩放。</div>
+        <label>放大<input type="range" id="ivZoom" min="0" max="90" step="1" value="0"></label>
+        <div class="iv-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="ivCropSave">保存</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="ivCropCancel">取消</button>
+        </div>
+      </div>
+      <div class="hint" id="ivHint">粘贴或拖入图片即可添加，每个产品最多 6 张。</div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="shared/api.js"></script>
@@ -220,12 +299,16 @@ tr.xp-spacer td{padding:0;border-bottom:1px solid var(--line)}
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const IMG_STORE_MAX = 1400;       // same as Step 2: longest side kept for the full image
-const THUMB_MAX = 160;            // longest side of meta.thumb
+const THUMB_SIZE = 320;           // meta.thumb is a THUMB_SIZE square, cropped by meta.thumbCrop
+const IMG_LIMIT = 6;              // images per row: the main one + 5 more (viewer only)
 
 let settings = null;
 let rows = [];
 const ui = { q: '', statuses: [], cats: [], sort: { key: 'liveDate', dir: 1 } };
 const justAdded = new Set();      // new rows stay visible whatever the filters, until reload
+const drafts = new Set();         // new rows that aren't saved yet: they need an image and 品名
+const draftImg = new Map();       // draft id → full image, written to step2.json once the draft is saved
+const imgCount = r => r.imgCount != null ? r.imgCount : (r.thumb ? 1 : 0);
 
 /* ============ toast ============ */
 let toastTimer = null;
@@ -242,6 +325,7 @@ api.onError = err => toast(err.offline ? err.message : '保存失败：' + err.m
 /* ============ saving ============ */
 const saveTimers = {};
 function saveRow(r){
+  if (drafts.has(r.id)) return commitDraft(r);
   clearTimeout(saveTimers[r.id]);
   saveTimers[r.id] = setTimeout(() => {
     delete saveTimers[r.id];
@@ -255,6 +339,17 @@ window.addEventListener('pagehide', () => {
     if (r) api.saveRowBeacon(r);
   });
 });
+/* a draft is written for the first time once it has both an image and 品名 */
+function commitDraft(r){
+  if (!r.name.trim() || !draftImg.has(r.id)) return;
+  const full = draftImg.get(r.id);
+  drafts.delete(r.id);
+  draftImg.delete(r.id);
+  api.saveRow(r)
+    .then(() => updateStep2Image(r, full))
+    .then(() => toast('已保存「' + r.name + '」'))
+    .catch(() => {});
+}
 function saveSettings(){ return api.saveSettings(settings).catch(() => {}); }
 const byId = id => rows.find(r => r.id === id);
 
@@ -347,19 +442,25 @@ function rowHtml(r){
   const id = esc(r.id);
   const rank = ROWS.statusRank(r.status);
   const j = ROWS.journey(r);
+  const draft = drafts.has(r.id);
   const steps = j.map((s, i) =>
     (i ? '<span class="ln' + (j[i - 1].state === 'done' ? ' on' : '') + '"></span>' : '') +
     '<button type="button" class="step ' + s.state + '" data-act="step" data-step="' + s.key + '" data-id="' + id +
-    '" title="' + s.label + '：' + STEP_TIPS[s.state] + '">' + (s.state === 'done' ? '✓ ' : '') + s.label + '</button>'
+    '" title="' + (draft ? '请先添加图片和品名' : s.label + '：' + STEP_TIPS[s.state]) + '"' + (draft ? ' disabled' : '') + '>' +
+    (s.state === 'done' ? '✓ ' : '') + s.label + '</button>'
   ).join('');
+  const missing = [r.thumb ? '' : '图片', r.name.trim() ? '' : '品名'].filter(Boolean);
+  const viewable = r.thumb && !draft;
 
-  return '<tr class="row' + (r.id === expandedId ? ' open' : '') + '" data-row="' + id + '">' +
-    '<td><div class="thumb' + (r.thumb ? ' has' : '') + '" data-act="img" data-id="' + id + '" data-f="img" tabindex="0" ' +
-      'title="点击上传、拖入图片，或悬停后按 Ctrl+V 粘贴">' +
-      (r.thumb ? '<img src="' + r.thumb + '" alt=""><button type="button" class="clear" data-act="imgclr" data-id="' + id + '" title="移除图片">×</button>'
-               : '<span>图片</span>') +
+  return '<tr class="row' + (r.id === expandedId ? ' open' : '') + (draft ? ' draft' : '') + '" data-row="' + id + '">' +
+    '<td><div class="thumb' + (r.thumb ? ' has' : '') + (r.thumb && !viewable ? ' pick' : '') + '" data-act="img" data-id="' + id + '" data-f="img" tabindex="0" ' +
+      'title="' + (viewable ? '点击查看大图；拖入或粘贴图片可替换主图' : '点击上传、拖入图片，或悬停后按 Ctrl+V 粘贴') + '">' +
+      (r.thumb ? '<img src="' + r.thumb + '" alt="">' +
+                 (imgCount(r) > 1 && !draft ? '<button type="button" class="clear" data-act="imgclr" data-id="' + id + '" title="删除主图（下一张成为主图）">×</button>' : '')
+               : '<span>+ 图片</span>') +
     '</div></td>' +
-    '<td><input class="cell-in' + (r.name.trim() ? '' : ' missing') + '" data-id="' + id + '" data-f="name" value="' + esc(r.name) + '" placeholder="品名（必填）"></td>' +
+    '<td><input class="cell-in' + (r.name.trim() ? '' : ' missing') + '" data-id="' + id + '" data-f="name" value="' + esc(r.name) + '" placeholder="品名（必填）">' +
+      (draft ? '<span class="draft-tag">未保存 · 请添加' + missing.join('和') + '</span>' : '') + '</td>' +
     '<td><select class="cell-in" data-id="' + id + '" data-f="category"' +
       (r.sku ? ' disabled title="由 SKU 前缀决定"' : '') + '>' + catOptions(r.category) + '</select></td>' +
     '<td><input class="cell-in mono" data-id="' + id + '" data-f="sku" value="' + esc(r.sku) + '" placeholder="XK_012-023" spellcheck="false">' +
@@ -444,8 +545,11 @@ document.addEventListener('click', e => {
   if (!t) return;
   const r = byId(t.dataset.id);
   switch (t.dataset.act) {
-    case 'img': if (r) pickImage(f => setRowImage(r, f)); break;
-    case 'imgclr': e.stopPropagation(); if (r) clearRowImage(r); break;
+    case 'img': if (r) thumbClick(r); break;
+    case 'imgclr':
+      e.stopPropagation();
+      if (r && confirm('删除「' + (r.name || '未命名') + '」的主图？下一张图片将成为主图。')) deleteMainImage(r);
+      break;
     case 'date': if (r) openDate(r, t); break;
     case 'step': if (r) stepClick(r, t.dataset.step); break;
     case 'del': if (r) deleteRow(r); break;
@@ -465,6 +569,7 @@ let expandedId = null;
 const xpPanel = $('xpPanel'), xpFrame = $('xpFrame');
 
 function toggleExpand(r){
+  if (drafts.has(r.id)) return toast('请先添加图片和品名，产品才会保存', true);
   if (expandedId === r.id) return collapse();
   expandedId = r.id;
   xpFrame.style.height = '420px';
@@ -541,6 +646,11 @@ function estimateLiveDate(r){
 }
 
 async function deleteRow(r){
+  if (drafts.has(r.id)) {                       // never saved: just drop it
+    drafts.delete(r.id); draftImg.delete(r.id); justAdded.delete(r.id);
+    rows = rows.filter(x => x !== r);
+    return render();
+  }
   if (!confirm('确定永久删除「' + (r.name || '未命名') + '」及其全部数据？\n（已保存到 售价计算 / 下单计划 文件夹的文件不会被删除）')) return;
   clearTimeout(saveTimers[r.id]);
   delete saveTimers[r.id];
@@ -556,17 +666,23 @@ $('addBtn').addEventListener('click', () => {
   const r = ROWS.newRow(ui.cats.length === 1 ? ui.cats[0] : '');
   rows.push(r);
   justAdded.add(r.id);
-  api.saveRow(r).catch(() => {});
+  drafts.add(r.id);                 // saved once it has an image and 品名 (commitDraft)
   render();
   const el = $('tbody').querySelector('[data-id="' + r.id + '"][data-f="name"]');
   if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus(); }
 });
 
 /* ============ images ============ */
-function pickImage(cb){
+/* main image: step2.json products[0] (shared with Step 2) · up to 5 more: images.json (viewer only)
+   meta keeps imgCount and a THUMB_SIZE square thumb cut by thumbCrop
+   {x, y: fractions of the width / height, s: side as a fraction of the short edge} */
+const step2Path = r => 'rows/' + r.id + '/step2.json';
+const imagesPath = r => 'rows/' + r.id + '/images.json';
+
+function pickImage(cb, multiple){
   const inp = document.createElement('input');
-  inp.type = 'file'; inp.accept = 'image/*';
-  inp.onchange = () => { if (inp.files[0]) cb(inp.files[0]); };
+  inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = !!multiple;
+  inp.onchange = () => { if (inp.files.length) cb(multiple ? [...inp.files] : inp.files[0]); };
   inp.click();
 }
 function drawScaled(img, max, quality){
@@ -578,23 +694,46 @@ function drawScaled(img, max, quality){
   cx.drawImage(img, 0, 0, w, h);
   return { url: cv.toDataURL('image/jpeg', quality), w, h };
 }
-/* file → {full:{url,w,h}, thumb} ; full matches Step 2's loadImageData (1400px, JPEG 0.85) */
-function processImage(file){
+function loadImg(url){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = () => rej(new Error('图片读取失败'));
+    img.src = url;
+  });
+}
+function readFile(file){
   return new Promise((res, rej) => {
     const fr = new FileReader();
-    fr.onload = () => {
-      const img = new Image();
-      img.onload = () => res({ full: drawScaled(img, IMG_STORE_MAX, 0.85), thumb: drawScaled(img, THUMB_MAX, 0.8).url });
-      img.onerror = () => rej(new Error('图片读取失败'));
-      img.src = fr.result;
-    };
+    fr.onload = () => res(fr.result);
     fr.onerror = () => rej(new Error('图片读取失败'));
     fr.readAsDataURL(file);
   });
 }
+/* the largest centred square */
+function centerCrop(w, h){
+  const m = Math.min(w, h);
+  return { x: (w - m) / 2 / w, y: (h - m) / 2 / h, s: 1 };
+}
+function makeThumb(img, c){
+  const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+  const side = c.s * Math.min(W, H);
+  const cv = document.createElement('canvas'); cv.width = cv.height = THUMB_SIZE;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, THUMB_SIZE, THUMB_SIZE);
+  cx.imageSmoothingQuality = 'high';
+  cx.drawImage(img, c.x * W, c.y * H, side, side, 0, 0, THUMB_SIZE, THUMB_SIZE);
+  return cv.toDataURL('image/jpeg', 0.8);
+}
+/* file → {full:{url,w,h}, thumb, crop} ; full matches Step 2's loadImageData (1400px, JPEG 0.85) */
+async function processImage(file){
+  const img = await loadImg(await readFile(file));
+  const crop = centerCrop(img.width, img.height);
+  return { full: drawScaled(img, IMG_STORE_MAX, 0.85), thumb: makeThumb(img, crop), crop };
+}
 /* the full image lives in step2.json products[0] (shared with Step 2); meta keeps only the thumb */
 async function updateStep2Image(r, full){
-  const path = 'rows/' + r.id + '/step2.json';
+  const path = step2Path(r);
   let s2 = await api.get(path);
   if (!s2 || typeof s2 !== 'object') s2 = {};
   if (!Array.isArray(s2.products)) s2.products = [];
@@ -609,22 +748,79 @@ async function updateStep2Image(r, full){
   p.frame = full ? { w: full.w, h: full.h } : null;
   await api.put(path, s2);
 }
+
+/* row id → [main, ...extras] as {url,w,h}; loaded when the viewer opens, kept in step with every write */
+const imgCache = new Map();
+async function loadRowImages(r){
+  if (imgCache.has(r.id)) return imgCache.get(r.id);
+  const [s2, im] = await Promise.all([api.get(step2Path(r)), api.get(imagesPath(r))]);
+  const p = s2 && Array.isArray(s2.products) ? s2.products[0] : null;
+  const list = [];
+  if (p && p.image) list.push({ url: p.image, w: (p.imgNat && p.imgNat.w) || 0, h: (p.imgNat && p.imgNat.h) || 0 });
+  ((im && Array.isArray(im.extra)) ? im.extra : []).forEach(x => { if (x && x.url) list.push(x); });
+  imgCache.set(r.id, list);
+  return list;
+}
+const saveExtras = (r, list) => api.put(imagesPath(r), { extra: list.slice(1) });
+
+/* replace the main image (row thumb click / paste / drop, or 替换主图 in the viewer) */
 async function setRowImage(r, file){
   if (!file || !/^image\//.test(file.type)) return toast('请选择图片文件', true);
   try {
     const d = await processImage(file);
-    r.thumb = d.thumb;
+    if (!byId(r.id)) return;
+    r.thumb = d.thumb; r.thumbCrop = d.crop; r.imgCount = Math.max(1, imgCount(r));
+    if (drafts.has(r.id)) {
+      draftImg.set(r.id, d.full);
+      saveRow(r); render();                               // saves the draft if 品名 is already filled
+      if (drafts.has(r.id)) toast('填写品名后自动保存');
+      return;
+    }
     saveRow(r); render();
     await updateStep2Image(r, d.full);
+    const c = imgCache.get(r.id);
+    if (c) { if (c.length) c[0] = d.full; else c.push(d.full); }
+    viewerChanged(r);
     toast('图片已保存');
   } catch (e) {
     if (!e.offline) toast(e.message, true);
   }
 }
-async function clearRowImage(r){
-  r.thumb = null;
-  saveRow(r); render();
-  try { await updateStep2Image(r, null); } catch (e) {}
+/* the main image goes and the next one becomes main; a row always keeps at least one image */
+async function deleteMainImage(r){
+  try {
+    const list = await loadRowImages(r);
+    if (list.length < 2) return toast('每个产品至少保留一张图片', true);
+    const next = list[1];
+    const img = await loadImg(next.url);
+    next.w = next.w || img.naturalWidth; next.h = next.h || img.naturalHeight;
+    await updateStep2Image(r, next);
+    list.splice(0, 1);
+    await saveExtras(r, list);
+    r.thumbCrop = centerCrop(img.naturalWidth, img.naturalHeight);
+    r.thumb = makeThumb(img, r.thumbCrop);
+    r.imgCount = list.length;
+    saveRow(r); render();
+    viewerChanged(r);
+    toast('已删除主图');
+  } catch (e) {
+    imgCache.delete(r.id);
+    if (!e.offline) toast(e.message, true);
+  }
+}
+/* rows saved before the square thumbs: rebuild a sharp centred thumb from the full image */
+async function upgradeThumb(r, main){
+  try {
+    const img = await loadImg(main.url);
+    r.thumbCrop = centerCrop(img.naturalWidth, img.naturalHeight);
+    r.thumb = makeThumb(img, r.thumbCrop);
+    saveRow(r); render();
+  } catch (e) {}
+}
+/* a saved row with an image opens the viewer; otherwise pick a file */
+function thumbClick(r){
+  if (r.thumb && !drafts.has(r.id)) openViewer(r);
+  else pickImage(f => setRowImage(r, f));
 }
 
 let hoverThumb = null;
@@ -633,27 +829,37 @@ document.addEventListener('mouseover', e => {
   hoverThumb = t ? t.dataset.id : null;
 });
 document.addEventListener('paste', e => {
+  const files = [...((e.clipboardData || {}).items || [])]
+    .filter(it => it.type.indexOf('image/') === 0).map(it => it.getAsFile()).filter(Boolean);
+  if (viewer) {                                         // the viewer is open: paste adds an image
+    if (files.length && !viewer.crop) { e.preventDefault(); viewerAdd(files); }
+    return;
+  }
   const a = document.activeElement;
   const id = hoverThumb || (a && a.classList && a.classList.contains('thumb') ? a.dataset.id : null);
   const r = id && byId(id);
-  if (!r) return;
-  const items = (e.clipboardData || {}).items || [];
-  for (const it of items) {
-    if (it.type.indexOf('image/') === 0) {
-      e.preventDefault();
-      setRowImage(r, it.getAsFile());
-      return;
-    }
-  }
+  if (!r || !files.length) return;
+  e.preventDefault();
+  setRowImage(r, files[0]);
 });
 document.addEventListener('dragover', e => {
   e.preventDefault();                                   // never let a stray drop navigate away
+  if (viewer) return $('iv').classList.toggle('over', !viewer.crop);
   const t = e.target.closest && e.target.closest('.thumb');
   document.querySelectorAll('.thumb.over').forEach(x => { if (x !== t) x.classList.remove('over'); });
   if (t) t.classList.add('over');
 });
+document.addEventListener('dragleave', e => {
+  if (viewer && !e.relatedTarget) $('iv').classList.remove('over');
+});
 document.addEventListener('drop', e => {
   e.preventDefault();
+  if (viewer) {                                         // the viewer is open: drop adds images
+    $('iv').classList.remove('over');
+    const files = [...(e.dataTransfer.files || [])];
+    if (files.length && !viewer.crop) viewerAdd(files);
+    return;
+  }
   const t = e.target.closest && e.target.closest('.thumb');
   document.querySelectorAll('.thumb.over').forEach(x => x.classList.remove('over'));
   if (!t) return;
@@ -666,9 +872,271 @@ $('tbody').addEventListener('keydown', e => {
   if (t.classList.contains('thumb') && (e.key === 'Enter' || e.key === ' ')) {
     e.preventDefault();
     const r = byId(t.dataset.id);
-    if (r) pickImage(f => setRowImage(r, f));
+    if (r) thumbClick(r);
   }
 });
+
+/* ============ image viewer ============ */
+let viewer = null;          // {id, idx, list: null while loading | [{url,w,h}], ver, crop: null | {x,y,s}}
+let viewerBusy = false;     // one add / delete at a time
+let gridKey = '';
+
+/* ← → order = the table's visible order (groups + sort); saved rows with an image only */
+function viewerOrder(){
+  return ROWS.groupRows(visibleRows(), settings.categories, ui.sort)
+    .reduce((a, g) => a.concat(g.rows), [])
+    .filter(r => r.thumb && !drafts.has(r.id));
+}
+
+function openViewer(r){
+  viewer = { id: r.id, idx: 0, list: null, ver: 0, crop: null };
+  $('ivBack').classList.remove('hidden');
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  renderViewer();
+  loadRowImages(r).catch(() => []).then(list => {
+    if (!viewer || viewer.id !== r.id) return;
+    viewer.list = list;
+    if (list.length && r.imgCount !== list.length) { r.imgCount = list.length; saveRow(r); render(); }
+    renderViewer();
+    if (list.length && !r.thumbCrop) upgradeThumb(r, list[0]);
+  });
+}
+function closeViewer(){
+  if (!viewer) return;
+  const id = viewer.id;
+  viewer = null; gridKey = '';
+  $('ivBack').classList.add('hidden');
+  $('iv').classList.remove('over');
+  $('ivImg').removeAttribute('src');
+  const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
+  if (tr) tr.scrollIntoView({ block: 'nearest' });
+}
+/* after a write to row r's images: redraw if the viewer shows r */
+function viewerChanged(r){
+  if (!viewer || viewer.id !== r.id) return;
+  viewer.list = imgCache.get(r.id) || viewer.list;
+  viewer.idx = Math.max(0, Math.min(viewer.idx, (viewer.list || []).length - 1));
+  viewer.ver++;
+  renderViewer();
+}
+
+function renderViewer(){
+  if (!viewer) return;
+  const r = byId(viewer.id);
+  if (!r) return closeViewer();
+  const list = viewer.list, cur = list && list[viewer.idx], crop = !!viewer.crop;
+  const order = viewerOrder(), pos = order.indexOf(r);
+  const ids = [r.sku, r.parentAsin].filter(Boolean).map(esc).join(' · ');
+  $('ivTitle').textContent = r.name || '未命名';
+  $('ivMeta').innerHTML = ids + (pos > -1 ? (ids ? '<br>' : '') + '产品 ' + (pos + 1) + ' / ' + order.length + ' · 按 ← → 切换' : '');
+  const img = $('ivImg'), src = cur ? cur.url : r.thumb;
+  if (img.getAttribute('src') !== src) img.src = src;
+  img.classList.toggle('soft', !cur);
+  $('ivCount').textContent = !list ? '加载中…' : list.length ? '图片 ' + (viewer.idx + 1) + ' / ' + list.length : '没有找到原图';
+  $('ivPrev').disabled = crop || !list || viewer.idx <= 0;
+  $('ivNext').disabled = crop || !list || viewer.idx >= list.length - 1;
+
+  const key = viewer.id + '#' + viewer.ver + '#' + (list ? list.length : -1);
+  if (key !== gridKey) {                                // rebuild only when the images change
+    gridKey = key;
+    $('ivGrid').innerHTML = !list ? '' : list.map((x, i) =>
+      '<div class="iv-tile" data-iv="pick" data-i="' + i + '" title="' + (i ? '图片 ' + (i + 1) : '主图（表格中显示）') + '">' +
+        '<img src="' + x.url + '" alt="" draggable="false">' + (i ? '' : '<span class="tag">主图</span>') +
+        (list.length > 1 ? '<button type="button" class="del" data-iv="del" data-i="' + i + '" title="删除这张图片">×</button>' : '') +
+      '</div>').join('') +
+      (list.length < IMG_LIMIT ? '<button type="button" class="iv-tile add" data-iv="add" title="添加图片（可多选，最多 ' + IMG_LIMIT + ' 张）">+</button>' : '');
+  }
+  $('ivGrid').querySelectorAll('.iv-tile[data-i]').forEach(t => t.classList.toggle('on', +t.dataset.i === viewer.idx));
+  $('ivGrid').classList.toggle('hidden', crop);
+  $('ivActions').classList.toggle('hidden', crop || !list || !list.length);
+  $('ivHint').classList.toggle('hidden', crop);
+  $('ivCropCtl').classList.toggle('hidden', !crop);
+  $('ivCrop').classList.toggle('hidden', !crop);
+  if (crop) placeCrop();
+}
+
+/* < > : images within the row · ← → : rows */
+function viewerStep(d){
+  if (!viewer || !viewer.list || viewer.crop) return;
+  const i = viewer.idx + d;
+  if (i < 0 || i >= viewer.list.length) return;
+  viewer.idx = i;
+  renderViewer();
+}
+function viewerRow(d){
+  if (!viewer || viewer.crop) return;
+  const order = viewerOrder();
+  const i = order.findIndex(x => x.id === viewer.id);
+  const n = i > -1 ? order[i + d] : null;
+  if (n) openViewer(n);
+}
+
+async function viewerAdd(files){
+  const r = viewer && byId(viewer.id), list = viewer && viewer.list;
+  if (!r || !list) return;
+  if (viewerBusy) return toast('正在处理上一张图片…');
+  const imgs = files.filter(f => f && /^image\//.test(f.type));
+  if (!imgs.length) return toast('请选择图片文件', true);
+  const room = IMG_LIMIT - list.length;
+  if (room <= 0) return toast('每个产品最多 ' + IMG_LIMIT + ' 张图片', true);
+  const take = imgs.slice(0, room);
+  viewerBusy = true;
+  try {
+    for (const f of take) {
+      const d = await processImage(f);
+      if (!list.length) {                               // no main image yet: this one becomes main
+        await updateStep2Image(r, d.full);
+        r.thumb = d.thumb; r.thumbCrop = d.crop;
+      }
+      list.push(d.full);
+    }
+    await saveExtras(r, list);
+    r.imgCount = list.length;
+    saveRow(r); render();
+    if (viewer && viewer.id === r.id) { viewer.idx = list.length - 1; viewerChanged(r); }
+    toast(imgs.length > room
+      ? '已添加 ' + take.length + ' 张；每个产品最多 ' + IMG_LIMIT + ' 张，其余 ' + (imgs.length - room) + ' 张未添加'
+      : '已添加 ' + take.length + ' 张图片', imgs.length > room);
+  } catch (e) {
+    imgCache.delete(r.id);
+    if (!e.offline) toast(e.message, true);
+  } finally {
+    viewerBusy = false;
+  }
+}
+async function viewerDelete(i){
+  const r = viewer && byId(viewer.id), list = viewer && viewer.list;
+  if (!r || !list || list.length < 2 || viewerBusy) return;
+  if (!confirm(i ? '删除这张图片？' : '删除主图？下一张图片将成为主图。')) return;
+  viewerBusy = true;
+  try {
+    if (i === 0) { viewer.idx = 0; return await deleteMainImage(r); }   // show the new main image
+    list.splice(i, 1);
+    await saveExtras(r, list);
+    r.imgCount = list.length;
+    saveRow(r); render();
+    viewer.idx = Math.min(i, list.length - 1);
+    viewerChanged(r);
+    toast('已删除图片');
+  } catch (e) {
+    imgCache.delete(r.id);
+  } finally {
+    viewerBusy = false;
+  }
+}
+
+$('ivGrid').addEventListener('click', e => {
+  const t = e.target.closest('[data-iv]');
+  if (!t || !viewer) return;
+  if (t.dataset.iv === 'del') viewerDelete(+t.dataset.i);
+  else if (t.dataset.iv === 'pick') { viewer.idx = +t.dataset.i; renderViewer(); }
+  else if (t.dataset.iv === 'add') pickImage(files => viewerAdd(files), true);
+});
+$('ivPrev').addEventListener('click', () => viewerStep(-1));
+$('ivNext').addEventListener('click', () => viewerStep(1));
+$('ivClose').addEventListener('click', closeViewer);
+$('ivBack').addEventListener('mousedown', e => { if (e.target === $('ivBack')) closeViewer(); });
+$('ivReplace').addEventListener('click', () => {
+  const r = viewer && byId(viewer.id);
+  if (r) pickImage(f => setRowImage(r, f).then(() => { if (viewer && viewer.id === r.id) { viewer.idx = 0; renderViewer(); } }));
+});
+document.addEventListener('keydown', e => {
+  if (!viewer) return;
+  if (e.key === 'Escape') { e.preventDefault(); if (viewer.crop) cropCancel(); else closeViewer(); }
+  else if (viewer.crop) return;
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); viewerRow(-1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); viewerRow(1); }
+});
+
+/* ---- 调整缩略图: a square over the main image; only meta.thumb changes, never the image itself ---- */
+function clampCrop(c, W, H){
+  const m = Math.min(W, H);
+  c.s = Math.min(1, Math.max(0.1, c.s));
+  const side = c.s * m;
+  c.x = Math.min((W - side) / W, Math.max(0, c.x));
+  c.y = Math.min((H - side) / H, Math.max(0, c.y));
+  return c;
+}
+/* where the contained image is drawn inside the stage */
+function cropGeom(){
+  const img = $('ivImg'), W = img.naturalWidth, H = img.naturalHeight;
+  const k = Math.min(img.clientWidth / W, img.clientHeight / H);
+  return { W, H, k, left: img.offsetLeft + (img.clientWidth - W * k) / 2, top: img.offsetTop + (img.clientHeight - H * k) / 2 };
+}
+function placeCrop(){
+  if (!viewer || !viewer.crop) return;
+  const g = cropGeom();
+  if (!g.W) return;
+  const c = viewer.crop, side = c.s * Math.min(g.W, g.H) * g.k;
+  const wrap = $('ivCrop').style, box = $('ivCropBox').style;
+  wrap.left = g.left + 'px'; wrap.top = g.top + 'px'; wrap.width = g.W * g.k + 'px'; wrap.height = g.H * g.k + 'px';
+  box.left = c.x * g.W * g.k + 'px'; box.top = c.y * g.H * g.k + 'px'; box.width = box.height = side + 'px';
+  $('ivZoom').value = Math.round((1 - c.s) * 100);
+}
+function cropStart(){
+  const r = viewer && byId(viewer.id);
+  if (!r || !viewer.list || !viewer.list.length) return;
+  viewer.idx = 0; viewer.crop = null;
+  renderViewer();                                       // show the main image first
+  const img = $('ivImg');
+  const go = () => {
+    if (!viewer || viewer.id !== r.id) return;
+    const W = img.naturalWidth, H = img.naturalHeight;
+    viewer.crop = clampCrop(Object.assign({}, r.thumbCrop || centerCrop(W, H)), W, H);
+    renderViewer();
+  };
+  if (img.complete && img.naturalWidth) go(); else img.addEventListener('load', go, { once: true });
+}
+function cropZoom(s){
+  const c = viewer.crop, g = cropGeom(), m = Math.min(g.W, g.H);
+  const cx = c.x * g.W + c.s * m / 2, cy = c.y * g.H + c.s * m / 2;   // keep the centre still
+  c.s = Math.min(1, Math.max(0.1, s));
+  c.x = (cx - c.s * m / 2) / g.W;
+  c.y = (cy - c.s * m / 2) / g.H;
+  clampCrop(c, g.W, g.H);
+  placeCrop();
+}
+function cropSave(){
+  const r = viewer && byId(viewer.id);
+  if (!r || !viewer.crop) return;
+  const c = viewer.crop, fl = v => Math.floor(v * 1e4) / 1e4;   // round down: stays inside the image
+  r.thumbCrop = { x: fl(c.x), y: fl(c.y), s: fl(c.s) };
+  r.thumb = makeThumb($('ivImg'), r.thumbCrop);
+  viewer.crop = null;
+  saveRow(r); render(); renderViewer();
+  toast('缩略图已更新');
+}
+function cropCancel(){
+  if (!viewer) return;
+  viewer.crop = null;
+  renderViewer();
+}
+let cropDrag = null;
+$('ivCropBox').addEventListener('pointerdown', e => {
+  if (!viewer || !viewer.crop) return;
+  e.preventDefault();
+  $('ivCropBox').setPointerCapture(e.pointerId);
+  cropDrag = { x0: e.clientX, y0: e.clientY, x: viewer.crop.x, y: viewer.crop.y };
+});
+$('ivCropBox').addEventListener('pointermove', e => {
+  if (!cropDrag || !viewer || !viewer.crop) return;
+  const g = cropGeom();
+  viewer.crop.x = cropDrag.x + (e.clientX - cropDrag.x0) / (g.W * g.k);
+  viewer.crop.y = cropDrag.y + (e.clientY - cropDrag.y0) / (g.H * g.k);
+  clampCrop(viewer.crop, g.W, g.H);
+  placeCrop();
+});
+['pointerup', 'pointercancel'].forEach(t => $('ivCropBox').addEventListener(t, () => { cropDrag = null; }));
+$('ivStage').addEventListener('wheel', e => {
+  if (!viewer || !viewer.crop) return;
+  e.preventDefault();
+  cropZoom(viewer.crop.s * (e.deltaY > 0 ? 1.08 : 1 / 1.08));
+}, { passive: false });
+$('ivZoom').addEventListener('input', e => { if (viewer && viewer.crop) cropZoom(1 - e.target.value / 100); });
+$('ivCropBtn').addEventListener('click', cropStart);
+$('ivCropSave').addEventListener('click', cropSave);
+$('ivCropCancel').addEventListener('click', cropCancel);
+window.addEventListener('resize', placeCrop);
 
 /* ============ filters / sort ============ */
 $('search').addEventListener('input', e => { ui.q = e.target.value; render(); });

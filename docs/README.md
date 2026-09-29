@@ -54,14 +54,18 @@ settings.json         { categories:["XK","MUG"], liveOffsetDays:45,
                         step1:{shippingPrice,exchangeRate,profitMargin,storageFee,isPeak},
                         step2:{operator,store}, step3:{targetDays:90, invTargetDays:180} }
 rows/<id>/meta.json   { id, name, category, sku, parentAsin, status, liveDate,
-                        step1Confirmed, deliveryDate, thumb, createdAt }
+                        step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt }
 rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
-rows/<id>/step2.json  Step 2's `S` without settings (images as data URLs)
+rows/<id>/step2.json  Step 2's `S` without settings (images as data URLs); products[0].image = the row's main image
+rows/<id>/images.json { extra:[{url,w,h}] }  up to 5 more images, shown only in the hub image viewer
 rows/<id>/step3.json  { seasonality:[12 numbers] }
 sales.json            Step 3 store (sales/skus/inv/manual/lastSeen/snapshotDate), keyed by MSKU
 ```
-`sku` is normalized: `XK_012-023` or `XK_406`. `thumb` is a ~160px JPEG data URL. The hub table
-reads **only** `meta.json` and never `step2.json`, which can be several MB.
+`sku` is normalized: `XK_012-023` or `XK_406`. `thumb` is a 320×320 square JPEG data URL cut from the
+main image by `thumbCrop` `{x, y` (fractions of width / height)`, s` (side as a fraction of the short edge)`}`.
+Rows saved before this have a ~160px thumb and no `thumbCrop`; they upgrade the first time the viewer
+opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The hub table reads **only**
+`meta.json`; `step2.json` (several MB) and `images.json` are read only when the image viewer opens.
 
 ### Status and journey rules
 - Status order: `未下单 < 已下单 < 生产中 < 已上架`. It changes automatically and only moves
@@ -112,6 +116,17 @@ reads **only** `meta.json` and never `step2.json`, which can be several MB.
 | G2 | Hub UI in Chinese |
 | G3 | One workspace page: sidebar + journey bar + tool |
 | G4 | Journey column 报价 — 下单 — 上架 in every row |
+
+### Row images (scoping, 2026-09-28)
+| # | Decision |
+|---|---|
+| I1 | Row thumb is a 96×96 square, filled (cover/crop); stored thumb is a 320 square |
+| I2 | Clicking a thumb with an image opens the **image viewer**; without one it opens the file picker. Hover ×, paste and drop on the row thumb still work (× deletes the main image, paste/drop replace it) |
+| I3 | Viewer: big image with < > (images of this row), side panel with 品名/SKU, `产品 x / y`, `图片 n / N`, thumbnail grid + one "+" tile. ← → move through the table's visible rows that have an image. Everything stops at the ends. × / Esc / backdrop close |
+| I4 | Up to 6 images per row (main + 5 extras in `images.json`). Add with "+" (multi-select), paste or drop in the viewer. Per-image delete only; deleting the main image promotes the next one |
+| I5 | Every row must have an image: the last one can't be deleted, only replaced (替换主图) |
+| I6 | New rows are **drafts** (shown, not saved) until they have an image **and** 品名; a draft is lost on reload |
+| I7 | 调整缩略图: drag + zoom a square over the main image; changes only `thumb`/`thumbCrop`, never Step 2's image or `frame` |
 
 **Out of scope for now:** Amazon upload templates, price preview in the collapsed row, bundling
 several rows into one Excel, Step 3 numbers in the main table.
