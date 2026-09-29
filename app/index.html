@@ -16,7 +16,10 @@
 .fgroup .form-label{margin:0;font-size:.78rem}
 .fgroup .chips{min-height:34px;align-items:center}
 #search{width:240px;padding:.4rem .7rem;font-size:.9rem;height:34px}
+#matFilter{width:150px;padding:.4rem .7rem;padding-right:1.6rem;font-size:.9rem;height:34px}
+#matFilter.on{border-color:var(--primary);background-color:#eef2ff;color:var(--primary);font-weight:500}
 #clearFilters{align-self:flex-end;margin-bottom:.5rem}
+#catToggle{margin-left:auto;align-self:flex-end}
 
 /* ---------- table ---------- */
 .table-card{padding:.5rem .75rem 1rem}
@@ -26,14 +29,16 @@ table.hub thead th{
   padding:.6rem .5rem;border-bottom:2px solid var(--line);white-space:nowrap;
   position:sticky;top:0;z-index:2;
 }
-table.hub thead th.sortable{cursor:pointer;user-select:none}
-table.hub thead th.sortable:hover{color:var(--primary)}
-table.hub thead th .arrow{font-size:.6rem;opacity:.6;margin-left:.2rem}
 table.hub td{padding:.4rem .5rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}
 table.hub tbody tr.row:hover td{background:#fafbff}
 tr.grp td{background:#f8fafc;color:var(--primary);font-weight:600;font-size:.82rem;padding:.45rem .75rem;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 tr.grp td .n{color:var(--muted);font-weight:400;margin-left:.35rem}
 tr.grp.none td{color:var(--muted)}
+tr.grp td{cursor:pointer;user-select:none}
+tr.grp:hover td{background:#f1f5f9}
+tr.grp .caret{display:inline-block;width:.42rem;height:.42rem;border:solid currentColor;border-width:0 2px 2px 0;
+  margin:0 .6rem .18rem .1rem;transform:rotate(45deg);transition:transform .15s}
+tr.grp.collapsed .caret{transform:rotate(-45deg);margin-bottom:.05rem}
 
 .cell-in{width:100%;padding:.42rem .5rem;border:1px solid var(--line);border-radius:6px;font-size:.88rem;font-family:inherit;background:#fff;color:var(--dark)}
 .cell-in:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(79,70,229,.12)}
@@ -44,22 +49,31 @@ select.cell-in:disabled{background:#f8fafc;color:var(--dark);opacity:1;cursor:no
 .sub-asin{display:block;font-size:.7rem;color:#94a3b8;margin:.15rem 0 0 .15rem;font-variant-numeric:tabular-nums}
 
 /* image */
-.thumb{width:48px;height:64px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;position:relative;
+.thumb{width:96px;height:96px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;position:relative;
   display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
-.thumb span{font-size:.68rem;color:#94a3b8}
+.thumb span{font-size:.75rem;color:#94a3b8}
 .thumb:hover,.thumb.over,.thumb:focus-visible{border-color:var(--primary);background:#eef2ff;outline:none}
-.thumb.has{border-style:solid;border-color:var(--line);background:#fff}
+.thumb.has{border-style:solid;border-color:var(--line);background:#fff;cursor:zoom-in}
+.thumb.has.pick{cursor:pointer}
+.thumb.over{box-shadow:0 0 0 2px var(--primary)}
+.thumb.panning{cursor:grabbing;touch-action:none}
+.thumb img{-webkit-user-drag:none;user-select:none}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.thumb .clear{position:absolute;top:2px;right:2px;width:16px;height:16px;border:none;border-radius:4px;
-  background:rgba(15,23,42,.72);color:#fff;font-size:.65rem;line-height:1;cursor:pointer;opacity:0;padding:0}
+.thumb .clear{position:absolute;top:3px;right:3px;width:18px;height:18px;border:none;border-radius:4px;
+  background:rgba(15,23,42,.72);color:#fff;font-size:.7rem;line-height:1;cursor:pointer;opacity:0;padding:0}
 .thumb:hover .clear{opacity:1}
+
+/* draft row: not saved until it has an image and 品名 */
+tr.row.draft td{background:#fcfcfd}
+tr.row.draft td:first-child{box-shadow:inset 3px 0 0 #cbd5e1}
+.draft-tag{display:block;font-size:.7rem;color:var(--warn-text);margin:.15rem 0 0 .15rem}
+tr.row.draft .step,tr.row.draft .step:hover{color:#cbd5e1;border-color:#f1f5f9;background:#fff;font-weight:400;cursor:not-allowed}
 
 /* status */
 .st-sel{width:100%;border:1px solid transparent;border-radius:999px;padding:.3rem .55rem;font-family:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
 .st-sel:focus{outline:none;box-shadow:0 0 0 2px rgba(79,70,229,.2)}
 .st0{background:var(--s0-bg);color:var(--s0-tx)}
 .st1{background:var(--s1-bg);color:var(--s1-tx)}
-.st2{background:var(--s2-bg);color:var(--s2-tx)}
 .st3{background:var(--s3-bg);color:var(--s3-tx)}
 .st-sel option{background:#fff;color:var(--dark);font-weight:400}
 
@@ -84,24 +98,64 @@ select.cell-in:disabled{background:#f8fafc;color:var(--dark);opacity:1;cursor:no
 .empty-box{text-align:center;padding:3rem 1rem;color:var(--muted);font-size:.9rem}
 .empty-box b{display:block;color:var(--dark);font-size:1rem;margin-bottom:.3rem;font-weight:600}
 
-/* expanded row: 报价 (Step 1). The panel sits over a spacer row so re-rendering the table never reloads the iframe. */
-.table-card{position:relative}
+/* expanded row: 报价 (Step 1). The panel sits over a spacer row so re-rendering the table never reloads the iframe.
+   The spacer's .xp-gap and the panel animate their heights together, so the rows below slide with the panel's edge. */
+.table-card{position:relative;overflow-anchor:none}
+tr.row{scroll-margin-top:40px}
 tr.row.open td{background:#f8faff}
 tr.row.open td:first-child{box-shadow:inset 3px 0 0 var(--primary)}
-tr.row td.hit{cursor:pointer}
-tr.xp-spacer td{padding:0;border-bottom:1px solid var(--line)}
-.xp-panel{position:absolute;z-index:1;background:#f8faff;padding:.75rem .75rem .6rem;border-bottom:1px solid var(--line)}
-.xp-panel iframe{display:block;width:100%;border:0;background:transparent}
-.xp-foot{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:.6rem}
+tr.row td{cursor:pointer}
+tr.xp-spacer td{padding:0;border:0}
+.xp-gap{height:0;background:#f8faff;transition:height .22s ease}
+.xp-panel{position:absolute;z-index:1;background:#f8faff;height:0;overflow:hidden;transition:height .22s ease}
+.xp-inner{padding:.75rem .75rem .6rem;border-bottom:1px solid var(--line)}
+.xp-panel iframe{display:block;width:100%;border:0;background:transparent;opacity:0;transition:opacity .15s}
+.xp-panel iframe.ready{opacity:1}
+.xp-foot{display:flex;align-items:center;gap:1rem;margin-top:.6rem}
 .xp-foot .hint{margin:0}
-.btn-ok{background:var(--s3-bg);color:var(--s3-tx);border:1px solid #a7f3d0}
-.btn-ok:hover{background:#d1fae5}
 
 /* settings */
 .set-sec + .set-sec{margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid #f1f5f9}
 .set-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem}
 .set-sec .form-label .note{font-weight:400;color:#94a3b8;margin-left:.35rem}
 #liveOffset{max-width:140px}
+
+/* image viewer */
+.iv-back{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:120;display:flex;align-items:center;justify-content:center;padding:4vh 3vw}
+.iv{background:#fff;border-radius:var(--radius);box-shadow:0 20px 40px rgba(15,23,42,.3);width:100%;height:100%;max-width:1700px;display:flex;overflow:hidden}
+.iv.over{box-shadow:0 0 0 3px var(--primary),0 20px 40px rgba(15,23,42,.3)}
+.iv-stage{flex:1;min-width:0;position:relative;background:#fff}
+.iv-img{position:absolute;inset:2rem 5.5rem;width:calc(100% - 11rem);height:calc(100% - 4rem);object-fit:contain;display:block;user-select:none;-webkit-user-drag:none}
+.iv-img.soft{filter:blur(1px);opacity:.85}
+.iv-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border:1px solid var(--line);border-radius:8px;background:#fff;
+  color:var(--dark);font-size:1.6rem;line-height:1;cursor:pointer;box-shadow:0 2px 6px rgba(15,23,42,.08);font-family:inherit}
+.iv-nav:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+.iv-nav:disabled{opacity:.35;cursor:default;box-shadow:none}
+.iv-nav.prev{left:1.25rem}
+.iv-nav.next{right:1.25rem}
+.iv-side{flex:0 0 280px;border-left:1px solid var(--line);padding:1.4rem 1.25rem;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem;position:relative}
+.iv-close{position:absolute;top:.9rem;right:.9rem;width:36px;height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;
+  color:var(--dark);font-size:1.2rem;line-height:1;cursor:pointer}
+.iv-close:hover{border-color:var(--primary);color:var(--primary)}
+.iv-title{font-weight:600;font-size:1rem;line-height:1.4;padding-right:2.6rem;word-break:break-word}
+.iv-meta{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.7}
+.iv-count{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.iv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.iv-tile{position:relative;aspect-ratio:1/1;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:#fff;padding:0}
+.iv-tile img{width:100%;height:100%;object-fit:cover;display:block}
+.iv-tile.on{border:2px solid var(--primary)}
+.iv-tile .tag{position:absolute;left:3px;bottom:3px;font-size:.62rem;line-height:1.4;background:rgba(15,23,42,.72);color:#fff;border-radius:3px;padding:0 .3rem}
+.iv-tile .del{position:absolute;top:3px;right:3px;width:18px;height:18px;border:none;border-radius:4px;background:rgba(15,23,42,.72);
+  color:#fff;font-size:.7rem;line-height:1;cursor:pointer;opacity:0;padding:0}
+.iv-tile:hover .del{opacity:1}
+.iv-tile.add{border:1px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;font-size:1.5rem;font-family:inherit;display:flex;align-items:center;justify-content:center}
+.iv-tile.add:hover{border-color:var(--primary);color:var(--primary);background:#eef2ff}
+.iv-actions{display:flex;gap:.5rem;flex-wrap:wrap}
+.iv-side .hint{margin:0}
+.iv-frame{position:absolute;inset:0;margin:auto;overflow:hidden;background:#fff;border:1px solid var(--line);
+  box-shadow:0 2px 10px rgba(15,23,42,.08);cursor:grab;touch-action:none;user-select:none}
+.iv-frame.dragging{cursor:grabbing}
+.iv-frame img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-user-drag:none}
 </style>
 </head>
 <body>
@@ -131,28 +185,35 @@ tr.xp-spacer td{padding:0;border-bottom:1px solid var(--line)}
         <span class="form-label">类目</span>
         <div class="chips" id="catChips"></div>
       </div>
+      <div class="fgroup">
+        <label class="form-label" for="matFilter">材质</label>
+        <input type="text" id="matFilter" class="form-control combo" data-combo="matfilter" placeholder="全部"
+          autocomplete="off" spellcheck="false" title="输入可筛选选项">
+      </div>
       <button type="button" class="menu-link hidden" id="clearFilters">清除筛选</button>
+      <button type="button" class="btn btn-ghost btn-sm hidden" id="catToggle">全部收起</button>
     </div>
   </div>
 
   <div class="card table-card">
     <table class="hub">
       <colgroup>
-        <col style="width:68px"><col><col style="width:104px"><col style="width:170px">
+        <col style="width:112px"><col><col style="width:104px"><col style="width:96px"><col style="width:170px">
         <col style="width:112px"><col style="width:132px"><col style="width:236px"><col style="width:44px">
       </colgroup>
-      <thead id="thead"></thead>
+      <thead id="thead"><tr><th>图片</th><th>品名</th><th>类目</th><th>材质</th><th>SKU</th><th>状态</th><th>上架时间</th><th>流程</th><th></th></tr></thead>
       <tbody id="tbody"></tbody>
     </table>
     <div id="emptyBox" class="empty-box hidden"></div>
     <!-- 报价：展开行面板 -->
     <div class="xp-panel hidden" id="xpPanel">
-      <iframe id="xpFrame" title="报价" style="height:420px"></iframe>
-      <div class="xp-foot">
-        <span class="hint">参数（运费 / 汇率 / 毛利率 / 旺季）在
-          <button type="button" class="menu-link" data-act="quote-settings">⚙ 设置 → 报价</button>
-          中统一修改，所有产品实时生效。</span>
-        <button type="button" class="btn btn-primary btn-sm" id="confirmBtn">✓ 确认价格</button>
+      <div class="xp-inner" id="xpInner">
+        <iframe id="xpFrame" title="报价" style="height:300px"></iframe>
+        <div class="xp-foot">
+          <span class="hint">点击表格下方「保存」即完成报价。参数（运费 / 汇率 / 毛利率 / 旺季）在
+            <button type="button" class="menu-link" data-act="quote-settings">⚙ 设置 → 报价</button>
+            中统一修改，所有产品实时生效。</span>
+        </div>
       </div>
     </div>
   </div>
@@ -198,10 +259,43 @@ tr.xp-spacer td{padding:0;border-bottom:1px solid var(--line)}
         </div>
       </div>
       <div class="set-sec">
+        <span class="form-label">材质<span class="note">表格「材质」列的下拉选项</span></span>
+        <div class="tag-wrap" id="matList"></div>
+        <div class="inline-add">
+          <input type="text" id="matNew" class="form-control" maxlength="10" placeholder="新增材质，例 玻璃">
+          <button type="button" class="btn btn-ghost btn-sm" id="matAdd">添加</button>
+        </div>
+      </div>
+      <div class="set-sec">
         <label class="form-label" for="liveOffset">上架预估天数</label>
         <input type="number" id="liveOffset" class="form-control" min="0" step="1">
         <div class="hint">选择上架时间时，日历会打开在「交货日期 + N 天」所在的月份。</div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 图片查看 -->
+<div class="iv-back hidden" id="ivBack">
+  <div class="iv" id="iv" role="dialog" aria-modal="true" aria-labelledby="ivTitle">
+    <div class="iv-stage" id="ivStage">
+      <img class="iv-img" id="ivImg" alt="">
+      <div class="iv-frame hidden" id="ivFrame" title="按住拖动调整位置，Ctrl+滚轮缩放"><img id="ivFrameImg" alt="" draggable="false"></div>
+      <button type="button" class="iv-nav prev" id="ivPrev" title="上一张">‹</button>
+      <button type="button" class="iv-nav next" id="ivNext" title="下一张">›</button>
+    </div>
+    <div class="iv-side">
+      <button type="button" class="iv-close" id="ivClose" title="关闭（Esc）">×</button>
+      <div class="iv-title" id="ivTitle"></div>
+      <div class="iv-meta" id="ivMeta"></div>
+      <div class="iv-count" id="ivCount"></div>
+      <div class="iv-grid" id="ivGrid"></div>
+      <div class="iv-actions" id="ivActions">
+        <button type="button" class="btn btn-ghost btn-sm" id="ivReplace" title="用新图片替换主图">替换主图</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="ivReset" title="恢复为居中、铺满方框">重置位置</button>
+      </div>
+      <div class="hint" id="ivFrameHint">主图方框 = 表格缩略图：按住拖动调整位置，Ctrl + 滚轮缩放（可缩小到显示整张图），自动保存。</div>
+      <div class="hint" id="ivHint">粘贴或拖入图片即可添加，每个产品最多 6 张。</div>
     </div>
   </div>
 </div>
@@ -212,6 +306,8 @@ tr.xp-spacer td{padding:0;border-bottom:1px solid var(--line)}
 <script src="shared/sku.js"></script>
 <script src="shared/rows.js"></script>
 <script src="shared/datepicker.js"></script>
+<script src="shared/pinyin.js"></script>
+<script src="shared/combo.js"></script>
 <script src="shared/embed.js"></script>
 <script>
 (function(){
@@ -220,12 +316,18 @@ tr.xp-spacer td{padding:0;border-bottom:1px solid var(--line)}
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const IMG_STORE_MAX = 1400;       // same as Step 2: longest side kept for the full image
-const THUMB_MAX = 160;            // longest side of meta.thumb
+const THUMB_SIZE = 320;           // meta.thumb is a THUMB_SIZE square, cropped by meta.thumbCrop
+const IMG_LIMIT = 6;              // images per row: the main one + 5 more (viewer only)
 
 let settings = null;
 let rows = [];
-const ui = { q: '', statuses: [], cats: [], sort: { key: 'liveDate', dir: 1 } };
+const ui = { q: '', status: '', cat: '', mat: '' };   // '' = no filter
 const justAdded = new Set();      // new rows stay visible whatever the filters, until reload
+const drafts = new Set();         // new rows that aren't saved yet: they need an image and 品名
+const draftImg = new Map();       // draft id → full image, written to step2.json once the draft is saved
+const collapsedCats = new Set();  // collapsed category groups ('' = 未分类); this session only
+const showCat = c => collapsedCats.delete(c || '');   // an edited / new row must not vanish into a collapsed group
+const imgCount = r => r.imgCount != null ? r.imgCount : (r.thumb ? 1 : 0);
 
 /* ============ toast ============ */
 let toastTimer = null;
@@ -242,6 +344,7 @@ api.onError = err => toast(err.offline ? err.message : '保存失败：' + err.m
 /* ============ saving ============ */
 const saveTimers = {};
 function saveRow(r){
+  if (drafts.has(r.id)) return commitDraft(r);
   clearTimeout(saveTimers[r.id]);
   saveTimers[r.id] = setTimeout(() => {
     delete saveTimers[r.id];
@@ -255,6 +358,17 @@ window.addEventListener('pagehide', () => {
     if (r) api.saveRowBeacon(r);
   });
 });
+/* a draft is written for the first time once it has both an image and 品名 */
+function commitDraft(r){
+  if (!r.name.trim() || !draftImg.has(r.id)) return;
+  const full = draftImg.get(r.id);
+  drafts.delete(r.id);
+  draftImg.delete(r.id);
+  api.saveRow(r)
+    .then(() => updateStep2Image(r, full))
+    .then(() => toast('已保存「' + r.name + '」'))
+    .catch(() => {});
+}
 function saveSettings(){ return api.saveSettings(settings).catch(() => {}); }
 const byId = id => rows.find(r => r.id === id);
 
@@ -262,9 +376,9 @@ const byId = id => rows.find(r => r.id === id);
 function visibleRows(){ return ROWS.filterRows(rows, ui, justAdded); }
 
 function render(){
+  if (tg) { tg.rerender = true; return; }             // never rebuild the table under a thumb drag (see reposition)
   const focus = captureFocus();
   renderChips();
-  renderHead();
   renderBody();
   restoreFocus(focus);
 }
@@ -287,42 +401,46 @@ function restoreFocus(f){
   if (!f) return;
   const el = $('tbody').querySelector('[data-id="' + f.id + '"][data-f="' + f.f + '"]');
   if (!el) return;
-  el.focus();
+  el.focus({ preventScroll: true });
   if (f.start != null && el.setSelectionRange) try { el.setSelectionRange(f.start, f.end); } catch (e) {}
 }
 
 function renderChips(){
-  const count = (key, v) => rows.filter(r => r[key] === v).length;
-  $('statusChips').innerHTML = ROWS.STATUSES.map(s =>
-    '<button type="button" class="chip' + (ui.statuses.includes(s) ? ' active' : '') + '" data-status="' + esc(s) + '">' +
-    esc(s) + '<span class="n">' + count('status', s) + '</span></button>').join('');
-  $('catChips').innerHTML = settings.categories.map(c =>
-    '<button type="button" class="chip' + (ui.cats.includes(c) ? ' active' : '') + '" data-cat="' + esc(c) + '">' +
-    esc(c) + '<span class="n">' + count('category', c) + '</span></button>').join('');
-  const filtering = ui.q.trim() || ui.statuses.length || ui.cats.length;
+  /* 状态 / 类目: at most one chip per group; clicking the active chip again clears it (= all). 材质: a dropdown */
+  const chips = (key, cur, values) => values.map(v =>
+    '<button type="button" class="chip' + (v === cur ? ' active' : '') + '" data-v="' + esc(v) + '">' +
+    esc(v) + '<span class="n">' + rows.filter(r => r[key] === v).length + '</span></button>').join('');
+  $('statusChips').innerHTML = chips('status', ui.status, ROWS.STATUSES);
+  $('catChips').innerHTML = chips('category', ui.cat, settings.categories);
+  const mf = $('matFilter');
+  if (document.activeElement !== mf) mf.value = ui.mat;
+  mf.classList.toggle('on', !!ui.mat);
+  const filtering = ui.q.trim() || ui.status || ui.cat || ui.mat;
   $('clearFilters').classList.toggle('hidden', !filtering);
-  const shown = visibleRows().length;
+  const vis = visibleRows(), shown = vis.length;
+  const cats = ROWS.groupRows(vis, settings.categories).map(g => g.cat);
+  $('catToggle').classList.toggle('hidden', !cats.length);
+  $('catToggle').textContent = cats.every(c => collapsedCats.has(c)) ? '全部展开' : '全部收起';
   $('countLine').textContent = '共 ' + rows.length + ' 个产品' + (filtering ? ' · 显示 ' + shown + ' 个' : '');
-}
-
-function renderHead(){
-  const th = (label, key) => {
-    if (!key) return '<th>' + label + '</th>';
-    const arrow = ui.sort.key === key ? '<span class="arrow">' + (ui.sort.dir > 0 ? '▲' : '▼') + '</span>' : '';
-    return '<th class="sortable" data-sort="' + key + '">' + label + arrow + '</th>';
-  };
-  $('thead').innerHTML = '<tr>' + th('图片') + th('品名', 'name') + th('类目') + th('SKU', 'sku') +
-    th('状态', 'status') + th('上架时间', 'liveDate') + th('流程') + th('') + '</tr>';
 }
 
 function renderBody(){
   const vis = visibleRows();
-  const groups = ROWS.groupRows(vis, settings.categories, ui.sort);
-  $('tbody').innerHTML = groups.map(g =>
-    '<tr class="grp' + (g.cat ? '' : ' none') + '"><td colspan="8">' + esc(g.label) +
-    '<span class="n">' + g.rows.length + ' 个</span></td></tr>' +
-    g.rows.map(r => rowHtml(r) + (r.id === expandedId ? '<tr class="xp-spacer"><td colspan="8"></td></tr>' : '')).join('')
-  ).join('');
+  const groups = ROWS.groupRows(vis, settings.categories);
+  /* spacers (open row + a closing one): redrawn at their current animated height, then sent on to their target */
+  const cur = {};
+  $('tbody').querySelectorAll('.xp-gap').forEach(g => { cur[g.dataset.id] = g.offsetHeight; });
+  const spacer = id => id in gapT
+    ? '<tr class="xp-spacer" data-id="' + esc(id) + '"><td colspan="9"><div class="xp-gap" data-id="' + esc(id) +
+      '" style="height:' + (cur[id] || 0) + 'px"></div></td></tr>'
+    : '';
+  $('tbody').innerHTML = groups.map(g => {
+    const shut = collapsedCats.has(g.cat);
+    return '<tr class="grp' + (g.cat ? '' : ' none') + (shut ? ' collapsed' : '') + '" data-cat="' + esc(g.cat) +
+      '" title="' + (shut ? '点击展开' : '点击收起') + '"><td colspan="9"><span class="caret"></span>' + esc(g.label) +
+      '<span class="n">' + g.rows.length + ' 个</span></td></tr>' +
+      (shut ? '' : g.rows.map(r => rowHtml(r) + spacer(r.id)).join(''));
+  }).join('');
   const box = $('emptyBox');
   if (!rows.length) {
     box.innerHTML = '<b>还没有产品</b>点击右上角「+ 新建产品」开始。';
@@ -330,41 +448,48 @@ function renderBody(){
     box.innerHTML = '<b>没有符合筛选条件的产品</b><button type="button" class="menu-link" data-act="clearfilters">清除筛选</button>';
   }
   box.classList.toggle('hidden', vis.length > 0);
-  placePanel();
+  xpSync(!!panelId && !(panelId in cur));
 }
 
-function catOptions(cur){
-  const list = settings.categories.slice();
-  if (cur && !list.includes(cur)) list.push(cur);
-  return '<option value="">—</option>' + list.map(c =>
-    '<option value="' + esc(c) + '"' + (c === cur ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
+/* 类目 / 材质 cell: a type-to-filter dropdown (shared/combo.js, set up in comboConfig) */
+function comboCell(r, f, extra){
+  return '<input type="text" class="cell-in combo" data-combo="' + f + '" data-id="' + esc(r.id) + '" data-f="' + f + '" value="' +
+    esc(r[f]) + '" placeholder="—" autocomplete="off" spellcheck="false"' + (extra || '') + '>';
 }
 
+const ST_CLASS = { '未下单': 'st0', '已下单': 'st1', '已上架': 'st3' };   // colours from theme.css --s0/--s1/--s3
 const STEP_TIPS = {
   done: '已完成', next: '下一步', open: '可打开', locked: '前一步未完成'
 };
 function rowHtml(r){
   const id = esc(r.id);
-  const rank = ROWS.statusRank(r.status);
   const j = ROWS.journey(r);
+  const draft = drafts.has(r.id);
   const steps = j.map((s, i) =>
     (i ? '<span class="ln' + (j[i - 1].state === 'done' ? ' on' : '') + '"></span>' : '') +
     '<button type="button" class="step ' + s.state + '" data-act="step" data-step="' + s.key + '" data-id="' + id +
-    '" title="' + s.label + '：' + STEP_TIPS[s.state] + '">' + (s.state === 'done' ? '✓ ' : '') + s.label + '</button>'
+    '" title="' + (draft ? '请先添加图片和品名' : s.label + '：' + STEP_TIPS[s.state]) + '"' + (draft ? ' disabled' : '') + '>' +
+    (s.state === 'done' ? '✓ ' : '') + s.label + '</button>'
   ).join('');
+  const missing = [r.thumb ? '' : '图片', r.name.trim() ? '' : '品名'].filter(Boolean);
+  const viewable = r.thumb && !draft;
 
-  return '<tr class="row' + (r.id === expandedId ? ' open' : '') + '" data-row="' + id + '">' +
-    '<td><div class="thumb' + (r.thumb ? ' has' : '') + '" data-act="img" data-id="' + id + '" data-f="img" tabindex="0" ' +
-      'title="点击上传、拖入图片，或悬停后按 Ctrl+V 粘贴">' +
-      (r.thumb ? '<img src="' + r.thumb + '" alt=""><button type="button" class="clear" data-act="imgclr" data-id="' + id + '" title="移除图片">×</button>'
-               : '<span>图片</span>') +
+  return '<tr class="row' + (r.id === expandedId ? ' open' : '') + (draft ? ' draft' : '') + '" data-row="' + id + '">' +
+    '<td><div class="thumb' + (r.thumb ? ' has' : '') + (r.thumb && !viewable ? ' pick' : '') + '" data-act="img" data-id="' + id + '" data-f="img" tabindex="0" ' +
+      'title="' + (viewable ? '点击查看大图 · 按住拖动调整位置 · Ctrl+滚轮缩放 · 拖入或粘贴图片替换主图'
+                 : r.thumb ? '点击更换图片 · 按住拖动调整位置 · Ctrl+滚轮缩放'
+                 : '点击上传、拖入图片，或悬停后按 Ctrl+V 粘贴') + '">' +
+      (r.thumb ? '<img src="' + r.thumb + '" alt="" draggable="false">' +
+                 (imgCount(r) > 1 && !draft ? '<button type="button" class="clear" data-act="imgclr" data-id="' + id + '" title="删除主图（下一张成为主图）">×</button>' : '')
+               : '<span>+ 图片</span>') +
     '</div></td>' +
-    '<td><input class="cell-in' + (r.name.trim() ? '' : ' missing') + '" data-id="' + id + '" data-f="name" value="' + esc(r.name) + '" placeholder="品名（必填）"></td>' +
-    '<td><select class="cell-in" data-id="' + id + '" data-f="category"' +
-      (r.sku ? ' disabled title="由 SKU 前缀决定"' : '') + '>' + catOptions(r.category) + '</select></td>' +
+    '<td><input class="cell-in' + (r.name.trim() ? '' : ' missing') + '" data-id="' + id + '" data-f="name" value="' + esc(r.name) + '" placeholder="品名（必填）">' +
+      (draft ? '<span class="draft-tag">未保存 · 请添加' + missing.join('和') + '</span>' : '') + '</td>' +
+    '<td>' + comboCell(r, 'category', r.sku ? ' disabled title="由 SKU 前缀决定"' : '') + '</td>' +
+    '<td>' + comboCell(r, 'material') + '</td>' +
     '<td><input class="cell-in mono" data-id="' + id + '" data-f="sku" value="' + esc(r.sku) + '" placeholder="XK_012-023" spellcheck="false">' +
       (r.parentAsin ? '<span class="sub-asin" title="父ASIN">' + esc(r.parentAsin) + '</span>' : '') + '</td>' +
-    '<td><select class="st-sel st' + rank + '" data-id="' + id + '" data-f="status">' +
+    '<td><select class="st-sel ' + (ST_CLASS[r.status] || 'st0') + '" data-id="' + id + '" data-f="status">' +
       ROWS.STATUSES.map(s => '<option' + (s === r.status ? ' selected' : '') + '>' + s + '</option>').join('') +
     '</select></td>' +
     '<td><button type="button" class="date-btn' + (r.liveDate ? '' : ' empty') + '" data-act="date" data-id="' + id + '" data-f="liveDate">' +
@@ -382,10 +507,6 @@ $('tbody').addEventListener('change', e => {
     case 'name':
       r.name = el.value.trim();
       el.classList.toggle('missing', !r.name);
-      saveRow(r); renderSoon();
-      break;
-    case 'category':
-      r.category = el.value;
       saveRow(r); renderSoon();
       break;
     case 'status':
@@ -423,6 +544,7 @@ function commitSku(r, el){
   const clash = rows.find(o => o.id !== r.id && SKU.overlaps(p, SKU.parse(o.sku)));
   r.sku = SKU.format(p);
   r.category = p.cat;
+  showCat(p.cat);
   el.value = r.sku;
   saveRow(r);
   renderSoon();
@@ -431,7 +553,7 @@ function commitSku(r, el){
 
 $('tbody').addEventListener('keydown', e => {
   const el = e.target;
-  if (el.tagName !== 'INPUT') return;
+  if (el.tagName !== 'INPUT' || el.dataset.combo) return;       // combo.js handles its own keys
   if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
   if (e.key === 'Escape') {
     const r = byId(el.dataset.id);
@@ -444,8 +566,11 @@ document.addEventListener('click', e => {
   if (!t) return;
   const r = byId(t.dataset.id);
   switch (t.dataset.act) {
-    case 'img': if (r) pickImage(f => setRowImage(r, f)); break;
-    case 'imgclr': e.stopPropagation(); if (r) clearRowImage(r); break;
+    case 'img': if (r && !skipThumbClick) thumbClick(r); break;
+    case 'imgclr':
+      e.stopPropagation();
+      if (r && confirm('删除「' + (r.name || '未命名') + '」的主图？下一张图片将成为主图。')) deleteMainImage(r);
+      break;
     case 'date': if (r) openDate(r, t); break;
     case 'step': if (r) stepClick(r, t.dataset.step); break;
     case 'del': if (r) deleteRow(r); break;
@@ -460,68 +585,252 @@ function stepClick(r, step){
   toast(STEP_STAGE[step]);
 }
 
-/* ============ 报价：展开行 (one at a time) ============ */
-let expandedId = null;
+/* ============ 报价：展开行 (one at a time) ============
+   One panel (one iframe) sits over a spacer row under the open row. Opening, closing and switching rows animate the
+   spacer's .xp-gap and the panel's height together (renderBody → xpSync), and pinRow keeps the clicked row still on screen.
+   The page never scrolls by itself: a first open waits for the tool's height so it opens in one move, and holdScroll
+   stops a collapse near the bottom of the page from pulling the page down. */
+const XP_MS = 220;                // = the CSS height transition
+const XP_EST = 360;               // fallback height when the tool doesn't report its size in time
+const XP_WAIT = 700;              // how long a first open waits for that report
+let expandedId = null;            // the open row
+let closingId = null;             // a row whose spacer is still closing
+let panelId = null;               // the row the panel sits over: the open row, or the one closing under it
+const gapT = {};                  // row id → target spacer height (open and closing rows only)
+const xpHeights = {};             // row id → last measured panel height (this session)
+let closeTimer = null;
+let xpPending = null;             // an open row still at 0, waiting for the tool's first height
+let pendTimer = null;
 const xpPanel = $('xpPanel'), xpFrame = $('xpFrame');
 
 function toggleExpand(r){
+  if (drafts.has(r.id)) return toast('请先添加图片和品名，产品才会保存', true);
   if (expandedId === r.id) return collapse();
+  const top0 = rowTop(r.id);
+  clearPending();
+  let fresh = false;                                    // a newly loaded tool: its height report opens the panel
+  if (closingId === r.id && panelId === r.id) {         // re-opened while closing: the tool is still loaded
+    clearTimeout(closeTimer);
+    closingId = null;
+  } else {
+    fresh = true;
+    endClosing();
+    if (expandedId) {                                   // switching rows: the old spacer closes on its own
+      holdScroll();
+      closingId = expandedId;
+      gapT[closingId] = 0;
+      closeTimer = setTimeout(endClosing, XP_MS + 60);
+    }
+    panelId = r.id;
+    xpFrame.classList.remove('ready');                  // fades in once the tool reports its height
+    xpFrame.style.height = '300px';
+    xpFrame.src = 'tools/step1.html?row=' + encodeURIComponent(r.id);
+  }
   expandedId = r.id;
-  xpFrame.style.height = '420px';
-  xpFrame.src = 'tools/step1.html?row=' + encodeURIComponent(r.id);
-  syncConfirm();
+  if (xpHeights[r.id] || !fresh) gapT[r.id] = xpHeights[r.id] || XP_EST;
+  else {                                                // first open: stay at 0 until the real height is known
+    gapT[r.id] = 0;
+    xpPending = r.id;
+    pendTimer = setTimeout(() => openPending(XP_EST), XP_WAIT);
+  }
   render();
-  const tr = $('tbody').querySelector('tr[data-row="' + r.id + '"]');
-  if (tr) tr.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  pinRow(r.id, top0);
 }
-function collapse(){
+/* the pending open row gets its height: grow 0 → h in one move */
+function openPending(h){
+  const id = xpPending;
+  clearPending();
+  if (!id || id !== expandedId) return;
+  gapT[id] = h;
+  xpSync(false);
+  pinRow(id, rowTop(id));
+}
+function clearPending(){
+  clearTimeout(pendTimer);
+  xpPending = null;
+}
+/* instant: no animation (the row is being deleted) */
+function collapse(instant){
   if (!expandedId) return;
+  const id = expandedId, top0 = instant ? null : rowTop(id);
+  clearPending();
+  endClosing();
   expandedId = null;
-  xpFrame.src = 'about:blank';          // unloading flushes the tool's pending save
+  closingId = id;
+  gapT[id] = 0;
+  if (instant) { endClosing(); return render(); }
+  holdScroll();
+  closeTimer = setTimeout(endClosing, XP_MS + 60);
   render();
+  pinRow(id, top0);
 }
-/* position the panel over the spacer row; hidden while the expanded row is filtered out */
+/* a closing spacer has finished: drop it; if the panel was over it, unload the tool (that flushes its pending save) */
+function endClosing(){
+  clearTimeout(closeTimer);
+  const id = closingId;
+  if (!id) return;
+  closingId = null;
+  delete gapT[id];
+  const sp = $('tbody').querySelector('tr.xp-spacer[data-id="' + id + '"]');
+  if (sp) sp.remove();
+  if (panelId === id) {
+    panelId = null;
+    xpFrame.src = 'about:blank';
+    xpFrame.classList.remove('ready');
+  }
+  placePanel();
+}
+/* send the spacers and the panel to their target heights; CSS animates the change.
+   fromZero: the panel's spacer is new (just opened, or shown again after a filter), so the panel grows from 0 too */
+function xpSync(fromZero){
+  const gaps = $('tbody').querySelectorAll('.xp-gap');
+  if (gaps.length) void $('tbody').offsetHeight;         // commit the start heights first
+  gaps.forEach(g => { g.style.height = gapT[g.dataset.id] + 'px'; });
+  placePanel();                                          // un-hide first: a hidden panel can't animate
+  if (fromZero) {
+    xpPanel.style.transition = 'none';
+    xpPanel.style.height = '0px';
+    void xpPanel.offsetHeight;
+    xpPanel.style.transition = '';
+  }
+  xpPanel.style.height = (panelId in gapT ? gapT[panelId] : 0) + 'px';
+  placePanel();
+}
+/* position the panel over its spacer row; hidden while that row is filtered out */
 function placePanel(){
-  const spacer = $('tbody').querySelector('tr.xp-spacer');
+  const spacer = panelId && $('tbody').querySelector('tr.xp-spacer[data-id="' + panelId + '"]');
   xpPanel.classList.toggle('hidden', !spacer);
   if (!spacer) return;
   const table = spacer.closest('table');
   xpPanel.style.left = table.offsetLeft + 'px';
   xpPanel.style.width = table.offsetWidth + 'px';
-  spacer.firstChild.style.height = xpPanel.offsetHeight + 'px';
   xpPanel.style.top = (table.offsetTop + spacer.offsetTop) + 'px';
 }
 window.addEventListener('resize', placePanel);
 
+/* the row's top on screen (never scrolls, even when the row is cut off) */
+function rowTop(id){
+  const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
+  return tr ? tr.getBoundingClientRect().top : null;
+}
+/* a closing spacer shortens the page; near the bottom the browser would clamp the scroll and the page would slide down.
+   Keep the page at least down to the current viewport bottom; the spare room shrinks as the user scrolls back up */
+let scrollHold = 0;
+function holdScroll(){
+  scrollHold = Math.ceil(window.scrollY + window.innerHeight);
+  document.body.style.minHeight = scrollHold + 'px';
+}
+function releaseHold(){
+  scrollHold = 0;
+  document.body.style.minHeight = '';
+}
+window.addEventListener('scroll', () => {
+  if (!scrollHold) return;
+  const need = Math.ceil(window.scrollY + window.innerHeight);
+  if (need >= scrollHold) return;
+  if (document.querySelector('.container').offsetHeight >= need) return releaseHold();   // the content fills it again
+  scrollHold = need;
+  document.body.style.minHeight = need + 'px';
+}, { passive: true });
+window.addEventListener('resize', releaseHold);
+/* while the spacers animate, keep the row at top0 on screen (rows above it may be closing) and the panel on its spacer */
+let pinRaf = 0;
+function pinRow(id, top0){
+  cancelAnimationFrame(pinRaf);
+  const end = performance.now() + XP_MS + 60;
+  const tick = () => {
+    const tr = top0 != null && $('tbody').querySelector('tr[data-row="' + id + '"]');
+    if (tr) {
+      const dy = tr.getBoundingClientRect().top - top0;
+      if (Math.abs(dy) >= 1) window.scrollBy(0, dy);
+    }
+    placePanel();
+    if (performance.now() < end) pinRaf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
 hubEmbed.listen((m, frame) => {
   if (m.type === 'height' && frame === xpFrame && m.row === expandedId) {
     xpFrame.style.height = Math.max(120, m.data.h) + 'px';
-    placePanel();
+    xpFrame.classList.add('ready');
+    const h = $('xpInner').offsetHeight;                 // 0 while the panel is hidden by a filter
+    if (h) {
+      xpHeights[expandedId] = h;
+      if (xpPending === expandedId) openPending(h);
+      else { gapT[expandedId] = h; xpSync(false); }
+    }
+  } else if (m.type === 'step1-saved') {                 // 保存 in 报价 completes the step
+    const r = byId(m.row);
+    if (r && !r.step1Confirmed) {
+      r.step1Confirmed = true;
+      saveRow(r);
+      render();
+      toast('报价已完成，下一步：下单');
+    }
   }
 });
 
-function syncConfirm(){
-  const r = byId(expandedId), b = $('confirmBtn');
-  if (!r) return;
-  b.className = 'btn btn-sm ' + (r.step1Confirmed ? 'btn-ok' : 'btn-primary');
-  b.textContent = r.step1Confirmed ? '✓ 价格已确认 · 取消确认' : '✓ 确认价格';
-}
-$('confirmBtn').addEventListener('click', () => {
-  const r = byId(expandedId);
-  if (!r) return;
-  r.step1Confirmed = !r.step1Confirmed;
-  saveRow(r);
-  syncConfirm();
-  render();
-  toast(r.step1Confirmed ? '已确认价格，下一步：下单' : '已取消确认');
+/* clicking the blank space of a row also toggles it, except within HIT_PAD px of a field or button (a near miss).
+   Neither does a drag, a double-click's second click, or a click that only closes a popup or leaves a text box */
+const HIT_PAD = 10;
+const hitRow = (t, x, y) => {
+  if (!t.closest || t.closest('[data-act], input, select, button')) return null;
+  const td = t.closest('td'), tr = td && td.closest('tr.row');
+  if (!tr) return null;
+  const near = [...td.querySelectorAll('[data-act], input, select, button, .sub-asin, .draft-tag')].some(el => {
+    const b = el.getBoundingClientRect();
+    return x > b.left - HIT_PAD && x < b.right + HIT_PAD && y > b.top - HIT_PAD && y < b.bottom + HIT_PAD;
+  });
+  return near ? null : tr.dataset.row;
+};
+const typing = () => {
+  const a = document.activeElement;
+  return !!a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && /^(text|search|number|)$/.test(a.type)));
+};
+let rowPress = null;              // {id, x, y}: a press that may become a row toggle
+document.addEventListener('pointerdown', e => {
+  const id = e.button === 0 && hitRow(e.target, e.clientX, e.clientY);
+  rowPress = id && !isDatePickerOpen() && !combo.isOpen() && !typing() ? { id, x: e.clientX, y: e.clientY } : null;
+}, true);
+$('tbody').addEventListener('click', e => {
+  const g = e.target.closest('tr.grp');
+  if (g) return toggleCat(g.dataset.cat);
+  const p = rowPress;
+  rowPress = null;
+  if (!p || e.detail > 1 || hitRow(e.target, e.clientX, e.clientY) !== p.id || Math.abs(e.clientX - p.x) + Math.abs(e.clientY - p.y) >= 5) return;
+  const r = byId(p.id);
+  if (r) toggleExpand(r);
 });
 
-/* clicking an empty part of a row also toggles it */
-$('tbody').addEventListener('click', e => {
-  if (e.target.closest('[data-act], input, select, button')) return;
-  const tr = e.target.closest('tr.row');
-  const r = tr && byId(tr.dataset.row);
-  if (r) toggleExpand(r);
+/* category headers: collapse / expand that group's rows. Nothing stays open inside a collapsed group */
+function toggleCat(cat){
+  if (collapsedCats.has(cat)) { collapsedCats.delete(cat); return render(); }
+  holdScroll();                                         // near the page bottom the page would slide down
+  collapsedCats.add(cat);
+  closeIfCollapsed();
+}
+function closeIfCollapsed(){
+  const r = expandedId && byId(expandedId);
+  if (r && collapsedCats.has(r.category || '')) collapse(true);
+  else render();
+}
+$('catToggle').addEventListener('click', () => {
+  const cats = ROWS.groupRows(visibleRows(), settings.categories).map(g => g.cat);
+  if (cats.every(c => collapsedCats.has(c))) { collapsedCats.clear(); return render(); }
+  ROWS.groupRows(rows, settings.categories).forEach(g => collapsedCats.add(g.cat));
+  closeIfCollapsed();
+});
+/* clicking the grey page margins (outside the cards) collapses the open panel. Both press and release must be
+   on a margin (a text selection dragged out doesn't count), and a click that only closes a popup doesn't count */
+const isMargin = t => t === document.documentElement || t === document.body || !!(t.classList && t.classList.contains('container'));
+let downOnMargin = false;
+document.addEventListener('pointerdown', e => {
+  downOnMargin = isMargin(e.target) && !isDatePickerOpen() && !combo.isOpen();
+}, true);
+document.addEventListener('click', e => {
+  if (expandedId && downOnMargin && isMargin(e.target)) collapse();
+  downOnMargin = false;
 });
 
 function openDate(r, btn){
@@ -541,11 +850,16 @@ function estimateLiveDate(r){
 }
 
 async function deleteRow(r){
+  if (drafts.has(r.id)) {                       // never saved: just drop it
+    drafts.delete(r.id); draftImg.delete(r.id); justAdded.delete(r.id);
+    rows = rows.filter(x => x !== r);
+    return render();
+  }
   if (!confirm('确定永久删除「' + (r.name || '未命名') + '」及其全部数据？\n（已保存到 售价计算 / 下单计划 文件夹的文件不会被删除）')) return;
   clearTimeout(saveTimers[r.id]);
   delete saveTimers[r.id];
   try { await api.delRow(r.id); } catch (e) { return; }
-  if (expandedId === r.id) collapse();
+  if (expandedId === r.id) collapse(true);
   rows = rows.filter(x => x !== r);
   justAdded.delete(r.id);
   render();
@@ -553,20 +867,27 @@ async function deleteRow(r){
 }
 
 $('addBtn').addEventListener('click', () => {
-  const r = ROWS.newRow(ui.cats.length === 1 ? ui.cats[0] : '');
+  const r = ROWS.newRow(ui.cat);
+  showCat(r.category);
   rows.push(r);
   justAdded.add(r.id);
-  api.saveRow(r).catch(() => {});
+  drafts.add(r.id);                 // saved once it has an image and 品名 (commitDraft)
   render();
   const el = $('tbody').querySelector('[data-id="' + r.id + '"][data-f="name"]');
   if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus(); }
 });
 
 /* ============ images ============ */
-function pickImage(cb){
+/* main image: step2.json products[0] (shared with Step 2) · up to 5 more: images.json (viewer only)
+   meta keeps imgCount and a THUMB_SIZE square thumb cut by thumbCrop
+   {x, y: fractions of the width / height, s: side as a fraction of the short edge} */
+const step2Path = r => 'rows/' + r.id + '/step2.json';
+const imagesPath = r => 'rows/' + r.id + '/images.json';
+
+function pickImage(cb, multiple){
   const inp = document.createElement('input');
-  inp.type = 'file'; inp.accept = 'image/*';
-  inp.onchange = () => { if (inp.files[0]) cb(inp.files[0]); };
+  inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = !!multiple;
+  inp.onchange = () => { if (inp.files.length) cb(multiple ? [...inp.files] : inp.files[0]); };
   inp.click();
 }
 function drawScaled(img, max, quality){
@@ -578,23 +899,46 @@ function drawScaled(img, max, quality){
   cx.drawImage(img, 0, 0, w, h);
   return { url: cv.toDataURL('image/jpeg', quality), w, h };
 }
-/* file → {full:{url,w,h}, thumb} ; full matches Step 2's loadImageData (1400px, JPEG 0.85) */
-function processImage(file){
+function loadImg(url){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = () => rej(new Error('图片读取失败'));
+    img.src = url;
+  });
+}
+function readFile(file){
   return new Promise((res, rej) => {
     const fr = new FileReader();
-    fr.onload = () => {
-      const img = new Image();
-      img.onload = () => res({ full: drawScaled(img, IMG_STORE_MAX, 0.85), thumb: drawScaled(img, THUMB_MAX, 0.8).url });
-      img.onerror = () => rej(new Error('图片读取失败'));
-      img.src = fr.result;
-    };
+    fr.onload = () => res(fr.result);
     fr.onerror = () => rej(new Error('图片读取失败'));
     fr.readAsDataURL(file);
   });
 }
+/* the largest centred square */
+function centerCrop(w, h){
+  const m = Math.min(w, h);
+  return { x: (w - m) / 2 / w, y: (h - m) / 2 / h, s: 1 };
+}
+function makeThumb(img, c){
+  const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+  const k = THUMB_SIZE / (c.s * Math.min(W, H));      // frame → canvas; white where the image doesn't reach
+  const cv = document.createElement('canvas'); cv.width = cv.height = THUMB_SIZE;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, THUMB_SIZE, THUMB_SIZE);
+  cx.imageSmoothingQuality = 'high';
+  cx.drawImage(img, -c.x * W * k, -c.y * H * k, W * k, H * k);
+  return cv.toDataURL('image/jpeg', 0.8);
+}
+/* file → {full:{url,w,h}, thumb, crop} ; full matches Step 2's loadImageData (1400px, JPEG 0.85) */
+async function processImage(file){
+  const img = await loadImg(await readFile(file));
+  const crop = centerCrop(img.width, img.height);
+  return { full: drawScaled(img, IMG_STORE_MAX, 0.85), thumb: makeThumb(img, crop), crop };
+}
 /* the full image lives in step2.json products[0] (shared with Step 2); meta keeps only the thumb */
 async function updateStep2Image(r, full){
-  const path = 'rows/' + r.id + '/step2.json';
+  const path = step2Path(r);
   let s2 = await api.get(path);
   if (!s2 || typeof s2 !== 'object') s2 = {};
   if (!Array.isArray(s2.products)) s2.products = [];
@@ -609,51 +953,123 @@ async function updateStep2Image(r, full){
   p.frame = full ? { w: full.w, h: full.h } : null;
   await api.put(path, s2);
 }
+
+/* row id → [main, ...extras] as {url,w,h}; loaded when the viewer opens, kept in step with every write */
+const imgCache = new Map();
+async function loadRowImages(r){
+  if (imgCache.has(r.id)) return imgCache.get(r.id);
+  const [s2, im] = await Promise.all([api.get(step2Path(r)), api.get(imagesPath(r))]);
+  const p = s2 && Array.isArray(s2.products) ? s2.products[0] : null;
+  const list = [];
+  if (p && p.image) list.push({ url: p.image, w: (p.imgNat && p.imgNat.w) || 0, h: (p.imgNat && p.imgNat.h) || 0 });
+  ((im && Array.isArray(im.extra)) ? im.extra : []).forEach(x => { if (x && x.url) list.push(x); });
+  imgCache.set(r.id, list);
+  return list;
+}
+const saveExtras = (r, list) => api.put(imagesPath(r), { extra: list.slice(1) });
+
+/* replace the main image (row thumb click / paste / drop, or 替换主图 in the viewer) */
 async function setRowImage(r, file){
   if (!file || !/^image\//.test(file.type)) return toast('请选择图片文件', true);
   try {
     const d = await processImage(file);
-    r.thumb = d.thumb;
+    if (!byId(r.id)) return;
+    r.thumb = d.thumb; r.thumbCrop = d.crop; r.imgCount = Math.max(1, imgCount(r));
+    if (drafts.has(r.id)) {
+      draftImg.set(r.id, d.full);
+      saveRow(r); render();                               // saves the draft if 品名 is already filled
+      if (drafts.has(r.id)) toast('填写品名后自动保存');
+      return;
+    }
     saveRow(r); render();
     await updateStep2Image(r, d.full);
+    const c = imgCache.get(r.id);
+    if (c) { if (c.length) c[0] = d.full; else c.push(d.full); }
+    viewerChanged(r);
     toast('图片已保存');
   } catch (e) {
     if (!e.offline) toast(e.message, true);
   }
 }
-async function clearRowImage(r){
-  r.thumb = null;
-  saveRow(r); render();
-  try { await updateStep2Image(r, null); } catch (e) {}
+/* the main image goes and the next one becomes main; a row always keeps at least one image */
+async function deleteMainImage(r){
+  try {
+    const list = await loadRowImages(r);
+    if (list.length < 2) return toast('每个产品至少保留一张图片', true);
+    const next = list[1];
+    const img = await loadImg(next.url);
+    next.w = next.w || img.naturalWidth; next.h = next.h || img.naturalHeight;
+    await updateStep2Image(r, next);
+    list.splice(0, 1);
+    await saveExtras(r, list);
+    r.thumbCrop = centerCrop(img.naturalWidth, img.naturalHeight);
+    r.thumb = makeThumb(img, r.thumbCrop);
+    r.imgCount = list.length;
+    saveRow(r); render();
+    viewerChanged(r);
+    toast('已删除主图');
+  } catch (e) {
+    imgCache.delete(r.id);
+    if (!e.offline) toast(e.message, true);
+  }
+}
+/* rows saved before the square thumbs: rebuild a sharp centred thumb from the full image */
+async function upgradeThumb(r, main){
+  try {
+    const img = await loadImg(main.url);
+    r.thumbCrop = centerCrop(img.naturalWidth, img.naturalHeight);
+    r.thumb = makeThumb(img, r.thumbCrop);
+    saveRow(r); render();
+  } catch (e) {}
+}
+/* a saved row with an image opens the viewer; otherwise pick a file */
+function thumbClick(r){
+  if (r.thumb && !drafts.has(r.id)) openViewer(r);
+  else pickImage(f => setRowImage(r, f));
 }
 
 let hoverThumb = null;
 document.addEventListener('mouseover', e => {
   const t = e.target.closest && e.target.closest('.thumb');
-  hoverThumb = t ? t.dataset.id : null;
+  const id = t ? t.dataset.id : null;
+  if (id && id !== hoverThumb) {                       // preload the full image for drag / Ctrl+wheel
+    const r = byId(id);
+    if (r && r.thumb) openFrame(r).catch(() => {});
+  }
+  hoverThumb = id;
 });
 document.addEventListener('paste', e => {
+  const files = [...((e.clipboardData || {}).items || [])]
+    .filter(it => it.type.indexOf('image/') === 0).map(it => it.getAsFile()).filter(Boolean);
+  if (viewer) {                                         // the viewer is open: paste adds an image
+    if (files.length) { e.preventDefault(); viewerAdd(files); }
+    return;
+  }
   const a = document.activeElement;
   const id = hoverThumb || (a && a.classList && a.classList.contains('thumb') ? a.dataset.id : null);
   const r = id && byId(id);
-  if (!r) return;
-  const items = (e.clipboardData || {}).items || [];
-  for (const it of items) {
-    if (it.type.indexOf('image/') === 0) {
-      e.preventDefault();
-      setRowImage(r, it.getAsFile());
-      return;
-    }
-  }
+  if (!r || !files.length) return;
+  e.preventDefault();
+  setRowImage(r, files[0]);
 });
 document.addEventListener('dragover', e => {
   e.preventDefault();                                   // never let a stray drop navigate away
+  if (viewer) return $('iv').classList.add('over');
   const t = e.target.closest && e.target.closest('.thumb');
   document.querySelectorAll('.thumb.over').forEach(x => { if (x !== t) x.classList.remove('over'); });
   if (t) t.classList.add('over');
 });
+document.addEventListener('dragleave', e => {
+  if (viewer && !e.relatedTarget) $('iv').classList.remove('over');
+});
 document.addEventListener('drop', e => {
   e.preventDefault();
+  if (viewer) {                                         // the viewer is open: drop adds images
+    $('iv').classList.remove('over');
+    const files = [...(e.dataTransfer.files || [])];
+    if (files.length) viewerAdd(files);
+    return;
+  }
   const t = e.target.closest && e.target.closest('.thumb');
   document.querySelectorAll('.thumb.over').forEach(x => x.classList.remove('over'));
   if (!t) return;
@@ -666,35 +1082,451 @@ $('tbody').addEventListener('keydown', e => {
   if (t.classList.contains('thumb') && (e.key === 'Enter' || e.key === ' ')) {
     e.preventDefault();
     const r = byId(t.dataset.id);
-    if (r) pickImage(f => setRowImage(r, f));
+    if (r) thumbClick(r);
   }
 });
 
-/* ============ filters / sort ============ */
+/* ============ reposition: the frame stays still, the image moves inside it (as in collage-app) ============ */
+/* thumbCrop = the frame as a window onto the full image: {x, y} its top-left as fractions of the image's
+   width / height, s its side as a fraction of the short edge. s < 1 zooms in; s up to long / short edge
+   zooms out until the whole image fits (white padding), so nothing is ever lost — the full image is never changed */
+const CROP_MIN = 0.1;                                   // 10× zoom
+function clampCrop(c, W, H){
+  const d = centerCrop(W, H);
+  ['x', 'y', 's'].forEach(k => { if (!Number.isFinite(c[k])) c[k] = d[k]; });   // repair a missing / broken value
+  const m = Math.min(W, H);
+  c.s = Math.min(Math.max(W, H) / m, Math.max(CROP_MIN, c.s));
+  const side = c.s * m;
+  /* frame inside the image when the image is bigger; image inside the frame when it's smaller */
+  const fit = (v, len) => Math.min(Math.max(0, len - side), Math.max(Math.min(0, len - side), v));
+  c.x = fit(c.x * W, W) / W;
+  c.y = fit(c.y * H, H) / H;
+  return c;
+}
+const cropFor = (r, W, H) => clampCrop(Object.assign({}, r.thumbCrop || centerCrop(W, H)), W, H);
+/* drag by (dx, dy) frame widths: the image follows the pointer */
+function panCrop(c, W, H, dx, dy){
+  const side = c.s * Math.min(W, H);
+  c.x -= dx * side / W;
+  c.y -= dy * side / H;
+  return clampCrop(c, W, H);
+}
+/* zoom by k (> 1 = in) keeping the image point under (fx, fy) — frame fractions — still */
+function zoomCrop(c, W, H, k, fx, fy){
+  const m = Math.min(W, H), side = c.s * m;
+  const px = c.x * W + fx * side, py = c.y * H + fy * side;
+  c.s /= k;
+  clampCrop(c, W, H);
+  c.x = (px - fx * c.s * m) / W;
+  c.y = (py - fy * c.s * m) / H;
+  return clampCrop(c, W, H);
+}
+const wheelFactor = e => Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.013 : 0.0004));   // ≈ 4% per wheel notch
+/* place the full image inside a square frame of `size` px */
+function layoutFrame(im, size, f, c){
+  if (im.getAttribute('src') !== f.main.url) im.src = f.main.url;
+  const k = size / (c.s * Math.min(f.W, f.H)), s = im.style;
+  s.position = 'absolute'; s.maxWidth = 'none'; s.objectFit = 'fill';
+  s.width = f.W * k + 'px'; s.height = f.H * k + 'px';
+  s.left = -c.x * f.W * k + 'px'; s.top = -c.y * f.H * k + 'px';
+}
+/* the decoded main image of a row → {main, img, W, H}; null when the row has none.
+   A draft's image isn't saved yet: it comes from draftImg */
+const decoded = new WeakMap();
+async function openFrame(r){
+  const main = drafts.has(r.id) ? draftImg.get(r.id) : (await loadRowImages(r))[0];
+  if (!main) return null;
+  if (!decoded.has(main)) decoded.set(main, loadImg(main.url));
+  const img = await decoded.get(main);
+  return { main, img, W: img.naturalWidth, H: img.naturalHeight };
+}
+/* save a new position: rebuild the 320 thumb from the full image; false when nothing changed */
+function commitCrop(r, f, c){
+  const rd = v => Math.round(v * 1e4) / 1e4, o = r.thumbCrop;
+  const n = { x: rd(c.x), y: rd(c.y), s: rd(c.s) };
+  if (![n.x, n.y, n.s].every(Number.isFinite)) return false;
+  if (o && o.x === n.x && o.y === n.y && o.s === n.s) return false;
+  r.thumbCrop = n;
+  r.thumb = makeThumb(f.img, n);
+  saveRow(r);
+  return true;
+}
+
+/* ---- row thumb (saved rows and drafts): press + drag moves the image, Ctrl + wheel zooms;
+   a click without moving opens the viewer (a draft: the file picker) ---- */
+let tg = null;              // {r, el, size, x0, y0, dx, dy, moved, f, c0, c, rerender}
+let skipThumbClick = false;
+function thumbPan(g){
+  if (!g.f) return;
+  g.c = panCrop(Object.assign({}, g.c0), g.f.W, g.f.H, g.dx / g.size, g.dy / g.size);
+  layoutFrame(g.el.querySelector('img'), g.size, g.f, g.c);
+}
+$('tbody').addEventListener('pointerdown', e => {
+  const t = e.target.closest('.thumb.has');
+  if (!t || e.button !== 0 || e.target.closest('.clear')) return;
+  const r = byId(t.dataset.id);
+  if (!r) return;
+  if (wz) wheelEnd(true);                               // save a zoom still in progress so the drag starts from it
+  const g = tg = { r, el: t, size: t.clientWidth || 96, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, moved: false, f: null };
+  t.setPointerCapture(e.pointerId);
+  openFrame(r).then(f => {
+    if (tg !== g || !f) return;
+    g.f = f; g.c0 = cropFor(r, f.W, f.H);
+    if (g.moved) thumbPan(g);
+  }).catch(() => {});
+});
+$('tbody').addEventListener('pointermove', e => {
+  const g = tg;
+  if (!g) return;
+  g.dx = e.clientX - g.x0; g.dy = e.clientY - g.y0;
+  if (!g.moved && Math.abs(g.dx) + Math.abs(g.dy) < 4) return;
+  g.moved = true;
+  g.el.classList.add('panning');
+  thumbPan(g);
+});
+['pointerup', 'pointercancel'].forEach(type => $('tbody').addEventListener(type, () => {
+  const g = tg;
+  if (!g) return;
+  tg = null;
+  if (!g.moved) {                                       // a plain click: the click handler takes it
+    if (g.rerender) setTimeout(render, 0);              // after the click, so its target still exists
+    return;
+  }
+  skipThumbClick = true;
+  setTimeout(() => { skipThumbClick = false; }, 0);
+  if (g.c) commitCrop(g.r, g.f, g.c);
+  render();
+}));
+
+let wz = null;              // Ctrl + wheel on a row thumb: {r, f, c, q: pending [k, fx, fy], timer}
+$('tbody').addEventListener('wheel', e => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  const t = e.target.closest('.thumb.has');
+  const r = t && byId(t.dataset.id);
+  if (!r) return;
+  e.preventDefault();                                   // no browser zoom
+  if (tg) return;                                       // no zooming in the middle of a drag
+  if (wz && wz.r !== r) wheelEnd();
+  if (!wz) {
+    const z = wz = { r, f: null, c: null, q: [] };
+    openFrame(r).then(f => {
+      if (wz !== z) return;
+      if (!f) { wz = null; return; }
+      z.f = f; z.c = cropFor(r, f.W, f.H);
+      wheelFlush();
+    }).catch(() => { if (wz === z) wz = null; });
+  }
+  const b = t.getBoundingClientRect(), size = t.clientWidth || 96;
+  wz.q.push([wheelFactor(e), (e.clientX - b.left - t.clientLeft) / size, (e.clientY - b.top - t.clientTop) / size]);
+  wheelFlush();
+  clearTimeout(wz.timer);
+  wz.timer = setTimeout(wheelEnd, 400);                 // save once the wheel goes quiet
+}, { passive: false });
+function wheelFlush(){
+  if (!wz || !wz.f) return;
+  const { f } = wz;
+  wz.q.splice(0).forEach(([k, fx, fy]) => zoomCrop(wz.c, f.W, f.H, k, fx, fy));
+  const t = $('tbody').querySelector('.thumb[data-id="' + wz.r.id + '"]');
+  if (t) layoutFrame(t.querySelector('img'), t.clientWidth, f, wz.c);
+}
+function wheelEnd(noRender){
+  const z = wz;
+  wz = null;
+  if (!z) return;
+  clearTimeout(z.timer);
+  if (z.f && z.c) commitCrop(z.r, z.f, z.c);
+  if (!noRender) render();
+}
+
+/* ============ image viewer ============ */
+/* {id, idx, list: null while loading | [{url,w,h}], ver, f: main image frame | null, c: its crop, drag, saveTimer} */
+let viewer = null;
+let viewerBusy = false;     // one add / delete at a time
+let gridKey = '';
+
+/* ← → order = the table's visible order (groups + sort, collapsed groups skipped); saved rows with an image only */
+function viewerOrder(){
+  return ROWS.groupRows(visibleRows(), settings.categories)
+    .filter(g => !collapsedCats.has(g.cat))
+    .reduce((a, g) => a.concat(g.rows), [])
+    .filter(r => r.thumb && !drafts.has(r.id));
+}
+
+function openViewer(r){
+  viewerSaveNow();
+  viewer = { id: r.id, idx: 0, list: null, ver: 0, f: null, c: null, drag: null, saveTimer: null };
+  $('ivBack').classList.remove('hidden');
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  renderViewer();
+  loadRowImages(r).catch(() => []).then(list => {
+    if (!viewer || viewer.id !== r.id) return;
+    viewer.list = list;
+    if (list.length && r.imgCount !== list.length) { r.imgCount = list.length; saveRow(r); render(); }
+    renderViewer();
+    if (list.length && !r.thumbCrop) upgradeThumb(r, list[0]);
+  });
+}
+function closeViewer(){
+  if (!viewer) return;
+  viewerSaveNow();
+  const id = viewer.id;
+  viewer = null; gridKey = '';
+  $('ivBack').classList.add('hidden');
+  $('iv').classList.remove('over');
+  $('ivImg').removeAttribute('src');
+  $('ivFrameImg').removeAttribute('src');
+  const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
+  if (tr) tr.scrollIntoView({ block: 'nearest' });
+}
+/* after a write to row r's images: redraw if the viewer shows r */
+function viewerChanged(r){
+  if (!viewer || viewer.id !== r.id) return;
+  viewer.list = imgCache.get(r.id) || viewer.list;
+  viewer.idx = Math.max(0, Math.min(viewer.idx, (viewer.list || []).length - 1));
+  if (viewer.f && (!viewer.list || viewer.f.main !== viewer.list[0])) viewer.f = null;   // the main image changed
+  viewer.ver++;
+  renderViewer();
+}
+
+function renderViewer(){
+  if (!viewer) return;
+  const r = byId(viewer.id);
+  if (!r) return closeViewer();
+  const list = viewer.list, cur = list && list[viewer.idx];
+  const onMain = !!(cur && viewer.idx === 0);
+  const order = viewerOrder(), pos = order.indexOf(r);
+  const ids = [r.sku, r.parentAsin].filter(Boolean).map(esc).join(' · ');
+  $('ivTitle').textContent = r.name || '未命名';
+  $('ivMeta').innerHTML = ids + (pos > -1 ? (ids ? '<br>' : '') + '产品 ' + (pos + 1) + ' / ' + order.length + ' · 按 ← → 切换' : '');
+  $('ivCount').textContent = !list ? '加载中…' : list.length ? '图片 ' + (viewer.idx + 1) + ' / ' + list.length : '没有找到原图';
+  $('ivPrev').disabled = !list || viewer.idx <= 0;
+  $('ivNext').disabled = !list || viewer.idx >= list.length - 1;
+
+  /* main image: the square frame (what the table shows); other images: whole */
+  $('ivFrame').classList.toggle('hidden', !onMain);
+  $('ivImg').classList.toggle('hidden', onMain);
+  if (onMain) {
+    layoutViewerFrame();
+    if (!viewer.f) {
+      const want = cur;
+      openFrame(r).then(f => {
+        if (!viewer || viewer.id !== r.id || !f || f.main !== want || viewer.f) return;
+        viewer.f = f; viewer.c = cropFor(r, f.W, f.H);
+        layoutViewerFrame();
+      }).catch(() => {});
+    }
+  } else {
+    const img = $('ivImg'), src = cur ? cur.url : r.thumb;
+    if (img.getAttribute('src') !== src) img.src = src;
+    img.classList.toggle('soft', !cur);
+  }
+
+  const key = viewer.id + '#' + viewer.ver + '#' + (list ? list.length : -1);
+  if (key !== gridKey) {                                // rebuild only when the images change
+    gridKey = key;
+    $('ivGrid').innerHTML = !list ? '' : list.map((x, i) =>
+      '<div class="iv-tile" data-iv="pick" data-i="' + i + '" title="' + (i ? '图片 ' + (i + 1) : '主图（表格中显示）') + '">' +
+        '<img src="' + (i ? x.url : r.thumb) + '" alt="" draggable="false">' + (i ? '' : '<span class="tag">主图</span>') +
+        (list.length > 1 ? '<button type="button" class="del" data-iv="del" data-i="' + i + '" title="删除这张图片">×</button>' : '') +
+      '</div>').join('') +
+      (list.length < IMG_LIMIT ? '<button type="button" class="iv-tile add" data-iv="add" title="添加图片（可多选，最多 ' + IMG_LIMIT + ' 张）">+</button>' : '');
+  }
+  $('ivGrid').querySelectorAll('.iv-tile[data-i]').forEach(t => t.classList.toggle('on', +t.dataset.i === viewer.idx));
+  $('ivActions').classList.toggle('hidden', !list || !list.length);
+  $('ivReset').classList.toggle('hidden', !onMain);
+  $('ivFrameHint').classList.toggle('hidden', !onMain);
+}
+/* size the square to the stage and place the image in it (the thumb stands in while the full image loads) */
+function layoutViewerFrame(){
+  if (!viewer) return;
+  const st = $('ivStage'), fr = $('ivFrame'), im = $('ivFrameImg'), r = byId(viewer.id);
+  const size = Math.max(120, Math.floor(Math.min(st.clientWidth - 176, st.clientHeight - 64)));
+  fr.style.width = fr.style.height = size + 'px';
+  if (viewer.f) layoutFrame(im, fr.clientWidth, viewer.f, viewer.c);
+  else if (r) { im.style.cssText = ''; if (im.getAttribute('src') !== r.thumb) im.src = r.thumb; }
+}
+window.addEventListener('resize', layoutViewerFrame);
+
+/* save the viewer's position: table thumb and the 主图 tile follow at once */
+function viewerSave(){
+  if (!viewer) return;
+  clearTimeout(viewer.saveTimer);
+  viewer.saveTimer = null;
+  const r = byId(viewer.id);
+  if (!r || !viewer.f || !commitCrop(r, viewer.f, viewer.c)) return;
+  render();
+  const tile = $('ivGrid').querySelector('.iv-tile[data-i="0"] img');
+  if (tile) tile.src = r.thumb;
+}
+function viewerSaveNow(){ if (viewer && viewer.saveTimer) viewerSave(); }
+
+$('ivFrame').addEventListener('pointerdown', e => {
+  if (!viewer || !viewer.f || e.button !== 0) return;
+  e.preventDefault();
+  $('ivFrame').setPointerCapture(e.pointerId);
+  $('ivFrame').classList.add('dragging');
+  viewer.drag = { x0: e.clientX, y0: e.clientY, c0: Object.assign({}, viewer.c) };
+});
+$('ivFrame').addEventListener('pointermove', e => {
+  const d = viewer && viewer.drag;
+  if (!d || !viewer.f) return;
+  const size = $('ivFrame').clientWidth;
+  viewer.c = panCrop(Object.assign({}, d.c0), viewer.f.W, viewer.f.H, (e.clientX - d.x0) / size, (e.clientY - d.y0) / size);
+  layoutFrame($('ivFrameImg'), size, viewer.f, viewer.c);
+});
+['pointerup', 'pointercancel'].forEach(type => $('ivFrame').addEventListener(type, () => {
+  $('ivFrame').classList.remove('dragging');
+  if (!viewer || !viewer.drag) return;
+  viewer.drag = null;
+  viewerSave();
+}));
+/* Ctrl + wheel anywhere in the viewer: zoom the main image around the pointer; never the browser page */
+$('ivBack').addEventListener('wheel', e => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  if (!viewer || !viewer.f || $('ivFrame').classList.contains('hidden')) return;
+  const fr = $('ivFrame'), b = fr.getBoundingClientRect(), size = fr.clientWidth;
+  const at = v => Math.min(1, Math.max(0, v));
+  zoomCrop(viewer.c, viewer.f.W, viewer.f.H, wheelFactor(e),
+    at((e.clientX - b.left - fr.clientLeft) / size), at((e.clientY - b.top - fr.clientTop) / size));
+  layoutFrame($('ivFrameImg'), size, viewer.f, viewer.c);
+  clearTimeout(viewer.saveTimer);
+  viewer.saveTimer = setTimeout(viewerSave, 300);
+}, { passive: false });
+$('ivReset').addEventListener('click', () => {
+  if (!viewer || !viewer.f) return;
+  viewer.c = centerCrop(viewer.f.W, viewer.f.H);
+  layoutViewerFrame();
+  viewerSave();
+});
+
+/* < > : images within the row · ← → : rows */
+function viewerStep(d){
+  if (!viewer || !viewer.list) return;
+  const i = viewer.idx + d;
+  if (i < 0 || i >= viewer.list.length) return;
+  viewer.idx = i;
+  renderViewer();
+}
+function viewerRow(d){
+  if (!viewer) return;
+  const order = viewerOrder();
+  const i = order.findIndex(x => x.id === viewer.id);
+  const n = i > -1 ? order[i + d] : null;
+  if (n) openViewer(n);
+}
+
+async function viewerAdd(files){
+  const r = viewer && byId(viewer.id), list = viewer && viewer.list;
+  if (!r || !list) return;
+  if (viewerBusy) return toast('正在处理上一张图片…');
+  const imgs = files.filter(f => f && /^image\//.test(f.type));
+  if (!imgs.length) return toast('请选择图片文件', true);
+  const room = IMG_LIMIT - list.length;
+  if (room <= 0) return toast('每个产品最多 ' + IMG_LIMIT + ' 张图片', true);
+  const take = imgs.slice(0, room);
+  viewerBusy = true;
+  try {
+    for (const f of take) {
+      const d = await processImage(f);
+      if (!list.length) {                               // no main image yet: this one becomes main
+        await updateStep2Image(r, d.full);
+        r.thumb = d.thumb; r.thumbCrop = d.crop;
+      }
+      list.push(d.full);
+    }
+    await saveExtras(r, list);
+    r.imgCount = list.length;
+    saveRow(r); render();
+    if (viewer && viewer.id === r.id) { viewer.idx = list.length - 1; viewerChanged(r); }
+    toast(imgs.length > room
+      ? '已添加 ' + take.length + ' 张；每个产品最多 ' + IMG_LIMIT + ' 张，其余 ' + (imgs.length - room) + ' 张未添加'
+      : '已添加 ' + take.length + ' 张图片', imgs.length > room);
+  } catch (e) {
+    imgCache.delete(r.id);
+    if (!e.offline) toast(e.message, true);
+  } finally {
+    viewerBusy = false;
+  }
+}
+async function viewerDelete(i){
+  const r = viewer && byId(viewer.id), list = viewer && viewer.list;
+  if (!r || !list || list.length < 2 || viewerBusy) return;
+  if (!confirm(i ? '删除这张图片？' : '删除主图？下一张图片将成为主图。')) return;
+  viewerBusy = true;
+  try {
+    if (i === 0) { viewer.idx = 0; return await deleteMainImage(r); }   // show the new main image
+    list.splice(i, 1);
+    await saveExtras(r, list);
+    r.imgCount = list.length;
+    saveRow(r); render();
+    viewer.idx = Math.min(i, list.length - 1);
+    viewerChanged(r);
+    toast('已删除图片');
+  } catch (e) {
+    imgCache.delete(r.id);
+  } finally {
+    viewerBusy = false;
+  }
+}
+
+$('ivGrid').addEventListener('click', e => {
+  const t = e.target.closest('[data-iv]');
+  if (!t || !viewer) return;
+  if (t.dataset.iv === 'del') viewerDelete(+t.dataset.i);
+  else if (t.dataset.iv === 'pick') { viewer.idx = +t.dataset.i; renderViewer(); }
+  else if (t.dataset.iv === 'add') pickImage(files => viewerAdd(files), true);
+});
+$('ivPrev').addEventListener('click', () => viewerStep(-1));
+$('ivNext').addEventListener('click', () => viewerStep(1));
+$('ivClose').addEventListener('click', closeViewer);
+$('ivBack').addEventListener('mousedown', e => { if (e.target === $('ivBack')) closeViewer(); });
+$('ivReplace').addEventListener('click', () => {
+  const r = viewer && byId(viewer.id);
+  if (r) pickImage(f => setRowImage(r, f).then(() => { if (viewer && viewer.id === r.id) { viewer.idx = 0; renderViewer(); } }));
+});
+document.addEventListener('keydown', e => {
+  if (!viewer) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeViewer(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); viewerRow(-1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); viewerRow(1); }
+});
+
+/* ============ filters (at most one chip per group; rows are always newest first, see ROWS.sortRows) ============ */
 $('search').addEventListener('input', e => { ui.q = e.target.value; render(); });
-$('statusChips').addEventListener('click', e => {
-  const b = e.target.closest('.chip'); if (!b) return;
-  toggle(ui.statuses, b.dataset.status); render();
-});
-$('catChips').addEventListener('click', e => {
-  const b = e.target.closest('.chip'); if (!b) return;
-  toggle(ui.cats, b.dataset.cat); render();
-});
+[['statusChips', 'status'], ['catChips', 'cat']].forEach(([el, k]) =>
+  $(el).addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    ui[k] = ui[k] === b.dataset.v ? '' : b.dataset.v;
+    render();
+  }));
+/* type-to-filter dropdowns: 类目 / 材质 cells (existing values only) and the 材质 filter */
+function comboConfig(el){
+  if (el.dataset.combo === 'matfilter') return {
+    value: ui.mat, empty: '全部',
+    options: settings.materials.map(m => ({ value: m, note: rows.filter(r => r.material === m).length })),
+    onPick: v => { ui.mat = v; render(); },
+    onReject: t => toast('没有材质「' + t + '」', true)
+  };
+  const r = byId(el.dataset.id), f = el.dataset.f;
+  if (!r) return null;
+  const list = (f === 'category' ? settings.categories : settings.materials).slice();
+  if (r[f] && !list.includes(r[f])) list.push(r[f]);              // a value since removed from settings
+  const what = f === 'category' ? '类目' : '材质';
+  return {
+    value: r[f], empty: '—', options: list.map(v => ({ value: v })),
+    onPick: v => { r[f] = v; if (f === 'category') showCat(v); saveRow(r); renderSoon(); },
+    onReject: t => toast('没有' + what + '「' + t + '」，请从列表中选择；新' + what + '在 ⚙ 设置 中添加', true)
+  };
+}
+combo.bind($('tbody'), comboConfig);
+combo.bind(document.querySelector('.filters'), comboConfig);
 $('clearFilters').addEventListener('click', clearFilters);
 function clearFilters(){
-  ui.q = ''; ui.statuses = []; ui.cats = [];
+  ui.q = ''; ui.status = ''; ui.cat = ''; ui.mat = '';
   $('search').value = '';
   render();
 }
-function toggle(arr, v){ const i = arr.indexOf(v); if (i > -1) arr.splice(i, 1); else arr.push(v); }
-
-$('thead').addEventListener('click', e => {
-  const th = e.target.closest('th[data-sort]'); if (!th) return;
-  const k = th.dataset.sort;
-  if (ui.sort.key === k) ui.sort.dir *= -1;
-  else ui.sort = { key: k, dir: 1 };
-  render();
-});
 
 /* ============ settings ============ */
 function openSettings(tab){
@@ -707,6 +1539,9 @@ function renderSettings(){
   $('catList').innerHTML = settings.categories.map((c, i) =>
     '<span class="tag">' + esc(c) + '<button type="button" data-i="' + i + '" title="删除类目">×</button></span>').join('') ||
     '<span class="hint" style="margin:0">暂无类目，请在下方添加。</span>';
+  $('matList').innerHTML = settings.materials.map((m, i) =>
+    '<span class="tag">' + esc(m) + '<button type="button" data-i="' + i + '" title="删除材质">×</button></span>').join('') ||
+    '<span class="hint" style="margin:0">暂无材质，请在下方添加。</span>';
   $('liveOffset').value = settings.liveOffsetDays;
   document.querySelectorAll('[data-p]').forEach(el => { el.value = settings.step1[el.dataset.p]; });
   document.querySelectorAll('#peakToggle .toggle-btn').forEach(b =>
@@ -766,7 +1601,25 @@ $('catList').addEventListener('click', e => {
   const used = rows.filter(r => r.category === c).length;
   if (used) return toast('仍有 ' + used + ' 个产品使用类目「' + c + '」，无法删除', true);
   settings.categories.splice(+b.dataset.i, 1);
-  ui.cats = ui.cats.filter(x => x !== c);
+  if (ui.cat === c) ui.cat = '';
+  saveSettings(); renderSettings();
+});
+$('matAdd').addEventListener('click', () => {
+  const v = $('matNew').value.trim();
+  if (!v) return toast('请输入材质名称', true);
+  if (settings.materials.includes(v)) return toast('该材质已存在', true);
+  settings.materials.push(v);
+  $('matNew').value = '';
+  saveSettings(); renderSettings();
+});
+$('matNew').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('matAdd').click(); } });
+$('matList').addEventListener('click', e => {
+  const b = e.target.closest('button[data-i]'); if (!b) return;
+  const m = settings.materials[+b.dataset.i];
+  const used = rows.filter(r => r.material === m).length;
+  if (used) return toast('仍有 ' + used + ' 个产品使用材质「' + m + '」，无法删除', true);
+  settings.materials.splice(+b.dataset.i, 1);
+  if (ui.mat === m) ui.mat = '';
   saveSettings(); renderSettings();
 });
 $('liveOffset').addEventListener('change', e => {
@@ -787,10 +1640,23 @@ $('liveOffset').addEventListener('change', e => {
     return;
   }
   render();
+  /* positions broken by an earlier bug (a value saved as null): keep the valid parts, re-centre the rest */
+  rows.filter(r => r.thumbCrop && !['x', 'y', 's'].every(k => Number.isFinite(r.thumbCrop[k]))).forEach(r =>
+    openFrame(r).then(f => {
+      if (!f) return;
+      const c = cropFor(r, f.W, f.H);
+      r.thumbCrop = null;
+      commitCrop(r, f, c);
+      render();
+    }).catch(() => {}));
   /* ?expand=<id> (from the workspace's 报价 step): open that row's 报价 panel */
   const want = new URLSearchParams(location.search).get('expand');
   const r = want && byId(want);
-  if (r) toggleExpand(r);
+  if (r) {
+    const tr = $('tbody').querySelector('tr[data-row="' + r.id + '"]');
+    if (tr) tr.scrollIntoView({ block: 'start' });
+    toggleExpand(r);
+  }
 })();
 })();
 </script>

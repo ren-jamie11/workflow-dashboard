@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 
-const STATUSES = ['未下单', '已下单', '生产中', '已上架'];
+const STATUSES = ['未下单', '已下单', '已上架'];
 const STEPS = [
   { key: 'quote', label: '报价' },
   { key: 'order', label: '下单' },
@@ -17,7 +17,7 @@ function newId() {
 
 function newRow(category) {
   return {
-    id: newId(), name: '', category: category || '', sku: '', parentAsin: '',
+    id: newId(), name: '', category: category || '', material: '', sku: '', parentAsin: '',
     status: STATUSES[0], liveDate: '', step1Confirmed: false, deliveryDate: '',
     thumb: null, createdAt: Date.now()
   };
@@ -27,6 +27,7 @@ function newRow(category) {
 function normalize(r) {
   const d = newRow();
   const out = Object.assign(d, r);
+  if (out.status === '生产中') out.status = '已下单';     // status removed 2026-09-29
   if (!STATUSES.includes(out.status)) out.status = STATUSES[0];
   return out;
 }
@@ -34,7 +35,7 @@ function normalize(r) {
 /* each step: done | next | open | locked — see docs/README.md "Status and journey rules" */
 function journey(r) {
   const rank = statusRank(r.status);
-  const done = { quote: !!r.step1Confirmed, order: rank >= 1, live: rank === 3 };
+  const done = { quote: !!r.step1Confirmed, order: rank >= 1, live: r.status === '已上架' };
   const locked = { quote: false, order: !done.quote, live: !done.order };
   const next = STEPS.find(s => !done[s.key]);
   return STEPS.map(s => ({
@@ -43,38 +44,27 @@ function journey(r) {
   }));
 }
 
-/* ui = {q, statuses:[], cats:[]}; ids in `always` bypass the filters (e.g. a just-added row) */
+/* ui = {q, status, cat, mat} ('' = all); ids in `always` bypass the filters (e.g. a just-added row) */
 function filterRows(rows, ui, always) {
   const q = (ui.q || '').trim().toLowerCase();
   return rows.filter(r => {
     if (always && always.has(r.id)) return true;
-    if (ui.statuses.length && !ui.statuses.includes(r.status)) return false;
-    if (ui.cats.length && !ui.cats.includes(r.category)) return false;
+    if (ui.status && r.status !== ui.status) return false;
+    if (ui.cat && r.category !== ui.cat) return false;
+    if (ui.mat && r.material !== ui.mat) return false;
     if (q && ![r.name, r.sku, r.parentAsin].join(' ').toLowerCase().includes(q)) return false;
     return true;
   });
 }
 
-const collator = new Intl.Collator('zh-CN', { numeric: true, sensitivity: 'base' });
-
-/* sort = {key: 'liveDate'|'name'|'sku'|'status', dir: 1|-1}; empty values always sort last */
-function sortRows(list, sort) {
-  const key = sort.key, dir = sort.dir;
-  return list.slice().sort((a, b) => {
-    let c = 0;
-    if (key === 'status') {
-      c = (statusRank(a.status) - statusRank(b.status)) * dir;
-    } else {
-      const va = a[key] || '', vb = b[key] || '';
-      if (!va !== !vb) return va ? -1 : 1;
-      if (va) c = collator.compare(va, vb) * dir;
-    }
-    return c || (a.createdAt || 0) - (b.createdAt || 0);
-  });
+/* newest first, so a row never moves after it is created or edited */
+function sortRows(list) {
+  return list.slice().sort((a, b) =>
+    (b.createdAt || 0) - (a.createdAt || 0) || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
 }
 
 /* → [{cat, label, rows}]: 未分类 first, then the settings order, then unknown categories A–Z */
-function groupRows(list, categories, sort) {
+function groupRows(list, categories) {
   const by = new Map();
   list.forEach(r => {
     const c = r.category || '';
@@ -84,7 +74,7 @@ function groupRows(list, categories, sort) {
   const extra = [...by.keys()].filter(c => c && !categories.includes(c)).sort();
   return [''].concat(categories, extra)
     .filter(c => by.has(c))
-    .map(c => ({ cat: c, label: c || '未分类', rows: sortRows(by.get(c), sort) }));
+    .map(c => ({ cat: c, label: c || '未分类', rows: sortRows(by.get(c)) }));
 }
 
 window.ROWS = { STATUSES, STEPS, statusRank, newRow, normalize, journey, filterRows, sortRows, groupRows };

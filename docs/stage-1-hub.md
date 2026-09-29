@@ -3,7 +3,7 @@
 Context: [README.md](README.md) (architecture, data model, rules).
 
 ## Goal
-A working product tracker with no tools embedded yet. You can add, edit, filter, sort and delete
+A working product tracker with no tools embedded yet. You can add, edit, filter and delete
 product-group rows, and everything persists to `data/`.
 
 ## Scope
@@ -19,19 +19,28 @@ product-group rows, and everything persists to `data/`.
 | `shared/theme.css` | `:root` tokens + `.card .btn .btn-primary .btn-ghost .chip .form-control .del-btn .toast`, copied from the tools |
 | `shared/api.js` | `api.rows()`, `api.get(path)`, `api.put(path,obj)`, `api.delRow(id)`, `api.output(dir,name,blob)`, `api.settings()` (with defaults merged in) |
 | `shared/sku.js` | `parseSku(str) → {cat,from,to}|null`, `formatSku()`, `overlaps(a,b)`, `mskuInRow(msku,row)` |
-| `shared/rows.js` | `STATUSES`, `statusRank`, `journey(row) → [{key,label,state}]`, `filterRows(rows,ui)`, `sortRows(rows,sort)` |
+| `shared/rows.js` | `STATUSES`, `statusRank`, `journey(row) → [{key,label,state}]`, `filterRows(rows,ui)`, `sortRows(rows)`, `groupRows(rows,categories)` |
 | `shared/datepicker.js` | `openDatePicker(anchorEl, {value, openMonth, onPick, onClear})` |
 | `app/index.html` | the hub page |
 
 ## Main table (index.html)
-Columns: **图片 · 品名 · 类目 · SKU (父ASIN sub-line) · 状态 · 上架时间 · 流程 · ×**
+Columns: **图片 · 品名 · 类目 · 材质 · SKU (父ASIN sub-line) · 状态 · 上架时间 · 流程 · ×**
 - **图片:** a 48×64 box. Click, paste (Ctrl+V while hovering) or drop an image. Store a ~160px `thumb`
   in meta. Also keep the full image (longest side ≤ 1400px, JPEG 0.85, the same as Step 2's
   `loadImageData`) in `step2.json` → `products[0].image`, creating a minimal `step2.json`
   (`{products:[{id,code:'',productName:<品名>,material:'',plant:'不含',image,imgNat,frame,variants:[]}]}`)
   if it doesn't exist.
 - **品名:** required, inline text input.
-- **类目:** a select filled from `settings.categories`. It is set automatically from the SKU prefix.
+- **类目:** a type-to-filter dropdown (`shared/combo.js`) over `settings.categories`. It is set automatically
+  from the SKU prefix and locked (disabled) once a SKU is set.
+- **材质:** (added 2026-09-29) an optional type-to-filter dropdown over `settings.materials`, `—` = none. A value
+  no longer in settings still shows for the rows that use it.
+- **Type-to-filter dropdowns (`combo.bind(root, getConfig)`):** focus or click opens the list; typing filters it
+  (substring, case-insensitive, or pinyin via `shared/pinyin.js`: a syllable prefix like `shi` / `shimu` / `mu`, or
+  initials like `sm`, all match 实木); ↑ ↓ move; Enter / Tab pick the highlighted option; Esc reverts. Leaving
+  the box keeps an exact match or the only match, and empty text means `—`. Anything else reverts, with the
+  toast `没有材质「…」，请从列表中选择…`. The table's own `change` / Enter / Esc handlers skip
+  `input[data-combo]`. `comboConfig(el)` in index.html builds the options for each box.
 - **SKU:** inline input, parsed on blur/Enter.
   - Lenient regex: `^\s*([A-Za-z]{2,3})\s*[-_]\s*(\d{3})(?:\s*-\s*(\d{3}))?\s*$`.
   - Store it normalized (`XK_012-023` / `XK_406`); `from ≤ to`, otherwise reject.
@@ -50,18 +59,26 @@ Columns: **图片 · 品名 · 类目 · SKU (父ASIN sub-line) · 状态 · 上
   Price Calcs / Order Forms are **not** deleted.
 
 **Toolbar:** `+ 新建产品` (adds an empty row with 状态 未下单 and focuses 品名) · status chips
-(multi-select) · category chips (multi-select) · search (品名/SKU/父ASIN) · ⚙ at the top right.
+(未下单 / 已下单 / 已上架) · category chips · 材质 dropdown (type to filter; 全部 + each 材质 with its count;
+highlighted while set) · search (品名/SKU/父ASIN) · ⚙ at the top right.
+Each chip group allows at most one active chip; clicking the active chip again clears that filter.
+`ui = {q, status, cat, mat}`, `''` = no filter.
 
-**Grouping and sort:** rows are always grouped by category, each group with a header row
-`XK · 12 个`, and groups ordered as in the settings list. Within a group the default sort is 上架时间
-ascending with empty dates last. Clicking a column header sorts **within** the groups; clicking it
-again reverses the order.
+**Grouping and order:** rows are always grouped by category, each group with a header row
+`XK · 12 个`, and groups ordered as in the settings list. Within a group rows are newest first
+(`createdAt` descending), so a row never moves after it is created or edited. Column headers are not
+sortable (changed 2026-09-29).
+Clicking a group header collapses / expands it (a CSS chevron pointing down / right); `#catToggle` (全部收起 / 全部展开) at the right
+of the filter bar does every group. State is the session-only Set `collapsedCats` (`''` = 未分类); `showCat(c)`
+re-opens a group when a row is added to it or moved into it (added 2026-09-29, README G6).
 
 **Saving:** each edit PUTs that row's `meta.json` (debounced ~300ms). There is no Save button.
 
 ## Settings modal (⚙): 通用 tab
 - **类目:** chips with × and an add input (uppercase, 2–3 letters). Removing a category used by any row
   is blocked with the toast `仍有 N 个产品使用该类目`.
+- **材质:** (added 2026-09-29) chips with × and an add input (any text up to 10 characters, no duplicates).
+  Removing a 材质 used by any row is blocked with the toast `仍有 N 个产品使用材质「…」，无法删除`.
 - **上架预估天数** (`liveOffsetDays`, default 45).
 - Tabs 报价/下单/上架 appear greyed out ("后续阶段").
 
@@ -83,6 +100,20 @@ again reverses the order.
 - `saveRow()` waits 300ms per row. On `pagehide` it flushes through `api.saveRowBeacon` (keepalive).
 - Journey pills (`data-act="step"`) call `stepClick(row, step)`, which is only a toast for now.
   Stages 2–4 replace it.
+- **Row images (added 2026-09-28, decisions I1–I7 in README):** all in `index.html`, sections
+  `images` and `image viewer`. `makeThumb(img, crop)` / `centerCrop(w,h)` build the 320 square thumb;
+  `setRowImage` replaces the main image, `deleteMainImage` promotes the next one, `loadRowImages` returns
+  `[main, ...extras]` and is cached per session (`imgCache`). Section `reposition`: `clampCrop`,
+  `panCrop`, `zoomCrop`, `layoutFrame` (full image inside a square frame), `openFrame` (decoded main
+  image, preloaded on thumb hover), `commitCrop` (rebuilds the thumb). `render()` is deferred while a
+  row-thumb drag is in progress (rebuilding the table would detach the dragged element), and a pending
+  Ctrl+wheel zoom is saved when a drag starts. `clampCrop` replaces non-finite values; on load, rows
+  with a broken `thumbCrop` are repaired. Drafts live in the `drafts` Set;
+  `saveRow()` on a draft calls `commitDraft()` instead of writing, and the draft's full image waits in
+  `draftImg` until then.
+- **For Stage 3:** the sidebar should reuse `meta.thumb`. When Step 2 posts `image-changed`, the parent
+  must rebuild a centred thumb, reset `thumbCrop`, and drop that row from `imgCache` (move
+  `makeThumb`/`centerCrop` into a shared file then).
 - Testing without touching real data: import `app/server.py` and override `ROOT`, `DATA`, `PORT`,
   and `webbrowser.open` before calling `main()`.
 
@@ -93,7 +124,8 @@ again reverses the order.
 4. Overlapping `XK_020-030` shows the warning toast and is still saved.
 5. Paste an image into a row. Restart the server and reload: the image and all fields are still there.
 6. Filter to 状态=未下单 plus 类目=XK, and search "相框": only the matching rows show, still grouped.
-7. Sort by 品名: rows are sorted inside each category and the groups aren't mixed.
+7. A new product appears at the top of its group; setting its SKU moves it to the top of that category, and
+   editing 上架时间 doesn't move it.
 8. The 上架时间 picker opens, picks a date and clears it.
 9. Delete a row and confirm: it disappears and `data/rows/<id>/` is gone.
 10. Removing a category that is in use is blocked.

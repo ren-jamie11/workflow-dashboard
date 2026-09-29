@@ -105,6 +105,7 @@ body{background:transparent}
 .saved-note{font-size:.8rem;color:var(--muted);align-self:center}
 .saved-note b{color:var(--dark);font-weight:500}
 .actions .push{margin-left:auto;display:flex;gap:.75rem;align-items:center}
+#saveBtn{min-width:5.2rem;justify-content:center}
 </style>
 </head>
 <body>
@@ -148,10 +149,7 @@ body{background:transparent}
       </div>
       <input type="file" id="importFile" accept=".json,application/json" hidden>
     </div>
-
-    <div class="hint">
-      <span class="legend"><span class="swatch"></span> 黄色行 = 尺寸/重量不落在任何尾程运费档位，尾程运费按 $0 计入，售价偏低，请人工复核。</span>
-    </div>
+    <!-- HUB: 黄色行 legend removed; the ⚠ 未覆盖 badge's tooltip explains it -->
   </div>
 </div>
 
@@ -408,7 +406,7 @@ body{background:transparent}
       tr.remove();
       if(!tbody.children.length) addRow();
       renumber();
-      scheduleSave();   /* HUB */
+      scheduleSave(); markDirty();   /* HUB */
     });
     if (data) ROW_FIELDS.forEach(([k, sel]) => { tr.querySelector(sel).value = data[k] ?? ''; });
     tbody.appendChild(tr);
@@ -466,11 +464,11 @@ body{background:transparent}
   }
 
   document.getElementById('calcBtn').addEventListener('click', calcAll);
-  document.getElementById('addBtn').addEventListener('click', ()=> addRow().querySelector('.f-sku').focus());
+  document.getElementById('addBtn').addEventListener('click', ()=>{ markDirty(); addRow().querySelector('.f-sku').focus(); });   /* HUB: markDirty */
   document.getElementById('clearBtn').addEventListener('click', ()=>{
     tbody.innerHTML = '';
     for(let i=0;i<6;i++) addRow();
-    scheduleSave();   /* HUB */
+    scheduleSave(); markDirty();   /* HUB */
   });
 
   // Enter 键跳到下一行同列 / Tab 到行尾自动加行
@@ -521,16 +519,22 @@ body{background:transparent}
         headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: readRows() }) });
     } catch (e) {}
   });
-  document.querySelector('.container').addEventListener('input', scheduleSave);
+  document.querySelector('.container').addEventListener('input', () => { scheduleSave(); markDirty(); });
 
   function note(html){
     savedNote.innerHTML = html;
   }
   api.onError = err => note('<span style="color:#ef4444">' + (err.offline ? err.message : '保存失败：' + err.message) + '</span>');
 
+  /* 保存 shows ✓ until the next change; the hub marks 报价 done on 'step1-saved' */
+  const saveBtn = document.getElementById('saveBtn');
+  function markDirty(){ saveBtn.textContent = '保存'; saveBtn.title = ''; }
+
   /* 保存 → 售价计算 Price Calcs/<品名>_<SKU>_售价.json */
-  document.getElementById('saveBtn').addEventListener('click', async () => {
-    const b = document.getElementById('saveBtn');
+  saveBtn.addEventListener('click', async () => {
+    const b = saveBtn;
+    if (!hasContent()) return note('表格为空');
+    note('');
     b.disabled = true;
     try {
       await saveNow();
@@ -540,10 +544,9 @@ body{background:transparent}
       const body = { name: meta.name || '', sku: meta.sku || '', savedAt: Date.now(), params: getParams(), rows: readRows() };
       const saved = await api.output('售价计算 Price Calcs', fname,
         new Blob([JSON.stringify(body, null, 2)], { type: 'application/json' }));
-      b.textContent = '已保存 ✓';
-      setTimeout(() => b.textContent = '保存', 1200);
-      note('已保存：<b></b>');
-      savedNote.querySelector('b').textContent = '售价计算 Price Calcs/' + saved;
+      b.textContent = '✓';
+      b.title = '已保存：售价计算 Price Calcs/' + saved;
+      embed.post('step1-saved');
     } catch (e) {
     } finally { b.disabled = false; }
   });
@@ -581,6 +584,7 @@ body{background:transparent}
       }));
       calcAll();
       saveNow();
+      markDirty();
       note('已导入 ' + rows.length + ' 行（参数使用 设置 → 报价 中的全局参数）');
     };
     reader.readAsText(f);
@@ -588,11 +592,10 @@ body{background:transparent}
 
   /* 设置 → 报价 修改后实时重算 */
   embed.on('settings-changed', async () => {
-    try { P = (await api.settings()).step1; calcAll(); } catch (e) {}
+    try { P = (await api.settings()).step1; calcAll(); markDirty(); } catch (e) {}
   });
 
   (async function init(){
-    embed.autoHeight();
     try {
       P = (await api.settings()).step1;
       const saved = await api.get(DATA_PATH);
@@ -601,6 +604,7 @@ body{background:transparent}
       writeRows(null);
     }
     calcAll();
+    embed.autoHeight();   /* HUB: first height only once the rows are in, so the hub panel opens in one move */
   })();
 })();
 </script>
