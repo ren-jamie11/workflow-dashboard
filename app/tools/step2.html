@@ -64,7 +64,9 @@ textarea.form-control{resize:vertical;min-height:64px;line-height:1.5}
 .prod-rows{flex:1;min-width:0}
 .prod-rows .vwrap{margin-top:0;border-top:none;padding:0 0 .25rem}
 /* HUB: one card per 下单计划; every row has its own square 图片 (evenly spaced fixed columns) */
-table.vt{table-layout:fixed;min-width:980px}
+table.vt{table-layout:fixed;min-width:1140px}   /* HUB: keeps each shared column ≥ ~140px (内盒尺寸 fits) */
+table.vt .colorcell{gap:.75rem}
+table.vt .colorcell .cell-input{flex:none;width:148px}
 td.imgcell{padding:.4rem .3rem}
 .imgbox.rimg{width:72px;height:72px;padding:0;border-width:1px;border-radius:8px}
 .imgbox.rimg .ph{font-size:.68rem}
@@ -608,8 +610,8 @@ function renderProducts(){
       '<div class="prod-body">'+
         '<div class="prod-rows">'+
           '<div class="vwrap"><table class="vt"><colgroup>'+
-            '<col style="width:40px"><col style="width:92px"><col style="width:220px"><col style="width:150px"><col style="width:100px">'+
-            '<col style="width:120px"><col style="width:170px"><col style="width:120px"><col style="width:72px">'+
+            /* HUB: 图片 / 产品色号 fixed; 尺寸 · 套数 · 单价 · 内盒尺寸 · 下单数量 share the rest evenly */
+            '<col style="width:40px"><col style="width:86px"><col style="width:236px"><col><col><col><col><col><col style="width:72px">'+
           '</colgroup><thead><tr>'+
             '<th class="gutter"></th><th>图片</th><th>产品色号</th><th>产品尺寸</th><th>套数</th>'+
             '<th>单价 (￥)</th><th>预估内盒尺寸</th><th>下单数量</th><th></th>'+
@@ -634,7 +636,7 @@ function buildRows(){
       const keep = k => ps[k]!==undefined && ps[k]!==null ? ps[k] : '';
       const rs = rowSlot(v);                 /* HUB: every row has its own 图片 */
       out.push({
-        groupStart: vi===0 || v.img !== p.variants[vi-1].img,   /* HUB: rows of one image = one group */
+        groupStart: vi===0 || v.img !== p.variants[vi-1].img || v.colorImage !== p.variants[vi-1].colorImage,   /* HUB: rows of one 图片 + 色号 image = one group */
         crop: rs ? rs.crop : null,            /* HUB: 方形取景 */
         image: rs ? rs.url : null,
         colorImage: v.colorImage,

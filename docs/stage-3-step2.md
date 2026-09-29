@@ -60,10 +60,10 @@ One parent-ASIN group can be ordered in several Excels (e.g. XK_012-023: 4x6 + 5
 | M4 | Picker images = the row's images (main + ≤ 5 extras) + a '+' tile; paste / drop also add. A new image joins the row's images (6-image limit, as in the viewer) and starts selected |
 | M5 | The main image is preselected; selected tiles get a thick border and ✓. ≥ 1 image, else 确认 is disabled (`请至少选择一张图片`). Rows follow the row's image order |
 | M6 | 报价 lines: ☑ · 尺寸 / 规格 · 工厂价 · 内盒尺寸 · 建议售价 (display only, `shared/pricing.js`); all ticked, header ☑ toggles all; empty lines are skipped. The 报价 column 商品名 / SKU is renamed **尺寸 / 规格** |
-| M7 | 确认 builds **one 货号 card**: rows = selected images × ticked lines, image first, then 报价 order (img1: 4x6, 5x7; img2: 4x6, 5x7). 尺寸 ← 尺寸/规格, 单价 ← 工厂价, 预估内盒尺寸 ← L x W x H cm. No ticked line → one blank row per image |
+| M7 | 确认 builds **one 货号 card**: rows = selected images × ticked lines, image first, then 报价 order (img1: 4x6, 5x7; img2: 4x6, 5x7). Every row's **图片 = the row's 主图** (at `meta.thumbCrop`); each selected image is the **产品色号 image** of its rows. 尺寸 ← 尺寸/规格, 单价 ← 工厂价, 预估内盒尺寸 ← L x W x H cm. No ticked line → one blank row per image |
 | M8 | The card has no grip / 复制整个货号 / × and there is no + 添加产品货号. Header = one 产品货号 (written on every row) + `N 行`. Each row has its own square **图片** (72px; click / paste / drop replace; drag / Ctrl + wheel reposition) instead of the card's big image; 色号 / 颜色名 is about as wide as 产品尺寸; fixed, evenly spaced columns |
 | M9 | Forms are independent snapshots: each keeps its own copies of the images; editing a form never changes the table thumb or the viewer. A new form starts the main image at `meta.thumbCrop`, others centred |
-| M10 | Excel layout unchanged: every row gets its own 图片; the thick group border is drawn where the image changes |
+| M10 | Excel layout unchanged: every row gets its own 图片 and 色号 image; the thick group border is drawn where either image changes |
 | M11 | After creation rows are added with + 添加一行 only (copies the row above's image, position and 下单数量); ⧉ copies a row |
 | M12 | 从报价更新: rows whose 尺寸 equals a 报价 line get its 单价 / 内盒尺寸 (撤销 as before); lines are never added, unlabelled lines are skipped |
 | M13 | First 生成 of any form → status ≥ 已下单. `meta.deliveryDate` = the earliest 交货日期 among generated forms, recomputed on 生成 and when a generated form is deleted (no longer live while typing) |
@@ -81,7 +81,8 @@ One parent-ASIN group can be ordered in several Excels (e.g. XK_012-023: 4x6 + 5
   `orders.json` gets one, and its old `step2.json` (if any) is copied to `orders/<fid>.json` with `hub.legacy` (M15) and its
   `memory` to `order-memory.json`. `loadRowImages()` moves an old main image from `step2.json` into `images.json` once.
 - **Picker:** `openPicker(r)` loads `loadRowImages(r)` + `step1.json`; `pickAdd()` reuses the viewer's `addRowImages()`.
-  确认 writes the form file (`{order:{}, products:[one card], images, hub:{}}`), appends the entry, then opens the form.
+  确认 writes the form file (`{order:{}, products:[one card], images: {the 主图}, hub:{}}`; each row `img` = the 主图,
+  `colorImage` = its selected image, main at `thumbCrop`, others centred), appends the entry, then opens the form.
 - **Views:** leaving the form view (list, ← →, close) sends `unload`: the tool saves at once and forgets the form, so a
   later 删除 can't be re-created by a pending save. `从 Excel 导入` reads the file in the hub (a file dialog can't be opened
   from a postMessage) and sends the `File` in `load-row`.

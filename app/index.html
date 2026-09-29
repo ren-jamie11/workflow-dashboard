@@ -410,11 +410,11 @@ table.pk .none{color:#cbd5e1}
       <div class="s2-card" id="pkCard">
         <div class="s2-card-head"><h2>新下单计划</h2></div>
         <div class="pk-sec">
-          <div class="pk-label">选择图片<span class="note">每张图片一组行 · 可粘贴或拖入新图片（加入产品图片）</span></div>
+          <div class="pk-label">选择色号图片<span class="note">每张图片 = 一组行的产品色号图片（图片列统一为主图） · 可粘贴或拖入新图片（加入产品图片）</span></div>
           <div class="pk-grid" id="pkGrid"></div>
         </div>
         <div class="pk-sec">
-          <div class="pk-label">选择报价行<span class="note">每张选中的图片下各生成一行</span></div>
+          <div class="pk-label">选择报价行<span class="note">每张选中的色号图片下各生成一行</span></div>
           <div id="pkLines"></div>
         </div>
         <div class="pk-foot">
@@ -1919,16 +1919,16 @@ $('pkOk').addEventListener('click', async () => {
   try {
     const o = await ensureOrders(r);
     const imgs = pk.list.filter(im => pk.sel.has(im)), lines = pk.lines.filter(l => pk.on.has(l));
-    const images = {}, variants = [];
+    /* 图片 = the row's main image on every row (where the table thumb is); each selected image = the 色号 image of its rows */
+    const main = pk.list[0], mainId = newId(), images = {}, variants = [];
+    images[mainId] = { url: main.url, w: main.w || 0, h: main.h || 0 };
+    const cropOf = im => im === main && r.thumbCrop ? r.thumbCrop : (im.w && im.h ? centerCrop(im.w, im.h) : null);
+    const copy = c => c ? Object.assign({}, c) : null;
     imgs.forEach(im => {
-      const iid = newId();
-      images[iid] = { url: im.url, w: im.w || 0, h: im.h || 0 };
-      /* the main image starts where the table thumb is; the others centred */
-      const crop = im === pk.list[0] && r.thumbCrop ? r.thumbCrop : (im.w && im.h ? centerCrop(im.w, im.h) : null);
       (lines.length ? lines : [null]).forEach(l => variants.push({
-        id: newId(), colorCode: '', colorImage: null, colorNat: null,
+        id: newId(), colorCode: '', colorImage: im.url, colorNat: im.w && im.h ? { w: im.w, h: im.h } : null, colorCrop: copy(cropOf(im)),
         size: l ? s1Val(l.sku) : '', setQty: '', price: l ? s1Val(l.price) : '', boxSize: l ? s1Box(l) : '', qty: '',
-        img: iid, imgCrop: crop ? Object.assign({}, crop) : null, accImg: null, gRaw: '', pass: {} }));
+        img: mainId, imgCrop: copy(cropOf(main)), accImg: null, gRaw: '', pass: {} }));
     });
     const f = { id: newId(), name: formName(lines.map(l => l.sku), o.forms.length),
                 createdAt: Date.now(), generatedAt: null, deliveryDate: '' };
