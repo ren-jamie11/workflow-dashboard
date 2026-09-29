@@ -31,6 +31,7 @@ app/
     rows.js            status order, journey state, filter + sort (hub and sidebar)
     embed.js           iframe ↔ parent postMessage (resize, settings-changed, events)
     datepicker.js      small popover calendar that can open on a given month
+    combo.js           type-to-filter dropdown on a text input (existing values only)
 data/                  the saved data; back up this folder to back up everything
 售价计算 Price Calcs/    Step 1 outputs
 下单计划 Order Forms/    Step 2 outputs
@@ -50,10 +51,10 @@ browser.
 
 ### Data model (`data/`)
 ```
-settings.json         { categories:["XK","MUG"], liveOffsetDays:45,
+settings.json         { categories:["XK","MUG"], materials:["树脂","金属","实木","陶瓷","塑料"], liveOffsetDays:45,
                         step1:{shippingPrice,exchangeRate,profitMargin,storageFee,isPeak},
                         step2:{operator,store}, step3:{targetDays:90, invTargetDays:180} }
-rows/<id>/meta.json   { id, name, category, sku, parentAsin, status, liveDate,
+rows/<id>/meta.json   { id, name, category, material, sku, parentAsin, status, liveDate,
                         step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt }
 rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
 rows/<id>/step2.json  Step 2's `S` without settings (images as data URLs); products[0].image = the row's main image
@@ -115,10 +116,19 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 | F2 | Step 1 保存 → `售价计算 Price Calcs/<品名>_<SKU>_售价.json`; Step 2 生成 → `下单计划 Order Forms/` (no dialog) |
 | F3 | Files load back per row (Step 1 导入 JSON; Step 2 导入已有 Excel) |
 | F4 | Migrate only Step 3 history (old backup JSON → Settings → 上架) |
-| G1 | Search + one-choice 状态 / 类目 chips (each with 所有); categories always grouped; within a group newest first (`createdAt`); no column sorting. *(Changed 2026-09-29)* |
+| G1 | Search + 状态 / 类目 chips, at most one per group (click the active chip again to clear it) + a 材质 dropdown; categories always grouped; within a group newest first (`createdAt`); no column sorting. *(Changed 2026-09-29)* |
 | G2 | Hub UI in Chinese |
 | G3 | One workspace page: sidebar + journey bar + tool |
 | G4 | Journey column 报价 — 下单 — 上架 in every row |
+
+### 材质 (2026-09-29)
+| # | Decision |
+|---|---|
+| M1 | Column **材质** between 类目 and SKU: an optional dropdown (`—` = none) from `settings.materials`, default 树脂 / 金属 / 实木 / 陶瓷 / 塑料 |
+| M1b | The 类目 and 材质 cells are type-to-filter dropdowns (`combo.js`). Only existing values can be chosen; other text reverts with a toast. New values are added in Settings (or, for 类目, by typing a new SKU prefix) |
+| M2 | Settings → 通用 adds and removes 材质 values; removing one that a row uses is blocked (`仍有 N 个产品使用材质「…」`) |
+| M3 | The 材质 filter is a type-to-filter dropdown (全部 + each 材质 with its count), not chips |
+| M4 | Stage 3: Step 2's per-货号 产品材质 starts with the row's 材质 when empty (still editable there) |
 
 ### Row images (scoping, 2026-09-28)
 | # | Decision |

@@ -40,6 +40,8 @@ Step 1 → Step 2 prefill, and `deliveryDate` feeding the 上架时间 picker.
   `从报价表导入 N 个尺寸？ [导入] [忽略]`. Import fills the first product's variants, one per Step 1
   line: `size ← sku`, `price ← price`, `boxSize ← l+'x'+w+'x'+h+'cm'` (empty fields only). Remember
   that the banner was dismissed (`S.hub.prefillDone = true`).
+- **材质 (M4):** when the draft opens, every product whose `material` is empty takes the row's
+  `meta.material` (if set). The user can still change it per 货号; it is never pushed back to the row.
 - **Image sync (A4):** after any change to `products[0].image`, post `image-changed`. The parent makes
   a ~160px thumb and saves `meta.thumb`.
 - **生成:** replace the `showSaveFilePicker` and `<a download>` block with

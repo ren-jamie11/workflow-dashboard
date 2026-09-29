@@ -17,7 +17,7 @@ function newId() {
 
 function newRow(category) {
   return {
-    id: newId(), name: '', category: category || '', sku: '', parentAsin: '',
+    id: newId(), name: '', category: category || '', material: '', sku: '', parentAsin: '',
     status: STATUSES[0], liveDate: '', step1Confirmed: false, deliveryDate: '',
     thumb: null, createdAt: Date.now()
   };
@@ -44,13 +44,14 @@ function journey(r) {
   }));
 }
 
-/* ui = {q, status, cat} ('' = 所有); ids in `always` bypass the filters (e.g. a just-added row) */
+/* ui = {q, status, cat, mat} ('' = all); ids in `always` bypass the filters (e.g. a just-added row) */
 function filterRows(rows, ui, always) {
   const q = (ui.q || '').trim().toLowerCase();
   return rows.filter(r => {
     if (always && always.has(r.id)) return true;
     if (ui.status && r.status !== ui.status) return false;
     if (ui.cat && r.category !== ui.cat) return false;
+    if (ui.mat && r.material !== ui.mat) return false;
     if (q && ![r.name, r.sku, r.parentAsin].join(' ').toLowerCase().includes(q)) return false;
     return true;
   });

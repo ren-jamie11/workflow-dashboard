@@ -4,6 +4,7 @@
 
 const DEFAULT_SETTINGS = {
   categories: ['XK', 'MUG'],
+  materials: ['树脂', '金属', '实木', '陶瓷', '塑料'],
   liveOffsetDays: 45,
   step1: { shippingPrice: 6, exchangeRate: 6.7, profitMargin: 50, storageFee: 0, isPeak: false },
   step2: { operator: 'Jamie', store: 'Arborus-US（店铺+国家）' },
@@ -70,7 +71,8 @@ const api = {
       step1: Object.assign(d.step1, s.step1),
       step2: Object.assign(d.step2, s.step2),
       step3: Object.assign(d.step3, s.step3),
-      categories: Array.isArray(s.categories) ? s.categories : d.categories
+      categories: Array.isArray(s.categories) ? s.categories : d.categories,
+      materials: Array.isArray(s.materials) ? s.materials : d.materials
     });
   },
   saveSettings(s) { return api.put('settings.json', s); },

@@ -24,14 +24,22 @@ product-group rows, and everything persists to `data/`.
 | `app/index.html` | the hub page |
 
 ## Main table (index.html)
-Columns: **图片 · 品名 · 类目 · SKU (父ASIN sub-line) · 状态 · 上架时间 · 流程 · ×**
+Columns: **图片 · 品名 · 类目 · 材质 · SKU (父ASIN sub-line) · 状态 · 上架时间 · 流程 · ×**
 - **图片:** a 48×64 box. Click, paste (Ctrl+V while hovering) or drop an image. Store a ~160px `thumb`
   in meta. Also keep the full image (longest side ≤ 1400px, JPEG 0.85, the same as Step 2's
   `loadImageData`) in `step2.json` → `products[0].image`, creating a minimal `step2.json`
   (`{products:[{id,code:'',productName:<品名>,material:'',plant:'不含',image,imgNat,frame,variants:[]}]}`)
   if it doesn't exist.
 - **品名:** required, inline text input.
-- **类目:** a select filled from `settings.categories`. It is set automatically from the SKU prefix.
+- **类目:** a type-to-filter dropdown (`shared/combo.js`) over `settings.categories`. It is set automatically
+  from the SKU prefix and locked (disabled) once a SKU is set.
+- **材质:** (added 2026-09-29) an optional type-to-filter dropdown over `settings.materials`, `—` = none. A value
+  no longer in settings still shows for the rows that use it.
+- **Type-to-filter dropdowns (`combo.bind(root, getConfig)`):** focus or click opens the list; typing filters it
+  (substring, case-insensitive); ↑ ↓ move; Enter / Tab pick the highlighted option; Esc reverts. Leaving
+  the box keeps an exact match or the only match, and empty text means `—`. Anything else reverts, with the
+  toast `没有材质「…」，请从列表中选择…`. The table's own `change` / Enter / Esc handlers skip
+  `input[data-combo]`. `comboConfig(el)` in index.html builds the options for each box.
 - **SKU:** inline input, parsed on blur/Enter.
   - Lenient regex: `^\s*([A-Za-z]{2,3})\s*[-_]\s*(\d{3})(?:\s*-\s*(\d{3}))?\s*$`.
   - Store it normalized (`XK_012-023` / `XK_406`); `from ≤ to`, otherwise reject.
@@ -50,8 +58,10 @@ Columns: **图片 · 品名 · 类目 · SKU (父ASIN sub-line) · 状态 · 上
   Price Calcs / Order Forms are **not** deleted.
 
 **Toolbar:** `+ 新建产品` (adds an empty row with 状态 未下单 and focuses 品名) · status chips
-(one choice: 所有 / 未下单 / 已下单 / 已上架) · category chips (one choice: 所有 / each category) · search
-(品名/SKU/父ASIN) · ⚙ at the top right. `ui = {q, status, cat}`, `''` = 所有.
+(未下单 / 已下单 / 已上架) · category chips · 材质 dropdown (type to filter; 全部 + each 材质 with its count;
+highlighted while set) · search (品名/SKU/父ASIN) · ⚙ at the top right.
+Each chip group allows at most one active chip; clicking the active chip again clears that filter.
+`ui = {q, status, cat, mat}`, `''` = no filter.
 
 **Grouping and order:** rows are always grouped by category, each group with a header row
 `XK · 12 个`, and groups ordered as in the settings list. Within a group rows are newest first
@@ -63,6 +73,8 @@ sortable (changed 2026-09-29).
 ## Settings modal (⚙): 通用 tab
 - **类目:** chips with × and an add input (uppercase, 2–3 letters). Removing a category used by any row
   is blocked with the toast `仍有 N 个产品使用该类目`.
+- **材质:** (added 2026-09-29) chips with × and an add input (any text up to 10 characters, no duplicates).
+  Removing a 材质 used by any row is blocked with the toast `仍有 N 个产品使用材质「…」，无法删除`.
 - **上架预估天数** (`liveOffsetDays`, default 45).
 - Tabs 报价/下单/上架 appear greyed out ("后续阶段").
 
