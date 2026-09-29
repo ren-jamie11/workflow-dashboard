@@ -123,7 +123,7 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 | G4 | Journey column 报价 — 下单 — 上架 in every row |
 | G5 | 报价 panel expand / collapse keeps the page still: it never auto-scrolls, and the clicked row doesn't move. Clicking the grey page margins collapses it. *(2026-09-29)* |
 | G6 | Clicking a category header (`XK 5 个`) collapses / expands its rows; **全部收起 / 全部展开** at the right of the filter bar does all groups. Session only (a reload shows everything). Filters and search don't auto-expand (the header count still shows the matches). Collapsing a group closes a 报价 panel open inside it; adding a row, or a SKU / 类目 change that moves a row into a collapsed group, expands that group. The image viewer's ← → skip collapsed groups. *(2026-09-29)* |
-| G7 | A click on a row's blank space toggles 报价, except within 10px of a field, button or sub-line (near misses), and only when press and release are on the same spot, once per double-click, and not when the click only closes a date picker / dropdown or leaves a text box. The 报价 pill always toggles. *(2026-09-29)* |
+| G7 | A click on a row's blank space toggles 报价, except within 1px of a field, button or sub-line (near misses), and only when press and release are on the same spot, once per double-click, and not when the click only closes a date picker / dropdown or leaves a text box. The 报价 pill always toggles. *(2026-09-29)* |
 
 ### 材质 (2026-09-29)
 | # | Decision |

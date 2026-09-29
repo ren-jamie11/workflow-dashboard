@@ -773,7 +773,7 @@ hubEmbed.listen((m, frame) => {
 
 /* clicking the blank space of a row also toggles it, except within HIT_PAD px of a field or button (a near miss).
    Neither does a drag, a double-click's second click, or a click that only closes a popup or leaves a text box */
-const HIT_PAD = 10;
+const HIT_PAD = 1;
 const hitRow = (t, x, y) => {
   if (!t.closest || t.closest('[data-act], input, select, button')) return null;
   const td = t.closest('td'), tr = td && td.closest('tr.row');
