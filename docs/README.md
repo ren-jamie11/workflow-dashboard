@@ -9,7 +9,7 @@ Read this file first, then only the stage doc you are working on.
 |---|---|---|
 | 1 | [stage-1-hub.md](stage-1-hub.md) | Product tracker: add/filter/delete rows; data saved to `data/` |
 | 2 | [stage-2-step1.md](stage-2-step1.md) | Expand a row to price it (Step 1) and confirm the price |
-| 3 | [stage-3-step2.md](stage-3-step2.md) | Workspace page; Step 2 order form per row; Excel written to `下单计划 Order Forms/` |
+| 3 | [stage-3-step2.md](stage-3-step2.md) | 下单 pop-up over the hub (← → between products); Step 2 order form per row; Excel written to `下单计划 Order Forms/` |
 | 4 | [stage-4-step3.md](stage-4-step3.md) | Step 3 inventory per row; uploads set 已上架 automatically and fill 父ASIN |
 
 ## Launch
@@ -21,15 +21,16 @@ opens the browser. Close the console window to stop the server. Use Chrome or Ed
 启动.bat
 app/
   server.py            static files + JSON API (below)
-  index.html           Hub: main table + Settings modal (tabs 通用 / 报价 / 下单 / 上架)
-  workspace.html       sidebar + journey bar + <iframe> for step2 / step3     (stage 3)
+  index.html           Hub: main table, 报价 panel, 下单 pop-up, image viewer, Settings modal (tabs 通用 / 报价 / 下单 / 上架)
   tools/step1..3.html  copies of the original tools, adapted for embedded mode   (stages 2–4)
+  tools/vendor/        exceljs.min.js, moved out of the Step 2 original unchanged
   shared/
     theme.css          tokens and components copied from the existing tools' :root
     api.js             fetch wrapper for the API below
     sku.js             parse/normalize SKU ranges, overlap check, mskuInRow()
     rows.js            status order, journey state, filter + sort (hub and sidebar)
-    embed.js           iframe ↔ parent postMessage (resize, settings-changed, events)
+    embed.js           iframe ↔ parent postMessage (resize, settings-changed, load-row, events)
+    crop.js            square image positions (thumbCrop / crop): pan, zoom, render — hub and Step 2
     datepicker.js      small popover calendar that can open on a given month
     combo.js           type-to-filter dropdown on a text input (existing values only)
     pinyin.js          pinyin matching for combo.js (shi / shimu / sm → 实木), ~5 KB, no dictionary
@@ -58,7 +59,10 @@ settings.json         { categories:["XK","MUG"], materials:["树脂","金属","�
 rows/<id>/meta.json   { id, name, category, material, sku, parentAsin, status, liveDate,
                         step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt }
 rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
-rows/<id>/step2.json  Step 2's `S` without settings (images as data URLs); products[0].image = the row's main image
+rows/<id>/step2.json  Step 2's `S` without settings: {order, products, memory, hub:{prefillDone}} (images as data URLs);
+                      products[0].image = the row's main image. Square positions: products[i].crop,
+                      variants[j].colorCrop (products[0].crop always follows meta.thumbCrop); `frame` is ignored.
+                      Written only after the first edit in the 下单 pop-up (the hub creates the minimal file)
 rows/<id>/images.json { extra:[{url,w,h}] }  up to 5 more images, shown only in the hub image viewer
 rows/<id>/step3.json  { seasonality:[12 numbers] }
 sales.json            Step 3 store (sales/skus/inv/manual/lastSeen/snapshotDate), keyed by MSKU
@@ -80,7 +84,8 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
   - **done**: 报价 when `step1Confirmed` (set by 保存 in the 报价 panel); 下单 when status ≥ 已下单; 上架 when status = 已上架
   - **next**: the first step that isn't done
   - **locked**: 下单 until 报价 is done; 上架 until 下单 is done
-- Soft lock: clicking a locked step shows `confirm('前一步未完成，仍要打开？')` and then opens it.
+- Soft lock: clicking a locked step shows `confirm('前一步未完成，仍要打开？')` and then opens it. The 下单
+  pop-up's ← → don't ask; its header shows `报价未完成` instead.
 - The 上架时间 date is always typed by hand. The picker opens on `deliveryDate + liveOffsetDays`, or
   the current month if there's no delivery date.
 
@@ -119,7 +124,7 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 | F4 | Migrate only Step 3 history (old backup JSON → Settings → 上架) |
 | G1 | Search + 状态 / 类目 chips, at most one per group (click the active chip again to clear it) + a 材质 dropdown; categories always grouped; within a group newest first (`createdAt`); no column sorting. *(Changed 2026-09-29)* |
 | G2 | Hub UI in Chinese |
-| G3 | One workspace page: sidebar + journey bar + tool |
+| G3 | ~~One workspace page: sidebar + journey bar + tool~~ *(Changed 2026-09-29: no workspace page; 下单 opens in a pop-up over the hub, see [stage-3-step2.md](stage-3-step2.md))* |
 | G4 | Journey column 报价 — 下单 — 上架 in every row |
 | G5 | 报价 panel expand / collapse keeps the page still: it never auto-scrolls, and the clicked row doesn't move. Clicking the grey page margins collapses it. *(2026-09-29)* |
 | G6 | Clicking a category header (`XK 5 个`) collapses / expands its rows; **全部收起 / 全部展开** at the right of the filter bar does all groups. Session only (a reload shows everything). Filters and search don't auto-expand (the header count still shows the matches). Collapsing a group closes a 报价 panel open inside it; adding a row, or a SKU / 类目 change that moves a row into a collapsed group, expands that group. The image viewer's ← → skip collapsed groups. *(2026-09-29)* |
@@ -143,7 +148,13 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 | I4 | Up to 6 images per row (main + 5 extras in `images.json`). Add with "+" (multi-select), paste or drop in the viewer. Per-image delete only; deleting the main image promotes the next one |
 | I5 | Every row must have an image: the last one can't be deleted, only replaced (替换主图) |
 | I6 | New rows are **drafts** (shown, not saved) until they have an image **and** 品名; a draft is lost on reload |
-| I7 | Reposition as in `collage-app.html`: the square frame stays still and the image moves inside it. Press + drag to move, Ctrl + wheel to zoom around the pointer (≈ 4% per notch; zoom out down to the whole image). Works on the row thumb, including a new product's draft row before it is saved (a click without moving still opens the viewer, or the file picker on a draft) and on the viewer's main image, which is shown in a large square frame identical to the row thumb. Saves automatically; the table and the 主图 tile update at once. 重置位置 = centred fill. Changes only `thumb`/`thumbCrop`, never Step 2's image or `frame` |
+| I7 | Reposition as in `collage-app.html`: the square frame stays still and the image moves inside it. Press + drag to move, Ctrl + wheel to zoom around the pointer (≈ 4% per notch; zoom out down to the whole image). Works on the row thumb, including a new product's draft row before it is saved (a click without moving still opens the viewer, or the file picker on a draft) and on the viewer's main image, which is shown in a large square frame identical to the row thumb. Saves automatically; the table and the 主图 tile update at once. 重置位置 = centred fill. Changes only `thumb`/`thumbCrop`, never Step 2's image. *(Changed 2026-09-29: `thumbCrop` is also 货号 #1's position in Step 2 and in the Excel, and can be changed there too — decision C1 in stage-3-step2.md)* |
+
+### 下单 pop-up (scoping, 2026-09-29)
+Decisions A1–D4 are listed in [stage-3-step2.md](stage-3-step2.md). In short: a pop-up instead of the workspace page;
+← → through the table's visible rows; every Step 2 image is a 1:1 square positioned like the row thumbs, and the
+Excel gets exactly that square (12px margin); 货号 #1 = the main image with one shared position; 运营 / 店铺 in
+Settings → 下单; nothing is written until the first edit.
 
 **Out of scope for now:** Amazon upload templates, price preview in the collapsed row, bundling
 several rows into one Excel, Step 3 numbers in the main table.

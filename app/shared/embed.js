@@ -6,7 +6,9 @@
      embed.autoHeight()         keep posting {type:'height', data:{h}} as the content size changes
    In a hub page (parent):
      hubEmbed.broadcast(type, data)   parent → every tool iframe
-     hubEmbed.listen(fn)              fn(msg, iframeEl) for every child → parent message */
+     hubEmbed.send(frame, type, data) parent → one tool iframe
+     hubEmbed.listen(fn)              fn(msg, iframeEl) for every child → parent message
+   embed.row can be reassigned: the 下单 pop-up keeps one Step 2 page loaded and switches it between rows */
 (function () {
 'use strict';
 
@@ -35,9 +37,10 @@ const embed = {
 
 const hubEmbed = {
   broadcast(type, data) {
-    document.querySelectorAll('iframe').forEach(f => {
-      if (f.contentWindow) f.contentWindow.postMessage({ src: SRC, dir: 'down', type, data }, location.origin);
-    });
+    document.querySelectorAll('iframe').forEach(f => hubEmbed.send(f, type, data));
+  },
+  send(frame, type, data) {
+    if (frame && frame.contentWindow) frame.contentWindow.postMessage({ src: SRC, dir: 'down', type, data }, location.origin);
   },
   listen(fn) {
     window.addEventListener('message', e => {

@@ -1,7 +1,11 @@
 # Stage 4: 上架 (Step 3 inventory) per row
 
-Context: [README.md](README.md). This assumes Stages 1–3 work (workspace page with iframe, `embed.js`,
-`sku.js`).
+Context: [README.md](README.md). This assumes Stages 1–3 work (`embed.js`, `sku.js`, the 下单 pop-up).
+
+> **Changed in Stage 3 (2026-09-29):** there is no `workspace.html`. The working assumption (A2, not final) is that
+> 上架 opens in a pop-up over the hub like 下单 — see [stage-3-step2.md](stage-3-step2.md): one tool page loaded
+> once and switched with `load-row`, ← → between products, × / Esc / backdrop close. Read "workspace.html" below as
+> "the hub (`index.html`)", and "refresh the sidebar" as "re-render the table". Confirm this when scoping Stage 4.
 
 ## Goal
 The **上架** step shows the Step 3 inventory dashboard filtered to that row's SKUs, with a seasonality

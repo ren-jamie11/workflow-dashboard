@@ -156,6 +156,24 @@ tr.xp-spacer td{padding:0;border:0}
   box-shadow:0 2px 10px rgba(15,23,42,.08);cursor:grab;touch-action:none;user-select:none}
 .iv-frame.dragging{cursor:grabbing}
 .iv-frame img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-user-drag:none}
+
+/* 下单 pop-up (Step 2): a compact header over the tool; ← → switch products, × / Esc / backdrop close */
+.s2{background:#f1f5f9;border-radius:var(--radius);box-shadow:0 20px 40px rgba(15,23,42,.3);width:100%;height:100%;max-width:1700px;
+  display:flex;flex-direction:column;overflow:hidden}
+.s2-head{display:flex;align-items:center;gap:.8rem;padding:.6rem .8rem .6rem 1rem;background:#fff;border-bottom:1px solid var(--line);flex:none}
+.s2-thumb{width:40px;height:40px;border-radius:6px;border:1px solid var(--line);object-fit:cover;display:block;flex:none;background:#f8fafc}
+.s2-name{display:flex;flex-direction:column;min-width:0;flex:1}
+.s2-title{font-weight:600;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s2-title .step-tag{font-size:.72rem;font-weight:500;color:var(--muted);margin-right:.45rem}
+.s2-meta{font-size:.76rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s2-warn{font-size:.72rem;font-weight:500;color:var(--warn-text);background:var(--warn-bg);border:1px solid #fcd34d;border-radius:999px;padding:.1rem .55rem;white-space:nowrap;flex:none}
+.s2-pos{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
+.s2-btn{width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--dark);font-size:1.25rem;line-height:1;
+  cursor:pointer;font-family:inherit;flex:none}
+.s2-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+.s2-btn:disabled{opacity:.35;cursor:default}
+.s2-btn.close{margin-left:.35rem;font-size:1.15rem}
+#s2Frame{flex:1;min-height:0;width:100%;border:0;display:block;background:#f1f5f9}
 </style>
 </head>
 <body>
@@ -229,8 +247,15 @@ tr.xp-spacer td{padding:0;border:0}
     <div class="tabs">
       <button type="button" class="tab active" data-tab="general">通用</button>
       <button type="button" class="tab" data-tab="quote">报价</button>
-      <button type="button" class="tab" disabled title="后续阶段">下单</button>
+      <button type="button" class="tab" data-tab="order">下单</button>
       <button type="button" class="tab" disabled title="后续阶段">上架</button>
+    </div>
+    <div class="modal-body hidden" data-body="order">
+      <div class="set-grid">
+        <div><label class="form-label" for="s2Operator">运营</label><input type="text" id="s2Operator" class="form-control" data-p2="operator" placeholder="Jamie"></div>
+        <div><label class="form-label" for="s2Store">店铺 + 国家</label><input type="text" id="s2Store" class="form-control" data-p2="store" placeholder="Arborus-US（店铺+国家）"></div>
+      </div>
+      <div class="hint" style="margin-top:1rem">写入下单计划 Excel（运营列、店铺行和文件名），所有产品通用。SKU 前缀 = 类目（在「通用」中管理）。</div>
     </div>
     <div class="modal-body hidden" data-body="quote">
       <div class="set-grid">
@@ -300,6 +325,25 @@ tr.xp-spacer td{padding:0;border:0}
   </div>
 </div>
 
+<!-- 下单计划 (Step 2): one tool page, loaded once and switched between products -->
+<div class="iv-back hidden" id="s2Back">
+  <div class="s2" role="dialog" aria-modal="true" aria-labelledby="s2Title">
+    <div class="s2-head">
+      <img class="s2-thumb" id="s2Thumb" alt="">
+      <div class="s2-name">
+        <div class="s2-title" id="s2Title"></div>
+        <div class="s2-meta" id="s2Meta"></div>
+      </div>
+      <span class="s2-warn hidden" id="s2Warn" title="报价还没有保存；仍可先填写下单计划">报价未完成</span>
+      <span class="s2-pos" id="s2Pos"></span>
+      <button type="button" class="s2-btn" id="s2Prev" title="上一个产品（←）">‹</button>
+      <button type="button" class="s2-btn" id="s2Next" title="下一个产品（→）">›</button>
+      <button type="button" class="s2-btn close" id="s2Close" title="关闭（Esc）">×</button>
+    </div>
+    <iframe id="s2Frame" title="下单计划"></iframe>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="shared/api.js"></script>
@@ -309,6 +353,7 @@ tr.xp-spacer td{padding:0;border:0}
 <script src="shared/pinyin.js"></script>
 <script src="shared/combo.js"></script>
 <script src="shared/embed.js"></script>
+<script src="shared/crop.js"></script>
 <script>
 (function(){
 'use strict';
@@ -579,9 +624,15 @@ document.addEventListener('click', e => {
   }
 });
 
-const STEP_STAGE = { order: '下单（Step 2）将在 Stage 3 接入', live: '上架（Step 3）将在 Stage 4 接入' };
+const STEP_STAGE = { live: '上架（Step 3）将在 Stage 4 接入' };
 function stepClick(r, step){
   if (step === 'quote') return toggleExpand(r);
+  if (step === 'order') {
+    if (drafts.has(r.id)) return toast('请先填写品名并添加图片', true);
+    const s = ROWS.journey(r).find(x => x.key === 'order');
+    if (s && s.state === 'locked' && !confirm('前一步未完成，仍要打开？')) return;   // soft lock (the pop-up's ← → don't ask)
+    return openOrder(r);
+  }
   toast(STEP_STAGE[step]);
 }
 
@@ -915,21 +966,9 @@ function readFile(file){
     fr.readAsDataURL(file);
   });
 }
-/* the largest centred square */
-function centerCrop(w, h){
-  const m = Math.min(w, h);
-  return { x: (w - m) / 2 / w, y: (h - m) / 2 / h, s: 1 };
-}
-function makeThumb(img, c){
-  const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
-  const k = THUMB_SIZE / (c.s * Math.min(W, H));      // frame → canvas; white where the image doesn't reach
-  const cv = document.createElement('canvas'); cv.width = cv.height = THUMB_SIZE;
-  const cx = cv.getContext('2d');
-  cx.fillStyle = '#fff'; cx.fillRect(0, 0, THUMB_SIZE, THUMB_SIZE);
-  cx.imageSmoothingQuality = 'high';
-  cx.drawImage(img, -c.x * W * k, -c.y * H * k, W * k, H * k);
-  return cv.toDataURL('image/jpeg', 0.8);
-}
+/* square positions (thumbCrop) live in shared/crop.js, shared with Step 2 */
+const { centerCrop, clampCrop, panCrop, zoomCrop, wheelFactor, layoutFrame } = CROP;
+const makeThumb = (img, c) => CROP.renderSquare(img, c, THUMB_SIZE, 0.8);
 /* file → {full:{url,w,h}, thumb, crop} ; full matches Step 2's loadImageData (1400px, JPEG 0.85) */
 async function processImage(file){
   const img = await loadImg(await readFile(file));
@@ -1087,49 +1126,8 @@ $('tbody').addEventListener('keydown', e => {
 });
 
 /* ============ reposition: the frame stays still, the image moves inside it (as in collage-app) ============ */
-/* thumbCrop = the frame as a window onto the full image: {x, y} its top-left as fractions of the image's
-   width / height, s its side as a fraction of the short edge. s < 1 zooms in; s up to long / short edge
-   zooms out until the whole image fits (white padding), so nothing is ever lost — the full image is never changed */
-const CROP_MIN = 0.1;                                   // 10× zoom
-function clampCrop(c, W, H){
-  const d = centerCrop(W, H);
-  ['x', 'y', 's'].forEach(k => { if (!Number.isFinite(c[k])) c[k] = d[k]; });   // repair a missing / broken value
-  const m = Math.min(W, H);
-  c.s = Math.min(Math.max(W, H) / m, Math.max(CROP_MIN, c.s));
-  const side = c.s * m;
-  /* frame inside the image when the image is bigger; image inside the frame when it's smaller */
-  const fit = (v, len) => Math.min(Math.max(0, len - side), Math.max(Math.min(0, len - side), v));
-  c.x = fit(c.x * W, W) / W;
-  c.y = fit(c.y * H, H) / H;
-  return c;
-}
-const cropFor = (r, W, H) => clampCrop(Object.assign({}, r.thumbCrop || centerCrop(W, H)), W, H);
-/* drag by (dx, dy) frame widths: the image follows the pointer */
-function panCrop(c, W, H, dx, dy){
-  const side = c.s * Math.min(W, H);
-  c.x -= dx * side / W;
-  c.y -= dy * side / H;
-  return clampCrop(c, W, H);
-}
-/* zoom by k (> 1 = in) keeping the image point under (fx, fy) — frame fractions — still */
-function zoomCrop(c, W, H, k, fx, fy){
-  const m = Math.min(W, H), side = c.s * m;
-  const px = c.x * W + fx * side, py = c.y * H + fy * side;
-  c.s /= k;
-  clampCrop(c, W, H);
-  c.x = (px - fx * c.s * m) / W;
-  c.y = (py - fy * c.s * m) / H;
-  return clampCrop(c, W, H);
-}
-const wheelFactor = e => Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.013 : 0.0004));   // ≈ 4% per wheel notch
-/* place the full image inside a square frame of `size` px */
-function layoutFrame(im, size, f, c){
-  if (im.getAttribute('src') !== f.main.url) im.src = f.main.url;
-  const k = size / (c.s * Math.min(f.W, f.H)), s = im.style;
-  s.position = 'absolute'; s.maxWidth = 'none'; s.objectFit = 'fill';
-  s.width = f.W * k + 'px'; s.height = f.H * k + 'px';
-  s.left = -c.x * f.W * k + 'px'; s.top = -c.y * f.H * k + 'px';
-}
+/* thumbCrop = the frame as a window onto the full image (see shared/crop.js). 货号 #1 in Step 2 and the Excel use it too */
+const cropFor = (r, W, H) => CROP.cropOf(r.thumbCrop, W, H);
 /* the decoded main image of a row → {main, img, W, H}; null when the row has none.
    A draft's image isn't saved yet: it comes from draftImg */
 const decoded = new WeakMap();
@@ -1244,13 +1242,14 @@ let viewer = null;
 let viewerBusy = false;     // one add / delete at a time
 let gridKey = '';
 
-/* ← → order = the table's visible order (groups + sort, collapsed groups skipped); saved rows with an image only */
-function viewerOrder(){
+/* ← → order = the table's visible order (groups + sort, collapsed groups skipped); saved rows only (drafts skipped) */
+function tableOrder(){
   return ROWS.groupRows(visibleRows(), settings.categories)
     .filter(g => !collapsedCats.has(g.cat))
     .reduce((a, g) => a.concat(g.rows), [])
-    .filter(r => r.thumb && !drafts.has(r.id));
+    .filter(r => !drafts.has(r.id));
 }
+const viewerOrder = () => tableOrder().filter(r => r.thumb);   // the image viewer: rows with an image
 
 function openViewer(r){
   viewerSaveNow();
@@ -1492,6 +1491,130 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowRight') { e.preventDefault(); viewerRow(1); }
 });
 
+/* ============ 下单 pop-up (Step 2) ============
+   One tools/step2.html page stays loaded: opening or switching a product sends it load-row {id} (ExcelJS makes the page
+   ~1 MB, so it isn't reloaded per product). The tool autosaves step2.json itself and tells the hub about the main image
+   (货号 #1 = the row's main image, its position = thumbCrop), 交货日期 and 生成. ← → follow the table order as it was
+   when the pop-up opened (a row that leaves the filter after 生成 keeps its place) */
+const s2Frame = $('s2Frame');
+let order = null;           // {id, ids: the ← → order} while the pop-up is open
+let s2Ready = false;        // the tool page has loaded and listens for load-row
+
+function openOrder(r){
+  if (viewer) closeViewer();
+  const ids = tableOrder().map(x => x.id);
+  order = { id: r.id, ids: ids.includes(r.id) ? ids : [r.id] };
+  $('s2Back').classList.remove('hidden');
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  if (!s2Frame.getAttribute('src')) s2Frame.src = 'tools/step2.html';
+  showOrder();
+}
+function showOrder(){
+  renderOrderHead();
+  if (s2Ready && order) hubEmbed.send(s2Frame, 'load-row', { id: order.id });
+}
+function closeOrder(){
+  if (!order) return;
+  const id = order.id;
+  order = null;
+  hubEmbed.send(s2Frame, 'flush');
+  $('s2Back').classList.add('hidden');
+  const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
+  if (tr) tr.scrollIntoView({ block: 'nearest' });
+}
+function orderIds(){ return order ? order.ids.filter(id => byId(id) && !drafts.has(id)) : []; }
+function orderStep(d){
+  if (!order) return;
+  const ids = orderIds(), i = ids.indexOf(order.id);
+  const n = i > -1 ? ids[i + d] : null;
+  if (!n) return;                                       // stops at the ends
+  order.id = n;
+  showOrder();
+}
+function renderOrderHead(){
+  const r = order && byId(order.id);
+  if (!r) return;
+  const ids = orderIds(), pos = ids.indexOf(r.id);
+  if (r.thumb) $('s2Thumb').src = r.thumb; else $('s2Thumb').removeAttribute('src');
+  $('s2Title').innerHTML = '<span class="step-tag">下单计划</span>' + esc(r.name || '未命名');
+  $('s2Meta').textContent = [r.sku, r.parentAsin, r.material].filter(Boolean).join(' · ') || '未填写 SKU';
+  $('s2Warn').classList.toggle('hidden', !!r.step1Confirmed);
+  $('s2Pos').textContent = pos > -1 ? '产品 ' + (pos + 1) + ' / ' + ids.length + ' · 按 ← → 切换' : '';
+  $('s2Prev').disabled = pos <= 0;
+  $('s2Next').disabled = pos < 0 || pos >= ids.length - 1;
+}
+$('s2Prev').addEventListener('click', () => orderStep(-1));
+$('s2Next').addEventListener('click', () => orderStep(1));
+$('s2Close').addEventListener('click', closeOrder);
+$('s2Back').addEventListener('mousedown', e => { if (e.target === $('s2Back')) closeOrder(); });
+/* keys pressed in the hub itself (the tool forwards its own as 'key' messages) */
+function orderKey(key){
+  if (key === 'Escape') closeOrder();
+  else if (key === 'ArrowLeft') orderStep(-1);
+  else if (key === 'ArrowRight') orderStep(1);
+}
+document.addEventListener('keydown', e => {
+  if (!order || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Escape' || ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !typing())) {
+    e.preventDefault();
+    orderKey(e.key);
+  }
+});
+
+/* 货号 #1's image or position changed in Step 2: rebuild the table thumb from it (as the viewer does) */
+async function orderMainChanged(r, d){
+  if (!r || !d || !d.crop) return;
+  try {
+    let img;
+    if (d.image) {
+      img = await loadImg(d.image.url);
+      const c = imgCache.get(r.id);
+      if (c) { if (c.length) c[0] = d.image; else c.push(d.image); }
+      r.imgCount = Math.max(1, imgCount(r));
+    } else {
+      const f = await openFrame(r);
+      if (!f) return;
+      img = f.img;
+    }
+    const W = img.naturalWidth, H = img.naturalHeight;
+    r.thumbCrop = CROP.clampCrop(Object.assign({}, d.crop), W, H);
+    r.thumb = makeThumb(img, r.thumbCrop);
+    saveRow(r);
+    render();
+    renderOrderHead();
+  } catch (e) {}
+}
+hubEmbed.listen((m, frame) => {
+  if (frame !== s2Frame) return;
+  const r = byId(m.row), d = m.data || {};
+  switch (m.type) {
+    case 'ready':
+      s2Ready = true;
+      showOrder();
+      break;
+    case 'loaded':                                      // focus the form, so its paste / keys work at once
+      if (order && m.row === order.id) try { s2Frame.contentWindow.focus(); } catch (e) {}
+      break;
+    case 'key':
+      if (order) orderKey(d.key);
+      break;
+    case 'main-changed':
+      orderMainChanged(r, d);
+      break;
+    case 'delivery-changed':                            // the 上架时间 picker opens on 交货日期 + N days
+      if (r && (d.deliveryDate || '') !== (r.deliveryDate || '')) { r.deliveryDate = d.deliveryDate || ''; saveRow(r); }
+      break;
+    case 'step2-generated':                             // 生成 completes 下单 (status only moves forward)
+      if (!r) break;
+      if (ROWS.statusRank(r.status) < ROWS.statusRank('已下单')) r.status = '已下单';
+      if (d.deliveryDate) r.deliveryDate = d.deliveryDate;
+      saveRow(r);
+      render();
+      renderOrderHead();
+      break;
+  }
+});
+
 /* ============ filters (at most one chip per group; rows are always newest first, see ROWS.sortRows) ============ */
 $('search').addEventListener('input', e => { ui.q = e.target.value; render(); });
 [['statusChips', 'status'], ['catChips', 'cat']].forEach(([el, k]) =>
@@ -1544,6 +1667,7 @@ function renderSettings(){
     '<span class="hint" style="margin:0">暂无材质，请在下方添加。</span>';
   $('liveOffset').value = settings.liveOffsetDays;
   document.querySelectorAll('[data-p]').forEach(el => { el.value = settings.step1[el.dataset.p]; });
+  document.querySelectorAll('[data-p2]').forEach(el => { el.value = settings.step2[el.dataset.p2]; });
   document.querySelectorAll('#peakToggle .toggle-btn').forEach(b =>
     b.classList.toggle('active', (b.dataset.peak === '1') === !!settings.step1.isPeak));
 }
@@ -1579,6 +1703,13 @@ $('p1Reset').addEventListener('click', () => {
   saveStep1();
   toast('已恢复默认参数');
 });
+/* 设置 → 下单: 运营 / 店铺 + 国家, used by every 下单计划; an empty field goes back to its default */
+document.querySelectorAll('[data-p2]').forEach(el => el.addEventListener('change', () => {
+  const k = el.dataset.p2;
+  settings.step2[k] = el.value.trim() || api.DEFAULT_SETTINGS.step2[k];
+  el.value = settings.step2[k];
+  saveSettings().then(() => hubEmbed.broadcast('settings-changed'));   // the tool re-reads settings.json
+}));
 $('gearBtn').addEventListener('click', () => openSettings());
 $('setClose').addEventListener('click', closeSettings);
 $('setModal').addEventListener('mousedown', e => { if (e.target === $('setModal')) closeSettings(); });
@@ -1649,7 +1780,7 @@ $('liveOffset').addEventListener('change', e => {
       commitCrop(r, f, c);
       render();
     }).catch(() => {}));
-  /* ?expand=<id> (from the workspace's 报价 step): open that row's 报价 panel */
+  /* ?expand=<id>: open that row's 报价 panel */
   const want = new URLSearchParams(location.search).get('expand');
   const r = want && byId(want);
   if (r) {

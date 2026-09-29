@@ -1,0 +1,1699 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>下单计划表格生成器</title>
+<style>
+:root{
+  --primary:#4f46e5; --primary-dark:#4338ca; --secondary:#10b981;
+  --dark:#1e293b; --muted:#64748b; --line:#e2e8f0;
+  --warn-bg:#fffbeb; --warn-line:#f59e0b; --warn-text:#92400e;
+  --radius:12px;
+  --shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:#f1f5f9;color:var(--dark);line-height:1.6;margin:0;
+}
+.container{max-width:1400px;margin:0 auto;padding:2rem 1.5rem 4rem}
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.75rem;margin-bottom:1.5rem}
+.card-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:1rem;margin-bottom:1.25rem;gap:1rem}
+h1{font-size:1.4rem;font-weight:600;color:var(--primary);margin:0}
+h2{font-size:1rem;font-weight:600;color:var(--dark);margin:0}
+
+/* ---------- 设置 (extender) ---------- */
+details.params{border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:var(--shadow);margin-bottom:1.5rem}
+details.params summary{
+  cursor:pointer;padding:1rem 1.25rem;font-weight:600;color:var(--primary);
+  list-style:none;display:flex;align-items:center;gap:.5rem;user-select:none;
+}
+details.params summary::-webkit-details-marker{display:none}
+details.params summary::before{content:'▸';transition:transform .2s;display:inline-block}
+details.params[open] summary::before{transform:rotate(90deg)}
+.params-body{padding:0 1.25rem 1.25rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1.1rem;border-top:1px solid var(--line);padding-top:1.25rem}
+.form-label{display:block;font-size:.82rem;font-weight:500;color:var(--muted);margin-bottom:.35rem}
+.form-label .req{color:#ef4444;margin-left:.15rem}
+.form-control{width:100%;padding:.6rem .75rem;border:1px solid var(--line);border-radius:8px;font-size:.95rem;font-family:inherit;background:#fff;color:var(--dark)}
+.form-control:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+textarea.form-control{resize:vertical;min-height:64px;line-height:1.5}
+.form-control.missing{border-color:var(--warn-line);background:var(--warn-bg)}
+
+.chip-wrap{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
+.chip{display:inline-flex;align-items:center;gap:.3rem;background:#eef2ff;color:var(--primary);border:1px solid #e0e7ff;border-radius:6px;padding:.15rem .5rem;font-size:.82rem}
+.chip button{background:none;border:none;color:var(--primary);cursor:pointer;font-size:.9rem;line-height:1;padding:0;opacity:.55}
+.chip button:hover{opacity:1;color:#ef4444}
+.inline-add{display:flex;gap:.4rem;margin-top:.5rem}
+.inline-add .form-control{flex:1}
+
+/* ---------- 货号 card ---------- */
+.prod{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:1.25rem;background:#fff;overflow:hidden}
+.prod.dragging{opacity:.4}
+.prod.drop-target{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+.prod-head{display:flex;align-items:center;gap:.75rem;padding:.85rem 1rem;background:#f8fafc;border-bottom:1px solid var(--line)}
+.grip{cursor:grab;color:#cbd5e1;font-size:1rem;line-height:1;padding:.15rem .3rem;user-select:none}
+.grip:active{cursor:grabbing}
+.prod-title{font-weight:600;font-size:.95rem;flex:1;color:var(--dark)}
+.prod-title .sub{font-weight:400;color:var(--muted);font-size:.85rem;margin-left:.5rem}
+.prod-body{padding:1.15rem 1rem 1.25rem}
+.prod-grid{display:grid;grid-template-columns:210px repeat(auto-fit,minmax(150px,1fr));gap:1rem;align-items:start}
+
+/* ---------- image drop ---------- */
+.imgbox{
+  border:2px dashed var(--line);border-radius:10px;background:#f8fafc;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;position:relative;overflow:hidden;text-align:center;padding:.5rem;
+}
+.imgbox.empty{aspect-ratio:3/4}
+.imgbox:hover,.imgbox.over{border-color:var(--primary);background:#eef2ff}
+.imgbox.missing{border-color:var(--warn-line);background:var(--warn-bg)}
+/* HUB: every image is a 1:1 square — the frame stays still and the image moves inside it
+   (press + drag, Ctrl + wheel), as in the hub's row thumbs. The img is placed inline from the crop */
+.imgbox img{position:absolute;top:0;left:0;display:block;max-width:none;pointer-events:none;-webkit-user-drag:none;user-select:none}
+.imgbox.empty img{width:100%;height:100%;object-fit:cover}
+.imgbox.sq{width:200px;height:200px;padding:0}
+.imgbox.empty.sq{aspect-ratio:auto}
+.imgbox.has{border:1px solid var(--line);background:#fff;cursor:grab;touch-action:none}
+.imgbox.has:hover{border-color:var(--primary);background:#fff}
+.imgbox.has.panning{cursor:grabbing;border-color:var(--primary)}
+.imgbox .ph{font-size:.78rem;color:var(--muted);line-height:1.45}
+.imgbox .ph b{display:block;color:var(--primary);font-size:.85rem;margin-bottom:.15rem}
+.imgbox .clear{position:absolute;top:.3rem;right:.3rem;background:rgba(15,23,42,.72);color:#fff;border:none;border-radius:6px;width:22px;height:22px;font-size:.85rem;line-height:1;cursor:pointer;z-index:2;opacity:0}
+.imgbox:hover .clear{opacity:1}
+.imgbox.sm{width:60px;height:60px;aspect-ratio:auto;border-width:1px;border-radius:8px;flex:none}
+.imgbox.sm .ph{font-size:.62rem}
+.imgbox.sm .clear{width:16px;height:16px;font-size:.6rem;top:.1rem;right:.1rem}
+
+/* ---------- variants table ---------- */
+.vwrap{overflow-x:auto;margin-top:1rem;border-top:1px solid var(--line);padding:1rem 0 1.1rem;position:relative}
+.marquee{position:absolute;border:1px solid var(--primary);background:rgba(79,70,229,.10);
+  pointer-events:none;z-index:5;border-radius:3px}
+body.marquee-on{user-select:none}
+td.gutter,th.gutter{cursor:pointer;user-select:none}
+td.gutter:hover{background:#eef2ff;color:var(--primary)}
+table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:1120px}
+thead th{
+  background:#f8fafc;color:var(--muted);font-weight:600;font-size:.78rem;
+  text-align:left;padding:.55rem .5rem;border-bottom:2px solid var(--line);white-space:nowrap;
+}
+thead th.out{background:#eef2ff;color:var(--primary)}
+tbody td{padding:.3rem .3rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+tbody tr.sel td{background:#eef2ff}
+tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--primary)}
+.cell-input{width:100%;padding:.45rem .5rem;border:1px solid var(--line);border-radius:6px;font-size:.88rem;font-family:inherit;background:#fff;color:var(--dark)}
+.cell-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(79,70,229,.12)}
+.cell-input.num{text-align:right}
+.cell-input.missing{border-color:var(--warn-line);background:var(--warn-bg)}
+.cell-input.locked{background:#f8fafc;color:var(--muted)}
+.colorcell{display:flex;align-items:center;gap:.35rem}
+.desc-cell{display:flex;align-items:center;gap:.25rem}
+.reset-btn{background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:.95rem;line-height:1;padding:.2rem .3rem;border-radius:5px;flex:none}
+.reset-btn.on{color:var(--warn-line)}
+.reset-btn:hover{color:var(--primary);background:#eef2ff}
+.del-btn{background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:1.15rem;line-height:1;padding:.25rem .45rem;border-radius:6px}
+.del-btn:hover{color:#ef4444;background:#fef2f2}
+
+.actions{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1.25rem;align-items:center}
+.actions.tight{margin-top:.85rem}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.7rem 1.35rem;border-radius:8px;font-weight:500;font-size:.95rem;font-family:inherit;cursor:pointer;border:none;transition:.2s;white-space:nowrap}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-ghost{background:#fff;color:var(--muted);border:1px solid var(--line)}
+.btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+.btn-danger{background:#fff;color:#ef4444;border:1px solid #fecaca}
+.btn-danger:hover{background:#fef2f2;border-color:#ef4444}
+.btn.sm{padding:.42rem .8rem;font-size:.83rem;border-radius:7px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.hint{margin-top:1rem;font-size:.8rem;color:var(--muted)}
+.empty{border:2px dashed var(--line);border-radius:var(--radius);padding:2.5rem 1.5rem;text-align:center;color:var(--muted);font-size:.9rem}
+.empty b{display:block;color:var(--dark);font-size:1rem;margin-bottom:.3rem;font-weight:600}
+
+/* ---------- preview ---------- */
+.prev-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table.prev{min-width:1600px;font-size:.78rem}
+table.prev thead th{padding:.4rem .45rem;font-size:.7rem}
+table.prev td{padding:.35rem .45rem;border-bottom:1px solid #f1f5f9;white-space:pre-line;vertical-align:middle;max-width:220px}
+table.prev tr.groupstart td{border-top:2px solid var(--dark)}
+table.prev img{width:34px;height:34px;object-fit:cover;border-radius:4px;display:block}
+
+/* ---------- alert ---------- */
+.alert{border-radius:10px;padding:.85rem 1rem;font-size:.86rem;margin-bottom:1rem;line-height:1.55}
+.alert-warn{background:var(--warn-bg);border:1px solid #fcd34d;color:var(--warn-text)}
+.alert-ok{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46}
+.alert ul{margin:.4rem 0 0;padding-left:1.1rem}
+.alert li{margin:.1rem 0}
+.saved{font-size:.78rem;color:var(--muted);white-space:nowrap}
+
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(150%);
+  background:var(--dark);color:#fff;padding:.8rem 1.4rem;border-radius:10px;font-size:.9rem;
+  box-shadow:0 10px 25px rgba(0,0,0,.2);transition:transform .28s;z-index:99;
+  display:flex;align-items:center;gap:.9rem}
+#toastAct{background:none;border:1px solid rgba(255,255,255,.35);color:#fff;font-family:inherit;
+  font-size:.83rem;font-weight:500;padding:.28rem .7rem;border-radius:6px;cursor:pointer;white-space:nowrap}
+#toastAct:hover{background:rgba(255,255,255,.14);border-color:#fff}
+#toastMsg{max-width:52ch;overflow-wrap:anywhere}
+.toast.show{transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* HUB: embedded in the hub's 下单 pop-up */
+.container{max-width:none;padding:1.25rem 1.5rem 2rem}
+body.loading .container{opacity:.45;pointer-events:none;transition:opacity .1s .15s}
+.prefill{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;background:#eef2ff;border:1px solid #c7d2fe;
+  color:var(--primary-dark);border-radius:10px;padding:.7rem 1rem;margin-bottom:1.25rem;font-size:.9rem}
+.prefill span{flex:1;min-width:12rem}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HUB: 设置 (运营 / 店铺 + 国家) is in the hub's ⚙ 设置 → 下单; SKU 前缀 = the hub's 类目 -->
+
+  <!-- 订单信息 -->
+  <div class="card">
+    <div class="card-header">
+      <h2>订单信息</h2><!-- HUB: the pop-up header shows the product -->
+      <div style="display:flex;align-items:center;gap:.8rem">
+        <span class="saved" id="savedAt"></span>
+        <button type="button" class="btn btn-ghost sm" id="importBtn">导入已有 Excel</button>
+        <input type="file" id="importFile" accept=".xlsx" style="display:none">
+      </div>
+    </div>
+    <div class="params-body" style="padding:0;border-top:none">
+      <div>
+        <label class="form-label">工厂<span class="req">*</span></label>
+        <input type="text" id="ofFactory" class="form-control" list="dlFactory" placeholder="例 Huazhi">
+        <datalist id="dlFactory"></datalist>
+      </div>
+      <div>
+        <label class="form-label">订单名称（用于文件名）</label>
+        <input type="text" id="ofName" class="form-control" placeholder="例 HUAZHI_MUGS">
+      </div>
+      <div>
+        <label class="form-label">交货日期<span class="req">*</span></label>
+        <input type="date" id="ofDate" class="form-control">
+      </div>
+      <div>
+        <label class="form-label">下单数量<span class="req">*</span></label>
+        <input type="number" id="ofQty" class="form-control" placeholder="例 200">
+      </div>
+      <div>
+        <label class="form-label">SKU 前缀<span class="req">*</span></label>
+        <select id="ofSku" class="form-control"></select>
+      </div>
+      <div>
+        <label class="form-label">税率</label>
+        <input type="text" id="ofTax" class="form-control" list="dlTax" placeholder="专票1%">
+        <datalist id="dlTax"><option value="专票1%"><option value="专票13%"><option value="专票6%"></datalist>
+      </div>
+      <div>
+        <label class="form-label">运费</label>
+        <input type="text" id="ofFreight" class="form-control" list="dlFreight" placeholder="含运费">
+        <datalist id="dlFreight"><option value="含运费"><option value="不含"></datalist>
+      </div>
+    </div>
+    <div class="hint">以上 交货日期 / 下单数量 / SKU 会自动带入每个新增货号，之后仍可单独修改。</div>
+  </div>
+
+  <!-- HUB: 从报价表导入 banner -->
+  <div id="prefillBox"></div>
+
+  <!-- 货号列表 -->
+  <div id="prodList"></div>
+
+  <div class="actions" style="margin-bottom:1.5rem">
+    <button type="button" class="btn btn-primary" id="addProd">+ 添加产品货号</button>
+  </div>
+
+  <!-- HUB: Excel 预览 removed -->
+
+  <!-- 生成 -->
+  <div class="card">
+    <div id="alertBox"></div>
+    <div class="actions" style="margin-top:0">
+      <button type="button" class="btn btn-primary" id="genBtn">生成 Excel</button><!-- HUB: written to 下单计划 Order Forms -->
+      <button type="button" class="btn btn-danger" id="clearBtn">清空全部</button>
+    </div>
+    <div class="hint" id="fnHint"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button type="button" id="toastAct"></button></div>
+
+<!-- HUB: ExcelJS moved unchanged into vendor/exceljs.min.js (the original has it inline) -->
+<script src="vendor/exceljs.min.js"></script>
+<script src="../shared/api.js"></script>
+<script src="../shared/embed.js"></script>
+<script src="../shared/crop.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ============ 常量：Excel 模板规格 ============ */
+const SHEET_NAME = '订单表格录入信息填写要求';
+// 仅设置模板中显式指定的列宽；其余沿用 defaultColWidth = 9
+const COL_W = {1:25.79,2:13.89,3:37.26,4:28.37,5:22.10,6:22.00,7:22.63,8:15.47,9:9.37,10:9.37,
+  11:10.26,12:15.26,13:43.47,16:21.63,17:10.63,18:22.37,19:12.63,20:16.89,21:17.63,22:24.89,
+  23:21.63,24:21.63,29:11.89};
+const EMU = 9525;   // EMU per pixel
+const HEADERS = ['运营*','工厂*','图片*','产品货号*','产品色号','产品尺寸',
+  '产品单价*\n（写清楚是套一或者是套三的单价）','配件货号/描述*（盆子/灯等等）','配件色号','配件尺寸',
+  '配件价格*','整个产品包含配件一起的总价','产品描述*（规格：工厂+品名）','预估箱率','预估箱数',
+  '预估内盒尺寸*','预估外箱尺寸','开发部负责同事*',
+  '下单数量*\n（若数量需减少的请自行与开发或者陈总确认好是否可行并告知）','交货日期*',
+  'SKU*\n（前缀分类：例SSF_/SSP_等）','备注','是否含真植物','详细写出具体真植物','产品材质',
+  '一级分类','二级分类','三级分类','税率','运费'];
+/* 逐列样式，直接从模板 2026_8_03_Jamie_HUAZHI_MUGS_下单计划.xlsx 提取（A..AD）
+   主题色已解析为固定 ARGB：绿 FFACD78E / 蓝 FFB6C7EA / 黄 FFFEE695 / 红 FFEF949E */
+const HDR_STYLE = [
+  /*A */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center"},
+  /*B */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center"},
+  /*C */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center"},
+  /*D */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center"},
+  /*E */ {"f": "微软雅黑", "s": 12.0, "h": "center", "w": 1},
+  /*F */ {"f": "微软雅黑", "s": 12.0, "h": "center", "w": 1},
+  /*G */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center", "w": 1},
+  /*H */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center", "w": 1},
+  /*I */ {"f": "微软雅黑", "s": 12.0, "h": "center"},
+  /*J */ {"f": "微软雅黑", "s": 12.0, "h": "center"},
+  /*K */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center"},
+  /*L */ {"f": "微软雅黑", "s": 12.0, "h": "center", "w": 1},
+  /*M */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center", "w": 1},
+  /*N */ {"f": "微软雅黑", "s": 12.0, "h": "center"},
+  /*O */ {"f": "微软雅黑", "s": 12.0, "h": "center"},
+  /*P */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center", "w": 1},
+  /*Q */ {"f": "微软雅黑", "s": 12.0, "h": "center", "w": 1},
+  /*R */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center", "w": 1},
+  /*S */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center", "w": 1},
+  /*T */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center"},
+  /*U */ {"f": "微软雅黑", "s": 12.0, "b": 1, "bg": "FFACD78E", "h": "center", "w": 1, "nf": "0_ "},
+  /*V */ {"f": "微软雅黑", "s": 16.0, "h": "center"},
+  /*W */ {"f": "微软雅黑", "s": 20.0, "b": 1, "bg": "FFFF0000", "h": "center", "w": 1},
+  /*X */ {"f": "微软雅黑", "s": 20.0, "b": 1, "bg": "FFFF0000", "h": "center", "w": 1},
+  /*Y */ {"f": "微软雅黑", "s": 11.0, "bg": "FFACD78E"},
+  /*Z */ {"f": "微软雅黑", "s": 11.0, "bg": "FFACD78E"},
+  /*AA*/ {"f": "微软雅黑", "s": 11.0, "bg": "FFACD78E"},
+  /*AB*/ {"f": "微软雅黑", "s": 11.0, "bg": "FFACD78E"},
+  /*AC*/ {"f": "Calibri", "s": 12.0, "bg": "FFACD78E"},
+  /*AD*/ {"f": "Calibri", "s": 12.0, "bg": "FFACD78E"}
+];
+
+const DAT_STYLE = [
+  /*A */ {"f": "微软雅黑", "s": 20.0, "h": "center"},
+  /*B */ {"f": "微软雅黑", "s": 20.0, "h": "center"},
+  /*C */ {"f": "Calibri", "s": 20.0},
+  /*D */ {"f": "微软雅黑", "s": 20.0, "bg": "FFFFFFFF", "h": "center", "w": 1},
+  /*E */ {"f": "Calibri", "s": 20.0},
+  /*F */ {"f": "微软雅黑", "s": 20.0, "h": "center", "w": 1},
+  /*G */ {"f": "微软雅黑", "s": 20.0, "b": 1, "c": "FFFF0000", "bg": "FFB6C7EA", "h": "center", "w": 1},
+  /*H */ {"f": "宋体", "s": 20.0, "h": "center", "w": 1},
+  /*I */ {"f": "宋体", "s": 36.0, "bg": "FFFFFF00"},
+  /*J */ {"f": "Microsoft YaHei UI", "s": 20.0, "h": "center", "nf": "\\¥#,##0.00_);[Red]\\(\\¥#,##0.00\\)"},
+  /*K */ {"f": "微软雅黑", "s": 20.0, "h": "center", "w": 1},
+  /*L */ {"f": "Microsoft YaHei UI", "s": 20.0, "bg": "FFFFFF00", "h": "center", "nf": "\\¥#,##0.00_);[Red]\\(\\¥#,##0.00\\)"},
+  /*M */ {"f": "宋体", "s": 20.0, "h": "center", "w": 1},
+  /*N */ {"f": "宋体", "s": 20.0, "h": "center", "w": 1},
+  /*O */ {"f": "Microsoft YaHei UI", "s": 20.0, "h": "center", "w": 1},
+  /*P */ {"f": "Microsoft YaHei UI", "s": 20.0, "h": "center", "w": 1},
+  /*Q */ {"f": "微软雅黑", "s": 20.0, "h": "center", "w": 1},
+  /*R */ {"f": "Microsoft YaHei UI", "s": 20.0, "h": "center", "w": 1},
+  /*S */ {"f": "Microsoft YaHei UI", "s": 20.0, "h": "center", "w": 1},
+  /*T */ {"f": "微软雅黑", "s": 20.0, "h": "center", "w": 1},
+  /*U */ {"f": "微软雅黑", "s": 20.0, "b": 1, "c": "FFC00000", "bg": "FFFEE695", "h": "center"},
+  /*V */ {"f": "宋体", "s": 26.0, "c": "FFFF0000", "bg": "FFFFFFFF", "w": 1},
+  /*W */ {"f": "宋体", "s": 36.0, "bg": "FFEF949E"},
+  /*X */ {"f": "宋体", "s": 36.0, "bg": "FFEF949E"},
+  /*Y */ {"f": "黑体", "s": 16.0, "c": "FF0B1019"},
+  /*Z */ {"f": "黑体", "s": 16.0, "c": "FF0B1019"},
+  /*AA*/ {"f": "黑体", "s": 16.0},
+  /*AB*/ {"f": "黑体", "s": 16.0},
+  /*AC*/ {"f": "Calibri", "s": 16.0, "w": 1, "nf": "0%"},
+  /*AD*/ {"f": "Calibri", "s": 16.0}
+];
+const NOTE1 = '注：以上黄色信息必须由运营或者开发部同事全部填写正确，不要出现错误、错别字或者工厂名错误等，红色下的标黄色部分必须填写，没有的信息可以暂时不填。绿色由供应链填写';
+const NOTE2 = '开发同事请注意: 新工厂下单前，请做到以下部分配合：\n1.新工厂付款方式与工厂确认，确认后告知（对公：收取几个点税点？开什么类型发票？开票类目？/对私）；\n2.新工厂及时建群，并让供应商群里提供以下信息资料：公司名+工厂地址及联系人信息+\n收款相关信息资料（对公的账户信息+营业执照/对私的账户信息+身份证号码）';
+const IMG_PAD = 12;                         /* HUB: 图片与单元格边框之间的留白（px） */
+const IMG_BOX = 266 - 2*IMG_PAD;            /* HUB: C 列方形图片 = 242（原 262） */
+const ROW_PAD = 2*IMG_PAD;                  /* HUB: 图片上下留白（原 42） */
+const MIN_ROW_PX = 175;                     // 无图片时的最小行高（= 模板原始 131.25pt）
+const SWATCH_BOX_W = 140;                   // E 列色号图最大宽度
+const ACC_BOX_W = 100;                      // H 列配件图最大宽度
+const IMG_STORE_MAX = 1400;                 // 存储时最长边上限（保留完整画面）
+const UI_BOX = 200;                         /* HUB: 货号图片方框（CSS px） */
+const SW_BOX = 60;                          /* HUB: 色号图片方框（CSS px） */
+const EXPORT_PX = 900;                      /* HUB: 导出时方形图片的像素边长 */
+const COL_C_PX = Math.round(COL_W[3]*7)+5;  // 图片列 C = 266 px
+const COL_E_PX = Math.round(COL_W[5]*7)+5;  // 色号列 E = 160 px
+const COL_H_PX = Math.round(COL_W[8]*7)+5;  // 配件列 H
+
+
+/* ============ state ============ */
+const DEFAULTS = {
+  settings:{operator:'Jamie', store:'Arborus-US（店铺+国家）', skuPrefixes:['MUG_','XK_']},
+  order:{factory:'',orderName:'',date:'',qty:'',sku:'',taxRate:'专票1%',freight:'含运费'},
+  products:[],
+  memory:{factories:[],materials:[],productNames:[],colorNames:[]},
+  hub:{}                                    /* HUB: {prefillDone} */
+};
+let S = JSON.parse(JSON.stringify(DEFAULTS));
+const uid = ()=> Math.random().toString(36).slice(2,10);
+
+/* ============ HUB: 自动保存到 data/rows/<id>/step2.json ============
+   One draft per hub row. Only user actions call save(): the defaults filled in when a row opens are not written,
+   so opening a product without editing it changes nothing on disk. settings are global (hub ⚙ 设置 → 下单), never saved here */
+let ROW = null, META = {}, loading = false, saveTimer = null, pendingPath = null;
+let sent = {main:'', delivery:''};          // last 货号 #1 image / position and 交货日期 told to the hub
+const stateFor = () => ({order:S.order, products:S.products, memory:S.memory, hub:S.hub});
+function save(){
+  if(!ROW || loading) return;
+  clearTimeout(saveTimer);
+  pendingPath = 'rows/'+ROW+'/step2.json';
+  saveTimer = setTimeout(saveNow, 400);
+  tellHub();
+}
+function saveNow(){
+  clearTimeout(saveTimer); saveTimer = null;
+  const path = pendingPath; pendingPath = null;
+  if(!path) return Promise.resolve();
+  return api.put(path, stateFor()).then(()=>{
+    const d = new Date();
+    $('savedAt').textContent = '已自动保存 '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  }).catch(()=>{});
+}
+/* the page may go away (hub reload): best effort — keepalive only takes small bodies */
+window.addEventListener('pagehide', ()=>{
+  if(!pendingPath) return;
+  clearTimeout(saveTimer);
+  const body = JSON.stringify(stateFor());
+  try{ fetch('/api/data/'+pendingPath.split('/').map(encodeURIComponent).join('/'),
+    {method:'PUT', keepalive: body.length < 60000, headers:{'Content-Type':'application/json'}, body}); }catch(e){}
+});
+api.onError = err => toast(err.offline ? err.message : '保存失败：'+err.message);
+/* 货号 #1 = the hub row's main image; its square position = meta.thumbCrop. Tell the hub when either changes,
+   and when the latest 交货日期 changes (the hub's 上架时间 estimate follows it) */
+function mainCrop(p){ return p.crop || (p.imgNat ? CROP.centerCrop(p.imgNat.w, p.imgNat.h) : null); }
+function latestDate(){
+  let d = '';
+  S.products.forEach(p=>p.variants.forEach(v=>{ if((v.date||'') > d) d = v.date; }));
+  return d;
+}
+function mainKey(){
+  const p = S.products[0];
+  return p && p.image && p.imgNat ? p.image.length+':'+p.image.slice(-64)+'|'+JSON.stringify(mainCrop(p)) : '';
+}
+function tellHub(){
+  const p = S.products[0], key = mainKey();
+  if(key && key !== sent.main){
+    const imgChanged = key.split('|')[0] !== sent.main.split('|')[0];
+    sent.main = key;
+    embed.post('main-changed', {image: imgChanged ? {url:p.image, w:p.imgNat.w, h:p.imgNat.h} : null, crop:mainCrop(p)});
+  }
+  const d = latestDate();
+  if(d !== sent.delivery){ sent.delivery = d; embed.post('delivery-changed', {deliveryDate:d}); }
+}
+
+/* ============ helpers ============ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let toastTimer=null;
+function hideToast(){ $('toast').classList.remove('show'); clearTimeout(toastTimer); }
+function showToast(msg, action, ms){
+  const t=$('toast'), b=$('toastAct');
+  $('toastMsg').textContent = msg;
+  b.style.display = action ? 'inline-flex' : 'none';
+  if(action) b.textContent = action.label;
+  b.onclick = action ? ()=>{ hideToast(); action.fn(); } : null;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, ms || (action?3000:2600));
+}
+function toast(msg){ showToast(msg, null); }
+function remember(key,val){
+  val = (val||'').trim(); if(!val) return;
+  const a = S.memory[key]; if(!a.includes(val)){ a.unshift(val); if(a.length>40) a.pop(); }
+}
+function fmtDate(iso){ if(!iso) return ''; const p=iso.split('-'); return p.length===3 ? p[0]+'.'+String(+p[1])+'.'+String(+p[2]) : iso; }
+function todayParts(){ const d=new Date(); return d.getFullYear()+'_'+(d.getMonth()+1)+'_'+String(d.getDate()).padStart(2,'0'); }
+
+/* 产品描述： 工厂 + 色号 + 尺寸 + 品名 */
+function autoDesc(p,v){
+  const parts = [S.order.factory, (v.colorCode||'')+(v.size||''), p.productName];
+  return parts.map(x=>(x||'').trim()).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+}
+function descOf(p,v){ return v.descLocked ? (v.desc||'') : autoDesc(p,v); }
+
+/* 图片：完整保留画面，只在超大时等比缩小 → {url,w,h} */
+function loadImageData(url, cb){
+  const img = new Image();
+  img.onload = () => {
+    const k = Math.min(1, IMG_STORE_MAX/Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width*k)), h = Math.max(1, Math.round(img.height*k));
+    const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
+    const cx = cv.getContext('2d');
+    cx.fillStyle='#fff'; cx.fillRect(0,0,w,h);
+    cx.drawImage(img, 0,0,img.width,img.height, 0,0,w,h);
+    cb({url: cv.toDataURL('image/jpeg',0.85), w, h});
+  };
+  img.onerror = ()=>cb(null);
+  img.src = url;
+}
+function loadImageFile(file, cb){
+  const fr = new FileReader();
+  fr.onload = e => loadImageData(e.target.result, d=>{
+    if(d) cb(d); else toast('图片读取失败，请换一张');
+  });
+  fr.readAsDataURL(file);
+}
+
+/* HUB: square images. Each image has a crop {x,y,s} (shared/crop.js): 货号 p.crop (货号 #1: the hub's meta.thumbCrop),
+   色号 v.colorCrop. A missing crop = the centred square. The old resizable frame (p.frame) is no longer used */
+const imgSlots = () => {
+  const out = [];
+  S.products.forEach(p=>{
+    if(p.image) out.push({o:p, url:'image', nat:'imgNat', crop:'crop'});
+    p.variants.forEach(v=>{ if(v.colorImage) out.push({o:v, url:'colorImage', nat:'colorNat', crop:'colorCrop'}); });
+  });
+  return out;
+};
+/* the <img> style that shows crop c of a W×H image in a size px square */
+function squareStyle(nat, c, size){
+  const k = size / (c.s * Math.min(nat.w, nat.h));
+  return 'width:'+(nat.w*k)+'px;height:'+(nat.h*k)+'px;left:'+(-c.x*nat.w*k)+'px;top:'+(-c.y*nat.h*k)+'px';
+}
+function squareImg(url, nat, crop, size){
+  if(!nat || !nat.w) return '<img src="'+url+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:cover">';
+  return '<img src="'+url+'" alt="" draggable="false" style="'+squareStyle(nat, CROP.cropOf(crop, nat.w, nat.h), size)+'">';
+}
+/* older drafts may miss an image's natural size: measure it (in memory only, nothing is written) */
+function ensureNat(){
+  const todo = imgSlots().filter(s => !s.o[s.nat] || !s.o[s.nat].w);
+  let pending = todo.length;
+  const row = ROW;
+  todo.forEach(s=>{
+    const im = new Image();
+    im.onload = im.onerror = () => {
+      if(im.naturalWidth) s.o[s.nat] = {w:im.naturalWidth, h:im.naturalHeight};
+      if(--pending === 0 && row === ROW) render();
+    };
+    im.src = s.o[s.url];
+  });
+}
+
+/* ============ 校验 ============ */
+function validate(){
+  const miss = [];
+  if(!S.order.factory.trim()) miss.push('工厂');
+  if(!S.products.length) miss.push('至少一个产品货号');
+  S.products.forEach((p,pi)=>{
+    const tag = '货号 '+(p.code.trim()||('#'+(pi+1)));
+    if(!p.code.trim()) miss.push(tag+'：产品货号');
+    if(!p.image) miss.push(tag+'：图片');
+    if(!p.variants.length) miss.push(tag+'：至少一个颜色/尺寸');
+    p.variants.forEach((v,vi)=>{
+      const vt = tag+' 第'+(vi+1)+'行';
+      if(!String(v.price).trim()) miss.push(vt+'：产品单价');
+      if(!(v.boxSize||'').trim()) miss.push(vt+'：预估内盒尺寸');
+      if(!String(v.qty).trim()) miss.push(vt+'：下单数量');
+      if(!(v.date||'').trim()) miss.push(vt+'：交货日期');
+      if(!(v.sku||'').trim()) miss.push(vt+'：SKU');
+      if(!descOf(p,v).trim()) miss.push(vt+'：产品描述');
+    });
+  });
+  return miss;
+}
+/* ============ 渲染 ============ */
+function renderSettings(){
+  /* HUB: 运营 / 店铺 are edited in the hub's 设置 → 下单; SKU 前缀 = 类目 */
+  const sel = $('ofSku'), cur = S.order.sku;
+  const list = S.settings.skuPrefixes.slice();
+  if(cur && !list.includes(cur)) list.unshift(cur);         /* HUB: e.g. a prefix from an imported Excel */
+  sel.innerHTML = '<option value="">— 请选择 —</option>'+
+    list.map(s=>'<option value="'+esc(s)+'">'+esc(s)+'</option>').join('');
+  sel.value = cur || '';
+}
+function renderOrder(){
+  $('ofFactory').value = S.order.factory;
+  $('ofName').value = S.order.orderName;
+  $('ofDate').value = S.order.date;
+  $('ofQty').value = S.order.qty;
+  $('ofTax').value = S.order.taxRate || '';
+  $('ofFreight').value = S.order.freight || '';
+  $('dlFactory').innerHTML = S.memory.factories.map(f=>'<option value="'+esc(f)+'">').join('');
+  const nm = (S.order.orderName||S.order.factory||'订单').trim().replace(/[\\/:*?"<>|]/g,'_');
+  $('fnHint').textContent = '文件名：'+todayParts()+'_'+(S.settings.operator||'Jamie')+'_'+nm+'_下单计划.xlsx';
+}
+function skuOptions(val){
+  const list = S.settings.skuPrefixes.slice();
+  if(val && !list.includes(val)) list.unshift(val);
+  return '<option value="">—</option>'+list.map(s=>'<option value="'+esc(s)+'"'+(s===val?' selected':'')+'>'+esc(s)+'</option>').join('');
+}
+function renderProducts(){
+  const wrap = $('prodList');
+  if(!S.products.length){
+    wrap.innerHTML = '<div class="empty"><b>还没有产品货号</b>点击下方「+ 添加产品货号」开始。同一货号下可添加多个颜色 / 尺寸 / 套数。</div>';
+    return;
+  }
+  wrap.innerHTML = S.products.map((p,pi)=>{
+    const rows = p.variants.map((v,vi)=>{
+      const d = descOf(p,v);
+      return '<tr data-vid="'+v.id+'">'+
+        '<td class="gutter" style="width:40px;text-align:center;color:#cbd5e1;font-size:.8rem">'+(vi+1)+'</td>'+
+        '<td style="min-width:190px"><div class="colorcell">'+
+          /* HUB: square 色号 image, press + drag / Ctrl + wheel to position it */
+          '<div class="imgbox sm'+(v.colorImage?' has':'')+'" data-act="cimg" data-pi="'+pi+'" data-vi="'+vi+'" title="'+
+            (v.colorImage?'点击更换 · 按住拖动调整位置 · Ctrl+滚轮缩放':'点击上传、拖入，或悬停后按 Ctrl+V 粘贴')+'">'+
+            (v.colorImage?squareImg(v.colorImage, v.colorNat, v.colorCrop, SW_BOX)+'<button class="clear" data-act="cimgclr" data-pi="'+pi+'" data-vi="'+vi+'">×</button>':'<span class="ph">图</span>')+
+          '</div>'+
+          '<input class="cell-input" list="dlColor" data-f="colorCode" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.colorCode)+'" placeholder="色号 / 颜色名"></div></td>'+
+        '<td style="width:110px"><input class="cell-input" data-f="size" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.size)+'" placeholder="14oz"></td>'+
+        '<td style="width:86px"><input class="cell-input num" data-f="setQty" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.setQty)+'" placeholder="4"></td>'+
+        '<td style="width:92px"><input class="cell-input num'+(String(v.price).trim()?'':' missing')+'" data-f="price" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.price)+'" placeholder="28"></td>'+
+        '<td style="width:160px"><input class="cell-input'+((v.boxSize||'').trim()?'':' missing')+'" data-f="boxSize" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.boxSize)+'" placeholder="25.5x25.5x12cm"></td>'+
+        '<td style="width:92px"><input class="cell-input num'+(String(v.qty).trim()?'':' missing')+'" data-f="qty" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.qty)+'" placeholder="200"></td>'+
+        '<td style="width:140px"><input type="date" class="cell-input'+((v.date||'').trim()?'':' missing')+'" data-f="date" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.date)+'"></td>'+
+        '<td style="width:110px"><select class="cell-input'+((v.sku||'').trim()?'':' missing')+'" data-f="sku" data-pi="'+pi+'" data-vi="'+vi+'">'+skuOptions(v.sku)+'</select></td>'+
+        '<td class="out" style="min-width:230px"><div class="desc-cell">'+
+          '<input class="cell-input'+(v.descLocked?'':' locked')+(d.trim()?'':' missing')+'" data-f="desc" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(d)+'" placeholder="自动生成">'+
+          '<button class="reset-btn'+(v.descLocked?' on':'')+'" data-act="unlock" data-pi="'+pi+'" data-vi="'+vi+'" title="'+(v.descLocked?'已手动编辑，点击恢复自动生成':'自动生成中')+'">↺</button></div></td>'+
+        '<td style="width:64px;text-align:center">'+
+          '<button class="del-btn" data-act="vdup" data-pi="'+pi+'" data-vi="'+vi+'" title="复制此行">⧉</button>'+
+          '<button class="del-btn" data-act="vdel" data-pi="'+pi+'" data-vi="'+vi+'" title="删除此行">×</button></td>'+
+      '</tr>';
+    }).join('');
+
+    return '<div class="prod" draggable="false" data-pi="'+pi+'">'+
+      '<div class="prod-head">'+
+        '<span class="grip" data-act="grip" draggable="true" data-pi="'+pi+'" title="拖动排序">⠿</span>'+
+        '<span class="prod-title">'+esc(p.code||'未命名货号')+
+          '<span class="sub">'+p.variants.length+' 个颜色 / 尺寸</span></span>'+
+        '<button class="btn btn-ghost sm" data-act="pdup" data-pi="'+pi+'">复制整个货号</button>'+
+        '<button class="del-btn" data-act="pdel" data-pi="'+pi+'" title="删除货号">×</button>'+
+      '</div>'+
+      '<div class="prod-body">'+
+        '<div class="prod-grid">'+
+          '<div>'+
+            '<label class="form-label">图片<span class="req">*</span></label>'+
+            (function(){
+              if(!p.image)
+                return '<div class="imgbox empty sq missing" data-act="pimg" data-pi="'+pi+'" tabindex="0">'+
+                       '<span class="ph"><b>点击上传</b>拖入图片，或按 Ctrl+V 粘贴</span></div>';
+              /* HUB: a 1:1 square; the image moves inside it. 货号 #1 = the product's main image: never emptied */
+              return '<div class="imgbox sq has" data-act="pimg" data-pi="'+pi+'" tabindex="0" title="'+
+                       (pi ? '' : '货号 #1 的图片 = 产品主图（与总览表格同步）\n')+'点击更换 · 按住拖动调整位置 · Ctrl+滚轮缩放">'+
+                       squareImg(p.image, p.imgNat, p.crop, UI_BOX)+
+                       (pi ? '<button class="clear" data-act="pimgclr" data-pi="'+pi+'">×</button>' : '')+
+                     '</div>';
+            })()+
+          '</div>'+
+          '<div><label class="form-label">产品货号<span class="req">*</span></label>'+
+            '<input class="form-control'+(p.code.trim()?'':' missing')+'" data-pf="code" data-pi="'+pi+'" value="'+esc(p.code)+'" placeholder="HZ5404"></div>'+
+          '<div><label class="form-label">产品名称（品名）</label>'+
+            '<input class="form-control" list="dlPname" data-pf="productName" data-pi="'+pi+'" value="'+esc(p.productName)+'" placeholder="咖啡杯"></div>'+
+          '<div><label class="form-label">产品材质</label>'+
+            '<input class="form-control" list="dlMaterial" data-pf="material" data-pi="'+pi+'" value="'+esc(p.material)+'" placeholder="陶瓷"></div>'+
+          '<div><label class="form-label">是否含真植物</label>'+
+            '<select class="form-control" data-pf="plant" data-pi="'+pi+'">'+
+              '<option value="不含"'+(p.plant==='不含'?' selected':'')+'>不含</option>'+
+              '<option value="含"'+(p.plant==='含'?' selected':'')+'>含</option></select></div>'+
+        '</div>'+
+        '<div class="vwrap"><table><thead><tr>'+
+          '<th class="gutter" style="width:40px"></th><th>产品色号</th><th>产品尺寸</th><th>套数</th>'+
+          '<th>单价 (￥)</th><th>预估内盒尺寸</th><th>下单数量</th><th>交货日期</th><th>SKU</th>'+
+          '<th class="out">产品描述</th><th style="width:64px"></th>'+
+        '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
+        '<div class="actions tight">'+
+          '<button class="btn btn-ghost sm" data-act="vadd" data-pi="'+pi+'">+ 添加颜色 / 尺寸</button>'+
+        '</div>'+
+      '</div></div>';
+  }).join('') +
+  '<datalist id="dlColor">'+S.memory.colorNames.map(c=>'<option value="'+esc(c)+'">').join('')+'</datalist>'+
+  '<datalist id="dlPname">'+S.memory.productNames.map(c=>'<option value="'+esc(c)+'">').join('')+'</datalist>'+
+  '<datalist id="dlMaterial">'+S.memory.materials.map(c=>'<option value="'+esc(c)+'">').join('')+'</datalist>';
+}
+
+/* 生成 Excel 行数据 */
+function buildRows(){
+  const out = [];
+  S.products.forEach(p=>{
+    p.variants.forEach((v,vi)=>{
+      const price = String(v.price).trim();
+      const setq = String(v.setQty).trim();
+      const ps = v.pass || {};
+      const keep = k => ps[k]!==undefined && ps[k]!==null ? ps[k] : '';
+      out.push({
+        groupStart: vi===0,
+        crop: v.imgOverride ? null : (p.crop || null),   /* HUB: 方形取景（行内图片 = 居中方形） */
+        image: v.imgOverride || p.image,      // 行内图片优先于货号图片
+        colorImage: v.colorImage,
+        colorCrop: v.colorCrop || null,       /* HUB */
+        accImg: v.accImg || null,             // 配件图片（导入时保留）
+        A:S.settings.operator||'Jamie', B:S.order.factory, D:p.code,
+        E: v.colorImage ? '' : v.colorCode,   // 有色号图片时不再写入文字
+        F: v.size,
+        G: v.gRaw ? v.gRaw : (price ? (price+'元'+(setq?'\n套'+setq:'')) : ''),
+        H:keep('H'), I:keep('I'), J:keep('J'), K:keep('K'),
+        L: price===''?'':(isNaN(Number(price))?price:Number(price)),
+        M: descOf(p,v),
+        N:keep('N'), O:keep('O'), P:v.boxSize, Q:keep('Q'), R:keep('R'),
+        S: String(v.qty).trim()===''?'':(isNaN(Number(v.qty))?v.qty:Number(v.qty)),
+        T: fmtDate(v.date), U:v.sku, V:keep('V'),
+        W:p.plant||'不含', X:keep('X'), Y:p.material,
+        Z:keep('Z'), AA:keep('AA'), AB:keep('AB'),
+        AC: ps.AC!==undefined && ps.AC!==null ? ps.AC : (S.order.taxRate||'专票1%'),
+        AD: ps.AD!==undefined && ps.AD!==null ? ps.AD : (S.order.freight||'含运费')
+      });
+    });
+  });
+  return out;
+}
+function renderPreview(){ /* HUB: Excel 预览 removed */ }
+/* HUB: 从报价表导入 — offered while no variant has been filled in and the row's 报价 table has lines */
+let step1Rows = [];
+const variantFilled = v => [v.colorCode, v.size, v.price, v.boxSize, v.colorImage].some(x => String(x||'').trim());
+function renderPrefill(){
+  const show = !S.hub.prefillDone && step1Rows.length && !S.products.some(p => p.variants.some(variantFilled));
+  $('prefillBox').innerHTML = show
+    ? '<div class="prefill"><span>从报价表导入 '+step1Rows.length+' 个尺寸？（尺寸、单价、内盒尺寸填入货号 #1）</span>'+
+      '<button type="button" class="btn btn-primary sm" data-act="prefill">导入</button>'+
+      '<button type="button" class="btn btn-ghost sm" data-act="prefillno">忽略</button></div>'
+    : '';
+}
+function prefillFromStep1(){
+  const p = S.products[0];
+  if(!p) return;
+  const box = r => [r.l, r.w, r.h].every(x => String(x||'').trim()) ? r.l+'x'+r.w+'x'+r.h+'cm' : '';
+  step1Rows.forEach((r,i)=>{
+    const v = p.variants[i] || (p.variants[i] = newVariant(p));
+    const fill = (k, val) => { if(!String(v[k]||'').trim() && val) v[k] = String(val).trim(); };
+    fill('size', r.sku); fill('price', r.price); fill('boxSize', box(r));
+  });
+  S.hub.prefillDone = true;
+  save(); render();
+  toast('已从报价表导入 '+step1Rows.length+' 个尺寸');
+}
+function renderAlert(){
+  const miss = validate();
+  $('alertBox').innerHTML = miss.length
+    ? '<div class="alert alert-warn"><b>还有 '+miss.length+' 项未填</b>（可以先下载，稍后补齐）：<ul>'+
+      miss.slice(0,12).map(m=>'<li>'+esc(m)+'</li>').join('')+
+      (miss.length>12?'<li>…另有 '+(miss.length-12)+' 项</li>':'')+'</ul></div>'
+    : '<div class="alert alert-ok">全部必填项已完成，可以生成 Excel。</div>';
+}
+function render(){ renderSettings(); renderOrder(); renderPrefill(); renderProducts(); renderPreview(); renderAlert(); applySel(); }
+
+/* ============ 数据操作 ============ */
+function newVariant(p){
+  return {id:uid(),colorCode:'',colorImage:null,size:'',setQty:'',price:'',boxSize:'',
+    qty:S.order.qty,date:S.order.date,sku:S.order.sku,desc:'',descLocked:false,
+    imgOverride:null, accImg:null, colorNat:null, gRaw:'', pass:{}};
+}
+function addProduct(){
+  S.products.push({id:uid(),code:'',productName:'',material:META.material||'',plant:'不含',   /* HUB: 材质 = the row's */
+    image:null, imgNat:null, crop:null, variants:[]});
+  const p = S.products[S.products.length-1];
+  p.variants.push(newVariant(p));
+  save(); render();
+  const cards = document.querySelectorAll('.prod');
+  const last = cards[cards.length-1];
+  if(last){ last.scrollIntoView({behavior:'smooth',block:'center'}); const i=last.querySelector('[data-pf="code"]'); if(i) i.focus(); }
+}
+
+
+/* ============ 行多选 / 复制粘贴 ============ */
+let sel = {pid:null, ids:new Set()};   // 选区始终限定在同一个货号内
+let selAnchor = null;                  // shift 连选的锚点
+let clip = null;                       // {pid, rows:[...]}
+
+function clearSel(){ sel = {pid:null, ids:new Set()}; selAnchor = null; applySel(); }
+function applySel(){
+  document.querySelectorAll('tr[data-vid]').forEach(tr=>
+    tr.classList.toggle('sel', sel.ids.has(tr.dataset.vid)));
+}
+function selectRows(p, ids){
+  sel = {pid:p.id, ids:new Set(ids)};
+  applySel();
+}
+function gutterClick(p, vid, e){
+  const ids = p.variants.map(v=>v.id);
+  if(sel.pid !== p.id){ sel = {pid:p.id, ids:new Set()}; selAnchor = null; }
+  if(e.shiftKey && selAnchor && ids.includes(selAnchor)){
+    const a = ids.indexOf(selAnchor), b = ids.indexOf(vid);
+    const [lo,hi] = a<b ? [a,b] : [b,a];
+    sel.ids = new Set(ids.slice(lo,hi+1));
+  } else if(e.ctrlKey || e.metaKey){
+    if(sel.ids.has(vid)) sel.ids.delete(vid); else sel.ids.add(vid);
+    selAnchor = vid;
+  } else {
+    sel.ids = new Set([vid]); selAnchor = vid;
+  }
+  sel.pid = p.id;
+  applySel();
+}
+function copyRows(){
+  const p = S.products.find(x=>x.id===sel.pid);
+  if(!p || !sel.ids.size) return;
+  const rows = p.variants.filter(v=>sel.ids.has(v.id));
+  clip = {pid:p.id, rows:JSON.parse(JSON.stringify(rows))};
+  toast('已复制 '+rows.length+' 行');
+}
+function pasteRows(){
+  if(!clip) return;
+  const p = S.products.find(x=>x.id===clip.pid);
+  if(!p) return toast('原货号已删除，无法粘贴');
+  let at = p.variants.length;
+  if(sel.pid===p.id && sel.ids.size){
+    let last = -1;
+    p.variants.forEach((v,i)=>{ if(sel.ids.has(v.id)) last = i; });
+    if(last >= 0) at = last+1;
+  }
+  const copies = clip.rows.map(r=>{
+    const c = JSON.parse(JSON.stringify(r)); c.id = uid(); return c;
+  });
+  const before = JSON.parse(JSON.stringify(p.variants));
+  p.variants.splice(at, 0, ...copies);
+  selAnchor = copies[copies.length-1].id;
+  save(); render(); selectRows(p, copies.map(c=>c.id));
+  showToast('已粘贴 '+copies.length+' 行', {label:'撤销', fn:()=>{
+    p.variants = before;
+    clearSel(); save(); render();
+    toast('已撤销粘贴');
+  }}, 3000);
+}
+/* 选中行整体上/下移动一格（同一货号内） */
+function moveSelected(dir){
+  const p = S.products.find(x=>x.id===sel.pid);
+  if(!p || !sel.ids.size) return;
+  const v = p.variants, n = v.length;
+  let moved = false;
+  if(dir < 0){
+    for(let i=1;i<n;i++){
+      if(sel.ids.has(v[i].id) && !sel.ids.has(v[i-1].id)){
+        const t=v[i-1]; v[i-1]=v[i]; v[i]=t; moved=true;
+      }
+    }
+  } else {
+    for(let i=n-2;i>=0;i--){
+      if(sel.ids.has(v[i].id) && !sel.ids.has(v[i+1].id)){
+        const t=v[i+1]; v[i+1]=v[i]; v[i]=t; moved=true;
+      }
+    }
+  }
+  if(!moved) return;                       // 已经到顶/到底
+  save(); render();
+  const first = document.querySelector('tr.sel');
+  if(first && first.scrollIntoView) first.scrollIntoView({block:'nearest'});
+}
+function deleteSelected(){
+  const p = S.products.find(x=>x.id===sel.pid);
+  if(!p || !sel.ids.size) return;
+  const keep = p.variants.filter(v=>!sel.ids.has(v.id));
+  if(!keep.length) return toast('每个货号至少保留一行');
+  const n = p.variants.length - keep.length;
+  p.variants = keep;
+  clearSel(); save(); render();
+  toast('已删除 '+n+' 行');
+}
+
+/* 框选：在行号列或空白处按住拖动 */
+let mq = null, mqWait = null;
+const MQ_THRESHOLD = 4;
+
+document.addEventListener('mousedown', e=>{
+  if(e.button !== 0) return;
+  const wrap = e.target.closest('.vwrap');
+  if(!wrap){ clearSel(); return; }
+  const card = wrap.closest('.prod');
+  const p = S.products[+card.dataset.pi];
+  if(!p) return;
+  if(e.target.closest('input,select,button,textarea,.imgbox,[data-rs]')) return;
+
+  const g = e.target.closest('td.gutter');
+  e.preventDefault();                       // 拖动时不选中文字
+  mqWait = {
+    p, wrap, x0:e.clientX, y0:e.clientY,
+    vid: g ? g.closest('tr').dataset.vid : null,
+    shift:e.shiftKey, ctrl:e.ctrlKey||e.metaKey,
+    base:(e.ctrlKey||e.metaKey) && sel.pid===p.id ? new Set(sel.ids) : new Set()
+  };
+});
+
+function startMarquee(w){
+  const el = document.createElement('div');
+  el.className = 'marquee';
+  w.wrap.appendChild(el);
+  mq = Object.assign({el, tbody:w.wrap.querySelector('tbody')}, w);
+  document.body.classList.add('marquee-on');
+}
+
+document.addEventListener('mousemove', e=>{
+  if(mqWait && !mq){
+    if(Math.abs(e.clientX-mqWait.x0) < MQ_THRESHOLD &&
+       Math.abs(e.clientY-mqWait.y0) < MQ_THRESHOLD) return;
+    startMarquee(mqWait);                   // 移动超过阈值 → 变成框选
+  }
+  if(!mq || !mq.tbody) return;
+  const wr  = mq.wrap.getBoundingClientRect();
+  const top = Math.min(mq.y0, e.clientY), bot = Math.max(mq.y0, e.clientY);
+  const lef = Math.min(mq.x0, e.clientX), rig = Math.max(mq.x0, e.clientX);
+  mq.el.style.left   = (lef - wr.left + mq.wrap.scrollLeft)+'px';
+  mq.el.style.top    = (top - wr.top)+'px';
+  mq.el.style.width  = (rig - lef)+'px';
+  mq.el.style.height = (bot - top)+'px';
+  const hit = new Set(mq.base);
+  mq.tbody.querySelectorAll('tr[data-vid]').forEach(tr=>{
+    const r = tr.getBoundingClientRect();
+    if(r.bottom > top && r.top < bot) hit.add(tr.dataset.vid);
+  });
+  selectRows(mq.p, hit);
+});
+
+document.addEventListener('mouseup', ()=>{
+  if(mq){
+    mq.el.remove();
+    document.body.classList.remove('marquee-on');
+    const ordered = mq.p.variants.map(v=>v.id).filter(id=>sel.ids.has(id));
+    selAnchor = ordered[ordered.length-1] || null;
+  } else if(mqWait){
+    if(mqWait.vid) gutterClick(mqWait.p, mqWait.vid,
+        {shiftKey:mqWait.shift, ctrlKey:mqWait.ctrl, metaKey:false});
+    else clearSel();                        // 空白处单击 → 取消选择
+  }
+  mq = null; mqWait = null;
+});
+
+/* 快捷键：输入框内不拦截 */
+function inField(){
+  const a = document.activeElement;
+  return !!a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName);
+}
+document.addEventListener('keydown', e=>{
+  const k = (e.key||'').toLowerCase();
+  if((e.ctrlKey||e.metaKey) && k==='c'){
+    if(inField() || !sel.ids.size) return;
+    e.preventDefault(); copyRows(); return;
+  }
+  if((e.ctrlKey||e.metaKey) && k==='v'){
+    if(inField()) return;
+    if(pasteTarget) return;          // 悬停在图片框上 → 交给 paste 事件判断
+    if(!clip) return;
+    e.preventDefault(); pasteRows(); return;
+  }
+  if((e.key==='Delete' || e.key==='Backspace') && !inField() && sel.ids.size){
+    e.preventDefault(); deleteSelected(); return;
+  }
+  if((e.key==='ArrowUp' || e.key==='ArrowDown') && !inField() && sel.ids.size){
+    e.preventDefault(); moveSelected(e.key==='ArrowUp' ? -1 : 1);
+  }
+  /* HUB: the pop-up's keys — Esc closes it, ← → switch products (not while typing in a field) */
+  if(e.key==='Escape'){ e.preventDefault(); embed.post('key', {key:'Escape'}); return; }
+  if((e.key==='ArrowLeft' || e.key==='ArrowRight') && !inField() && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey){
+    e.preventDefault(); embed.post('key', {key:e.key});
+  }
+});
+
+/* ============ HUB: 方形图片 — 按住拖动调整位置，Ctrl + 滚轮缩放（与总览表格的缩略图相同） ============ */
+/* the image object behind an .imgbox: {o, url, nat, crop} as in imgSlots(), or null */
+function slotOf(box){
+  const p = S.products[+box.dataset.pi]; if(!p) return null;
+  if(box.dataset.act === 'pimg') return p.image && p.imgNat ? {o:p, url:'image', nat:'imgNat', crop:'crop'} : null;
+  const v = p.variants[+box.dataset.vi];
+  return v && v.colorImage && v.colorNat ? {o:v, url:'colorImage', nat:'colorNat', crop:'colorCrop'} : null;
+}
+let pan = null, skipImgClick = false;       // pan: {box, s, size, x0, y0, c0, c, moved}
+document.addEventListener('pointerdown', e=>{
+  const box = e.target.closest('.imgbox.has');
+  if(!box || e.button!==0 || e.target.closest('.clear')) return;
+  const s = slotOf(box); if(!s) return;
+  if(wz) wheelEnd();                        // a zoom still waiting to be saved: the drag starts from it
+  const n = s.o[s.nat];
+  pan = {box, s, size:box.clientWidth, x0:e.clientX, y0:e.clientY, c0:CROP.cropOf(s.o[s.crop], n.w, n.h), c:null, moved:false};
+  box.setPointerCapture(e.pointerId);
+});
+document.addEventListener('pointermove', e=>{
+  const g = pan; if(!g) return;
+  const dx = e.clientX-g.x0, dy = e.clientY-g.y0;
+  if(!g.moved && Math.abs(dx)+Math.abs(dy) < 4) return;
+  g.moved = true; g.box.classList.add('panning');
+  const n = g.s.o[g.s.nat];
+  g.c = CROP.panCrop(Object.assign({}, g.c0), n.w, n.h, dx/g.size, dy/g.size);
+  g.box.querySelector('img').setAttribute('style', squareStyle(n, g.c, g.size));
+});
+['pointerup','pointercancel'].forEach(type => document.addEventListener(type, ()=>{
+  const g = pan; if(!g) return;
+  pan = null;
+  g.box.classList.remove('panning');
+  if(!g.moved) return;                      // a plain click: the click handler opens the file picker
+  skipImgClick = true; setTimeout(()=>{ skipImgClick = false; }, 0);
+  if(g.c){ g.s.o[g.s.crop] = roundCrop(g.c); save(); }
+}));
+const roundCrop = c => ({x:Math.round(c.x*1e4)/1e4, y:Math.round(c.y*1e4)/1e4, s:Math.round(c.s*1e4)/1e4});
+let wz = null;                              // Ctrl + wheel: {box, s, c, timer}; saved once the wheel goes quiet
+document.addEventListener('wheel', e=>{
+  if(!e.ctrlKey && !e.metaKey) return;
+  const box = e.target.closest('.imgbox.has');
+  const s = box && slotOf(box);
+  if(!s) return;
+  e.preventDefault();                       // no browser zoom
+  if(pan) return;
+  if(wz && wz.box !== box) wheelEnd();
+  const n = s.o[s.nat], size = box.clientWidth, b = box.getBoundingClientRect();
+  if(!wz) wz = {box, s, c:CROP.cropOf(s.o[s.crop], n.w, n.h)};
+  const at = v => Math.min(1, Math.max(0, v));
+  CROP.zoomCrop(wz.c, n.w, n.h, CROP.wheelFactor(e),
+    at((e.clientX-b.left-box.clientLeft)/size), at((e.clientY-b.top-box.clientTop)/size));
+  box.querySelector('img').setAttribute('style', squareStyle(n, wz.c, size));
+  clearTimeout(wz.timer);
+  wz.timer = setTimeout(wheelEnd, 400);
+}, {passive:false});
+function wheelEnd(){
+  const z = wz; wz = null;
+  if(!z) return;
+  clearTimeout(z.timer);
+  z.s.o[z.s.crop] = roundCrop(z.c);
+  save();
+}
+
+/* ============ 图片输入 ============ */
+let pasteTarget = null;
+function pickImage(cb){
+  const inp = document.createElement('input');
+  inp.type='file'; inp.accept='image/*';
+  inp.onchange = () => { if(inp.files[0]) cb(inp.files[0]); };
+  inp.click();
+}
+function setProdImg(pi,file){
+  const row = ROW, p = S.products[pi];
+  loadImageFile(file, d=>{
+    if(row !== ROW || !p) return;     /* HUB: switched to another product meanwhile */
+    p.image = d.url; p.imgNat = {w:d.w, h:d.h};
+    p.crop = CROP.centerCrop(d.w, d.h);   /* HUB: a new image starts as the centred square */
+    save(); render();
+  });
+}
+function setColorImg(pi,vi,file){
+  const row = ROW, v = S.products[pi] && S.products[pi].variants[vi];
+  loadImageFile(file, d=>{
+    if(row !== ROW || !v) return;     /* HUB */
+    v.colorImage = d.url; v.colorNat = {w:d.w, h:d.h};
+    v.colorCrop = CROP.centerCrop(d.w, d.h);   /* HUB */
+    save(); render();
+  });
+}
+
+document.addEventListener('paste', e=>{
+  const items = (e.clipboardData||{}).items||[];
+  if(pasteTarget){
+    for(const it of items){
+      if(it.type.indexOf('image')===0){
+        const f = it.getAsFile();
+        if(f){ e.preventDefault();
+          if(pasteTarget.kind==='p') setProdImg(pasteTarget.pi,f); else setColorImg(pasteTarget.pi,pasteTarget.vi,f);
+          toast('图片已粘贴'); }
+        return;
+      }
+    }
+  }
+  /* 剪贴板里没有图片 → 粘贴已复制的行 */
+  if(!inField() && clip){ e.preventDefault(); pasteRows(); }
+});
+document.addEventListener('mouseover', e=>{
+  const box = e.target.closest('[data-act="pimg"],[data-act="cimg"]');
+  pasteTarget = !box ? null : (box.dataset.act==='pimg'
+    ? {kind:'p',pi:+box.dataset.pi} : {kind:'c',pi:+box.dataset.pi,vi:+box.dataset.vi});
+});
+document.addEventListener('dragover', e=>{
+  const box = e.target.closest('[data-act="pimg"],[data-act="cimg"]');
+  if(box){ e.preventDefault(); box.classList.add('over'); }
+  /* HUB: a file dropped next to a box must not replace this page (the pop-up would lose the form) */
+  else if(e.dataTransfer && [...(e.dataTransfer.types||[])].includes('Files')) e.preventDefault();
+});
+document.addEventListener('dragleave', e=>{
+  const box = e.target.closest('[data-act="pimg"],[data-act="cimg"]');
+  if(box) box.classList.remove('over');
+});
+document.addEventListener('drop', e=>{
+  const box = e.target.closest('[data-act="pimg"],[data-act="cimg"]');
+  if(!box){ if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) e.preventDefault(); return; }   /* HUB */
+  e.preventDefault(); box.classList.remove('over');
+  const f = (e.dataTransfer.files||[])[0];
+  if(!f || f.type.indexOf('image')!==0) return toast('请拖入图片文件');
+  if(box.dataset.act==='pimg') setProdImg(+box.dataset.pi,f);
+  else setColorImg(+box.dataset.pi,+box.dataset.vi,f);
+});
+
+/* ============ 事件委托 ============ */
+document.addEventListener('click', e=>{
+  if(e.target.closest('[data-rs]')) return;
+  const t = e.target.closest('[data-act]'); if(!t) return;
+  const act = t.dataset.act, pi = +t.dataset.pi, vi = +t.dataset.vi;
+  switch(act){
+    case 'pimgclr': e.stopPropagation(); if(!pi) return;   /* HUB: 货号 #1 keeps its image */
+      { const q=S.products[pi]; q.image=null; q.imgNat=null; q.crop=null; } save(); render(); break;
+    case 'cimgclr': e.stopPropagation(); { const v=S.products[pi].variants[vi]; v.colorImage=null; v.colorNat=null; v.colorCrop=null; } save(); render(); break;
+    case 'pimg': if(!skipImgClick) pickImage(f=>setProdImg(pi,f)); break;   /* HUB: not after a drag */
+    case 'cimg': if(!skipImgClick) pickImage(f=>setColorImg(pi,vi,f)); break;
+    case 'pdel': {
+      const next = S.products.filter((x,i)=>i!==pi);
+      if(!keepsMainImage(next)) break;                     /* HUB */
+      if(confirm('删除货号「'+(S.products[pi].code||'未命名')+'」及其全部行？')){ S.products = next; save(); render(); }
+      break;
+    }
+    case 'prefill': prefillFromStep1(); break;             /* HUB */
+    case 'prefillno': S.hub.prefillDone = true; save(); renderPrefill(); break;
+    case 'pdup': {
+      const c = JSON.parse(JSON.stringify(S.products[pi]));
+      c.id = uid(); c.variants.forEach(v=>v.id=uid());
+      S.products.splice(pi+1,0,c); save(); render(); break;
+    }
+    case 'vadd': S.products[pi].variants.push(newVariant(S.products[pi])); save(); render(); break;
+    case 'vdup': {
+      const c = JSON.parse(JSON.stringify(S.products[pi].variants[vi]));
+      c.id = uid(); S.products[pi].variants.splice(vi+1,0,c); save(); render(); break;
+    }
+    case 'vdel':
+      if(S.products[pi].variants.length<=1) return toast('每个货号至少保留一行');
+      S.products[pi].variants.splice(vi,1); save(); render(); break;
+    case 'unlock': {
+      const v = S.products[pi].variants[vi];
+      v.descLocked=false; v.desc=''; save(); render(); break;
+    }
+  }
+});
+
+document.addEventListener('input', e=>{
+  const el = e.target;
+  if(el.dataset.pf!==undefined && el.dataset.pi!==undefined){
+    S.products[+el.dataset.pi][el.dataset.pf] = el.value; save(); softRefresh(); return;
+  }
+  if(el.dataset.f!==undefined && el.dataset.vi!==undefined){
+    const v = S.products[+el.dataset.pi].variants[+el.dataset.vi];
+    if(el.dataset.f==='desc'){ v.desc=el.value; v.descLocked=true; }
+    else {
+      v[el.dataset.f] = el.value;
+      if(el.dataset.f==='price' || el.dataset.f==='setQty') v.gRaw = '';
+    }
+    save(); softRefresh(); return;
+  }
+});
+/* 轻量刷新：不重建 DOM，避免打断输入 */
+let refreshTimer=null;
+function softRefresh(){
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(()=>{
+    // 更新自动生成的描述框
+    S.products.forEach((p,pi)=>p.variants.forEach((v,vi)=>{
+      if(v.descLocked) return;
+      const box = document.querySelector('input[data-f="desc"][data-pi="'+pi+'"][data-vi="'+vi+'"]');
+      if(box && document.activeElement!==box){
+        const d = autoDesc(p,v);
+        box.value = d;
+        box.classList.toggle('missing', !d.trim());
+      }
+    }));
+    document.querySelectorAll('.prod').forEach((card,pi)=>{
+      const p = S.products[pi]; if(!p) return;
+      const ttl = card.querySelector('.prod-title');
+      if(ttl) ttl.innerHTML = esc(p.code||'未命名货号')+'<span class="sub">'+p.variants.length+' 个颜色 / 尺寸</span>';
+    });
+    renderPreview(); renderAlert(); renderOrder(); renderPrefill();   /* HUB: renderPrefill */
+  },260);
+}
+document.addEventListener('change', e=>{
+  const el = e.target;
+  if(el.dataset.pf!==undefined || el.dataset.f!==undefined){
+    if(el.dataset.f==='colorCode') remember('colorNames',el.value);
+    if(el.dataset.pf==='material') remember('materials',el.value);
+    if(el.dataset.pf==='productName') remember('productNames',el.value);
+    save();
+  }
+});
+
+/* 拖动排序 */
+let dragFrom = null;
+document.addEventListener('dragstart', e=>{
+  const g = e.target.closest('[data-act="grip"]'); if(!g) return;
+  dragFrom = +g.dataset.pi;
+  const card = g.closest('.prod'); card.classList.add('dragging');
+  e.dataTransfer.effectAllowed='move';
+  try{ e.dataTransfer.setData('text/plain',String(dragFrom)); }catch(err){}
+});
+document.addEventListener('dragend', ()=>{
+  document.querySelectorAll('.prod').forEach(c=>c.classList.remove('dragging','drop-target'));
+  dragFrom = null;
+});
+document.addEventListener('dragover', e=>{
+  if(dragFrom===null) return;
+  const card = e.target.closest('.prod'); if(!card) return;
+  e.preventDefault();
+  document.querySelectorAll('.prod').forEach(c=>c.classList.remove('drop-target'));
+  if(+card.dataset.pi !== dragFrom) card.classList.add('drop-target');
+});
+document.addEventListener('drop', e=>{
+  if(dragFrom===null) return;
+  const card = e.target.closest('.prod'); if(!card) return;
+  const to = +card.dataset.pi;
+  if(to!==dragFrom){
+    const next = S.products.slice();
+    const [m] = next.splice(dragFrom,1);
+    next.splice(to,0,m);
+    if(!keepsMainImage(next)){ dragFrom = null; return; }   /* HUB */
+    S.products = next;
+    save(); render();
+  }
+  dragFrom = null;
+});
+/* HUB: 货号 #1's image is the product's main image (the hub table thumb), so the first 货号 always needs one */
+function keepsMainImage(next){
+  if(next.length && next[0].image) return true;
+  toast('货号 #1 的图片即产品主图，不能为空');
+  return false;
+}
+
+/* ============ 顶部字段 ============ */
+/* HUB: 运营 / 店铺 / SKU 前缀 inputs removed (hub ⚙ 设置 → 下单 and 类目) */
+$('ofFactory').addEventListener('input',e=>{ S.order.factory=e.target.value; save(); softRefresh(); });
+$('ofFactory').addEventListener('change',e=>{ remember('factories',e.target.value); save(); });
+$('ofName').addEventListener('input',e=>{ S.order.orderName=e.target.value; save(); renderOrder(); });
+$('ofDate').addEventListener('input',e=>{ S.order.date=e.target.value; save(); });
+$('ofQty').addEventListener('input',e=>{ S.order.qty=e.target.value; save(); });
+$('ofSku').addEventListener('change',e=>{ S.order.sku=e.target.value; save(); });
+$('ofTax').addEventListener('input',e=>{ S.order.taxRate=e.target.value; save(); softRefresh(); });
+$('ofFreight').addEventListener('input',e=>{ S.order.freight=e.target.value; save(); softRefresh(); });
+$('addProd').addEventListener('click',addProduct);
+$('clearBtn').addEventListener('click',()=>{
+  if(!confirm('清空这个产品的下单计划？货号 #1 的图片（产品主图）会保留。')) return;   /* HUB */
+  const keep = S.settings, mem = S.memory, main = S.products[0];
+  S = JSON.parse(JSON.stringify(DEFAULTS));
+  S.settings = keep; S.memory = mem;
+  /* HUB: start again from the row's defaults, keeping the main image and its position */
+  S.products = [{id:uid(), code:'', productName:'', material:'', plant:'不含',
+    image: main ? main.image : null, imgNat: main ? main.imgNat : null, crop: main ? main.crop : null, variants:[]}];
+  applyDefaults(true);
+  save(); render(); toast('已清空');
+});
+
+
+/* ============ 导入已有 Excel ============ */
+const PASS_COLS = {8:'H',9:'I',10:'J',11:'K',14:'N',15:'O',17:'Q',18:'R',
+                   22:'V',24:'X',26:'Z',27:'AA',28:'AB',29:'AC',30:'AD'};
+
+function cellText(cell){
+  let v = cell ? cell.value : null;
+  if(v===null || v===undefined) return '';
+  if(typeof v === 'object'){
+    if(v instanceof Date) return v;
+    if(v.richText) return v.richText.map(t=>t.text).join('');
+    if(v.text !== undefined) return v.text;
+    if(v.result !== undefined) return v.result;
+    if(v.hyperlink !== undefined) return v.text || '';
+    return '';
+  }
+  return v;
+}
+function parseImportDate(v){
+  if(v instanceof Date && !isNaN(v)) {
+    return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+  }
+  const m = String(v||'').match(/(\d{4})\s*[.\-\/年]\s*(\d{1,2})\s*[.\-\/月]\s*(\d{1,2})/);
+  return m ? m[1]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[3]).padStart(2,'0') : '';
+}
+/* 27元套一 / 13.3元\n套1 → {price:'27', setQty:'一'} ；原文保留以便原样写回 */
+function parseG(g){
+  const s = String(g==null?'':g);
+  const pm = s.match(/([\d]+(?:\.\d+)?)\s*元/) || s.match(/^\s*([\d]+(?:\.\d+)?)/);
+  const qm = s.match(/套\s*([0-9０-９一二三四五六七八九十两]+)/);
+  return {price: pm?pm[1]:'', setQty: qm?qm[1]:'', raw:s};
+}
+const normCode = t => String(t==null?'':t).replace(/\s+/g,' ').trim();
+
+function bytesToDataURL(bytes, ext){
+  let bin = '', CH = 0x8000;
+  for(let i=0;i<bytes.length;i+=CH)
+    bin += String.fromCharCode.apply(null, bytes.subarray ? bytes.subarray(i,i+CH) : bytes.slice(i,i+CH));
+  return 'data:image/'+(ext||'png')+';base64,'+btoa(bin);
+}
+const loadAsync = url => new Promise(res => loadImageData(url, res));
+
+/* 每张图片按“垂直中心落在哪一行”归位 —— 手工排版的图片经常跨行 */
+function mapImages(ws, wb, lastRow){
+  const def = (ws.properties && ws.properties.defaultRowHeight) || 14.4;
+  const top = [0,0];
+  for(let r=1;r<=lastRow+3;r++) top[r+1] = top[r] + ((ws.getRow(r).height || def) * 12700);
+  const rowAt = emu => {
+    for(let r=1;r<=lastRow+2;r++) if(emu >= top[r] && emu < top[r+1]) return r;
+    return -1;
+  };
+  const out = [];
+  (ws.getImages()||[]).forEach(im => {
+    const tl = im.range && im.range.tl, br = im.range && im.range.br;
+    if(!tl) return;
+    const t = top[tl.nativeRow+1] + (tl.nativeRowOff||0);
+    const b = br ? top[br.nativeRow+1] + (br.nativeRowOff||0)
+                 : t + ((im.range.ext ? im.range.ext.height : 0) * 9525);
+    const media = wb.getImage(Number(im.imageId));
+    if(!media || !media.buffer) return;
+    out.push({row: rowAt((t+b)/2), col: tl.nativeCol,
+              url: bytesToDataURL(media.buffer, media.extension)});
+  });
+  return out;
+}
+
+async function importWorkbook(file){
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await file.arrayBuffer());
+  const ws = wb.worksheets[0];
+  if(!ws) throw new Error('文件里没有工作表');
+
+  const hd = c => String(cellText(ws.getCell(4,c))||'').replace(/\s+/g,'');
+  if(!(hd(1).indexOf('运营')===0 && hd(4).indexOf('产品货号')===0 && hd(13).indexOf('产品描述')===0))
+    throw new Error('第 4 行表头不匹配，这似乎不是下单计划模板');
+
+  /* 数据行：到注释行为止，跳过空行 */
+  const dataRows = [];
+  const lim = Math.max(ws.rowCount, 5);
+  for(let r=5;r<=lim;r++){
+    const a = String(cellText(ws.getCell(r,1))||'');
+    if(a.indexOf('注：')===0 || a.indexOf('开发同事')===0) break;
+    const any = [1,2,4,5,6,7,13,16,19,20,21].some(c=>String(cellText(ws.getCell(r,c))||'').trim()!=='');
+    if(any) dataRows.push(r);
+  }
+  if(!dataRows.length) throw new Error('没有读到任何数据行');
+
+  /* 图片归位 */
+  const imgs = mapImages(ws, wb, lim);
+  const byRow = {};
+  imgs.forEach(im => {
+    if(im.row < 5) return;
+    (byRow[im.row] = byRow[im.row] || {})[im.col] = im.url;
+  });
+  const cache = new Map();
+  async function crop(url){
+    if(!url) return null;
+    if(cache.has(url)) return cache.get(url);
+    const out = await loadAsync(url);
+    cache.set(url, out);
+    return out;
+  }
+
+  /* 第一行决定订单级的 税率 / 运费 */
+  const r0 = dataRows[0];
+  const tax0 = cellText(ws.getCell(r0,29)), fre0 = cellText(ws.getCell(r0,30));
+
+  const products = [];
+  let cur = null, curKey = null, skippedImgs = 0, nImg = 0;
+  imgs.forEach(im => { if(im.row < 5 || [2,4,7].indexOf(im.col) < 0) skippedImgs++; });
+
+  for(const r of dataRows){
+    const rawCode = cellText(ws.getCell(r,4));
+    const key = normCode(rawCode);
+    const pics = byRow[r] || {};
+    const prodImg = await crop(pics[2]);
+    if(!cur || key !== curKey){                       // 连续同货号才合并
+      cur = {id:uid(), code:String(rawCode==null?'':rawCode), productName:'',
+             imgNat: prodImg ? {w:prodImg.w, h:prodImg.h} : null,
+             frame:  prodImg ? {w:prodImg.w, h:prodImg.h} : null,
+             material:String(cellText(ws.getCell(r,25))||''),
+             plant: String(cellText(ws.getCell(r,23))||'不含').indexOf('含')===0 &&
+                    String(cellText(ws.getCell(r,23))||'').indexOf('不含')!==0 ? '含' : '不含',
+             image: prodImg ? prodImg.url : null, variants:[]};
+      products.push(cur); curKey = key;
+    }
+    const g = parseG(cellText(ws.getCell(r,7)));
+    const pass = {};
+    Object.keys(PASS_COLS).forEach(ci=>{
+      const val = cellText(ws.getCell(r,+ci));
+      if(val !== '' && val !== null && val !== undefined) pass[PASS_COLS[ci]] = val;
+    });
+    if(String(pass.AC) === String(tax0)) delete pass.AC;   // 与订单级一致 → 交给顶部字段
+    if(String(pass.AD) === String(fre0)) delete pass.AD;
+
+    const colorImg = await crop(pics[4]);
+    const accImg   = await crop(pics[7]);
+    if(pics[2]) nImg++; if(pics[4]) nImg++; if(pics[7]) nImg++;
+
+    cur.variants.push({
+      id:uid(),
+      colorCode: String(cellText(ws.getCell(r,5))||''),
+      colorImage: colorImg ? colorImg.url : null,
+      colorNat: colorImg ? {w:colorImg.w, h:colorImg.h} : null,
+      size: String(cellText(ws.getCell(r,6))||''),
+      setQty: g.setQty, price: g.price, gRaw: g.raw,
+      boxSize: String(cellText(ws.getCell(r,16))||''),
+      qty: String(cellText(ws.getCell(r,19))||''),
+      date: parseImportDate(cellText(ws.getCell(r,20))),
+      sku: String(cellText(ws.getCell(r,21))||''),
+      desc: String(cellText(ws.getCell(r,13))||''),
+      descLocked: true,                                 // 导入的描述一律锁定
+      imgOverride: (prodImg && prodImg.url !== cur.image) ? prodImg.url : null,
+      accImg: accImg ? accImg.url : null, pass: pass
+    });
+  }
+
+  /* 订单名称：从文件名里剥掉日期、运营和后缀 */
+  const oper = String(cellText(ws.getCell(r0,1))||'').trim();
+  let nm = file.name.replace(/\.xlsx$/i,'').replace(/_?下单计划$/,'');
+  nm = nm.replace(/^\d{4}[_-]\d{1,2}[_-]?\d{0,2}_?/,'');
+  if(oper) nm = nm.replace(new RegExp('^'+oper.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'_?'), '');
+  const factory = String(cellText(ws.getCell(r0,2))||'');
+
+  return {
+    products,
+    order: {
+      factory, orderName: nm.trim() || factory,
+      date: products[0] && products[0].variants[0] ? products[0].variants[0].date : '',
+      qty:  products[0] && products[0].variants[0] ? products[0].variants[0].qty  : '',
+      sku:  products[0] && products[0].variants[0] ? products[0].variants[0].sku  : '',
+      taxRate: tax0===''?'专票1%':String(tax0),
+      freight: fre0===''?'含运费':String(fre0)
+    },
+    operator: oper,
+    store: String(cellText(ws.getCell(3,1))||''),
+    stats: {rows: dataRows.length, groups: products.length, images: nImg, skipped: skippedImgs}
+  };
+}
+
+function formHasContent(){
+  return S.products.some((p,pi) => p.code.trim() || (pi && p.image) ||   /* HUB: 货号 #1 always has the main image */
+    p.variants.some(v => v.colorCode || v.size || v.price || v.boxSize || v.colorImage));
+}
+
+$('importBtn').addEventListener('click', ()=> $('importFile').click());
+$('importFile').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if(!f) return;
+  if(formHasContent() &&
+     !confirm('导入会覆盖当前表单的全部内容，确定继续？')) return;
+  const b = $('importBtn'); b.disabled = true; b.textContent = '读取中…';
+  const row = ROW, main = S.products[0];
+  try{
+    const res = await importWorkbook(f);
+    if(row !== ROW) return;                 /* HUB: switched to another product meanwhile */
+    if(!res.products.length) throw new Error('没有读到任何货号');
+    S.products = res.products;
+    S.order    = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.order)), res.order);
+    /* HUB: 运营 / 店铺 stay the global settings; an unknown SKU 前缀 only shows in this form's dropdowns */
+    S.products.forEach(p=>{
+      remember('factories', S.order.factory);
+      remember('materials', p.material);
+      p.variants.forEach(v=>remember('colorNames', v.colorCode));
+    });
+    /* HUB: the file's first image becomes the product's main image (centred); without one, keep the current image */
+    const p0 = S.products[0];
+    if(p0.image) p0.crop = CROP.centerCrop(p0.imgNat.w, p0.imgNat.h);
+    else if(main){ p0.image = main.image; p0.imgNat = main.imgNat; p0.crop = main.crop; }
+    S.hub.prefillDone = true;
+    clearSel(); save(); render();
+    const st = res.stats;
+    toast('已导入 '+st.rows+' 行 / '+st.groups+' 个货号 / '+st.images+' 张图片'
+          + (st.skipped ? '（跳过 '+st.skipped+' 张位置异常的图片）' : ''));
+  }catch(err){
+    console.error(err);
+    toast('导入失败：'+(err && err.message ? err.message : err));
+  }finally{ b.disabled = false; b.textContent = '导入已有 Excel'; }
+});
+
+/* ============ Excel 生成 ============ */
+/* 按取景框把原图裁出来；exact=true 用精确像素区域（主图），否则按比例取最大区域 */
+function cropForExport(url, frame, exact){
+  return new Promise(res=>{
+    const img = new Image();
+    img.onload = () => {
+      const nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height;
+      if(!nw || !nh) return res(null);          // 读不到尺寸就跳过，避免生成 1x1 图片
+      const ar = (frame && frame.w>0 && frame.h>0) ? frame.w/frame.h : nw/nh;
+      let sw, sh;
+      if(exact && frame){ sw = Math.min(nw, frame.w); sh = Math.min(nh, frame.h); }
+      else if(nw/nh > ar){ sh = nh; sw = Math.round(nh*ar); }   // 原图偏宽 → 取满高度
+      else               { sw = nw; sh = Math.round(nw/ar); }   // 原图偏高 → 取满宽度
+      sw = Math.max(1, Math.min(nw, Math.round(sw)));
+      sh = Math.max(1, Math.min(nh, Math.round(sh)));
+      const outW = Math.max(1, Math.min(sw, 900));
+      const outH = Math.max(1, Math.round(outW*sh/sw));
+      const cv = document.createElement('canvas'); cv.width=outW; cv.height=outH;
+      const cx = cv.getContext('2d');
+      cx.fillStyle='#fff'; cx.fillRect(0,0,outW,outH);
+      cx.drawImage(img, 0,0,sw,sh, 0,0,outW,outH);   // 左上角对齐
+      res({url:cv.toDataURL('image/jpeg',0.85), w:sw, h:sh});
+    };
+    img.onerror = ()=>res(null);
+    img.src = url;
+  });
+}
+/* HUB: the square exactly as shown in the form (crop null = centred); white where zoomed out past the image */
+function squareForExport(url, crop){
+  return new Promise(res=>{
+    const img = new Image();
+    img.onload = () => {
+      const nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height;
+      if(!nw || !nh) return res(null);
+      res({url: CROP.renderSquare(img, CROP.cropOf(crop, nw, nh), EXPORT_PX, 0.85), w:EXPORT_PX, h:EXPORT_PX});
+    };
+    img.onerror = ()=>res(null);
+    img.src = url;
+  });
+}
+/* 等比放进 boxW x boxH */
+function fitBox(w, h, boxW, boxH){
+  const k = Math.min(boxW/w, boxH/h);
+  return {w: Math.max(1,Math.round(w*k)), h: Math.max(1,Math.round(h*k))};
+}
+function copyText(t){
+  try{
+    if(navigator.clipboard && window.isSecureContext){ navigator.clipboard.writeText(t); return true; }
+  }catch(e){}
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = t;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select(); ta.setSelectionRange(0, t.length);
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  }catch(e){ return false; }
+}
+function savedToast(name){
+  showToast('已保存：'+name, {label:'复制文件名', fn:()=>{
+    toast(copyText(name)
+      ? '文件名已复制 — 粘贴到文件管理器的搜索框即可找到'
+      : '复制失败，请手动选取上方文件名');
+  }}, 9000);
+}
+const b64 = d => d.split(',')[1];
+function applyStyle(cell, sp, topThick){
+  cell.font = {name:sp.f, size:sp.s, bold:!!sp.b};
+  if(sp.c) cell.font.color = {argb:sp.c};
+  if(sp.bg) cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:sp.bg}};
+  cell.alignment = {vertical:'middle', wrapText:!!sp.w};
+  if(sp.h) cell.alignment.horizontal = sp.h;
+  if(sp.nf) cell.numFmt = sp.nf;
+  const thin = {style:'thin', color:{argb:'FF000000'}};
+  cell.border = {left:thin, right:thin, bottom:thin,
+    top: topThick ? {style:'medium', color:{argb:'FF000000'}} : thin};
+}
+async function generate(){
+  const rows = buildRows();
+  if(!rows.length) return toast('还没有可导出的内容');
+  const miss = validate();
+  if(miss.length && !confirm('还有 '+miss.length+' 项必填未完成。仍然生成？')) return;   /* HUB: 生成 */
+  const row = ROW, delivery = latestDate();   /* HUB */
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = S.settings.operator||'Jamie';
+  const ws = wb.addWorksheet(SHEET_NAME, {
+    views:[{state:'frozen', ySplit:4}],
+    properties:{defaultColWidth:9, defaultRowHeight:14.4}
+  });
+
+  Object.keys(COL_W).forEach(i=>{ ws.getColumn(+i).width = COL_W[i]; });
+
+  /* 标题区 */
+  ws.mergeCells('A1:V2');
+  const t = ws.getCell('A1'); t.value = '新品下单表格模板';
+  t.font = {name:'Calibri',size:16,bold:true};
+  t.alignment = {horizontal:'center',vertical:'middle'};
+  ws.getRow(2).height = 23.1;
+
+  ws.mergeCells('A3:V3');
+  const st = ws.getCell('A3'); st.value = S.settings.store||'Arborus-US（店铺+国家）';
+  st.font = {name:'微软雅黑',size:16};
+  st.alignment = {horizontal:'center',vertical:'middle'};
+  ws.mergeCells('Y3:AA3');
+  ws.getRow(3).height = 22.5;
+
+  /* 表头 */
+  const hr = ws.getRow(4);
+  HEADERS.forEach((h,i)=>{
+    const c = hr.getCell(i+1); c.value = h;
+    applyStyle(c, HDR_STYLE[i], false);
+  });
+  hr.height = 171;
+
+  /* 数据行 */
+  const imgs = [], rowPlan = [];
+  rows.forEach((r,i)=>{
+    const rn = 5+i, row = ws.getRow(rn);
+    const put = (col,val)=>{
+      const c = row.getCell(col);
+      if(val!=='' && val!=null) c.value = val;
+      applyStyle(c, DAT_STYLE[col-1], r.groupStart);
+    };
+    for(let c=1;c<=30;c++) put(c,'');
+    put(1,r.A); put(2,r.B); put(4,r.D); put(5,r.E); put(6,r.F); put(7,r.G);
+    put(8,r.H); put(9,r.I); put(10,r.J); put(11,r.K);
+    put(12,r.L); put(13,r.M); put(14,r.N); put(15,r.O); put(16,r.P);
+    put(17,r.Q); put(18,r.R); put(19,r.S); put(20,r.T); put(21,r.U); put(22,r.V);
+    put(23,r.W); put(24,r.X); put(25,r.Y);
+    put(26,r.Z); put(27,r.AA); put(28,r.AB); put(29,r.AC); put(30,r.AD);
+    rowPlan.push({rn, r});
+  });
+
+  /* 先把所有图片按取景框裁好，再决定每行行高 */
+  for(const pl of rowPlan){
+    const r = pl.r;
+    let maxH = 0;
+    const main = r.image ? await squareForExport(r.image, r.crop) : null;   /* HUB: square */
+    if(main){
+      const d = fitBox(main.w, main.h, IMG_BOX, IMG_BOX);
+      imgs.push({data:main.url, col:2, colPx:COL_C_PX, w:d.w, h:d.h, rn:pl.rn});
+      maxH = Math.max(maxH, d.h);
+    }
+    const sw = r.colorImage ? await squareForExport(r.colorImage, r.colorCrop) : null;   /* HUB: square */
+    if(sw){
+      const d = fitBox(sw.w, sw.h, SWATCH_BOX_W, IMG_BOX);
+      imgs.push({data:sw.url, col:4, colPx:COL_E_PX, w:d.w, h:d.h, rn:pl.rn});
+      maxH = Math.max(maxH, d.h);
+    }
+    const ac = r.accImg ? await cropForExport(r.accImg, null, false) : null;   /* HUB: whole image */
+    if(ac){
+      const d = fitBox(ac.w, ac.h, ACC_BOX_W, IMG_BOX);
+      imgs.push({data:ac.url, col:7, colPx:COL_H_PX, w:d.w, h:d.h, rn:pl.rn});
+      maxH = Math.max(maxH, d.h);
+    }
+    pl.px = Math.max(MIN_ROW_PX, maxH + ROW_PAD);
+    ws.getRow(pl.rn).height = pl.px*72/96;
+  }
+  const rowPx = {};
+  rowPlan.forEach(pl => { rowPx[pl.rn] = pl.px; });
+
+  /* 图片：居中于单元格，oneCellAnchor（可自由缩放） */
+  imgs.forEach(im=>{
+    const id = wb.addImage({base64:b64(im.data), extension:'jpeg'});
+    ws.addImage(id,{
+      tl:{ nativeCol: im.col, nativeColOff: Math.round((im.colPx-im.w)/2*EMU),
+           nativeRow: im.rn-1, nativeRowOff: Math.round(((rowPx[im.rn]||MIN_ROW_PX)-im.h)/2*EMU) },
+      ext:{width:im.w, height:im.h},
+      editAs:'oneCell'
+    });
+  });
+
+  /* 注释区 */
+  const last = 4+rows.length;
+  const n1 = last+2;
+  ws.mergeCells('A'+n1+':V'+n1);
+  const c1 = ws.getCell('A'+n1); c1.value = NOTE1;
+  c1.font = {name:'Calibri',size:12};
+  c1.alignment = {horizontal:'left',vertical:'middle'};
+  ws.getRow(n1).height = 32.1;
+
+  const n2 = n1+2;
+  ws.mergeCells('A'+n2+':J'+n2);
+  const c2 = ws.getCell('A'+n2); c2.value = NOTE2;
+  c2.font = {name:'Calibri',size:14};
+  c2.alignment = {horizontal:'left',vertical:'top',wrapText:true};
+  ws.getRow(n2).height = 121;
+
+  /* 下载 */
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const nm = (S.order.orderName||S.order.factory||'订单').trim().replace(/[\\/:*?"<>|]/g,'_');
+  const fname = todayParts()+'_'+(S.settings.operator||'Jamie')+'_'+nm+'_下单计划.xlsx';
+
+  /* HUB: straight into 下单计划 Order Forms (no dialog); the hub then sets 已下单 and the 交货日期 */
+  const saved = await api.output('下单计划 Order Forms', fname, blob);
+  savedToast(saved);
+  if(row === ROW) embed.post('step2-generated', {deliveryDate: delivery});
+}
+$('genBtn').addEventListener('click',()=>{
+  const b = $('genBtn'); b.disabled=true; b.textContent='生成中…';
+  generate().catch(err=>{ console.error(err); if(!err.offline) toast('生成失败：'+err.message); })
+    .finally(()=>{ b.disabled=false; b.textContent='生成 Excel'; });
+});
+
+/* ============ HUB: 启动 — the hub keeps this page loaded and sends load-row {id} for each product ============ */
+let SETTINGS = null;                        // S.settings from the hub's settings.json
+function applySettings(st){
+  SETTINGS = {operator: st.step2.operator || 'Jamie', store: st.step2.store || 'Arborus-US（店铺+国家）',
+              skuPrefixes: st.categories.map(c => c+'_')};
+  S.settings = Object.assign({}, SETTINGS, {skuPrefixes: SETTINGS.skuPrefixes.slice()});
+}
+/* the row's defaults; they are shown but not written until the first edit (fresh = no 下单计划 saved yet) */
+function applyDefaults(fresh){
+  if(!S.products.length) S.products.push({id:uid(), code:'', productName:'', material:'', plant:'不含',
+    image:null, imgNat:null, crop:null, variants:[]});
+  if(fresh){
+    if(!S.order.orderName) S.order.orderName = META.name || '';
+    if(!S.products[0].productName) S.products[0].productName = META.name || '';
+  }
+  if(!S.order.sku && META.category) S.order.sku = META.category+'_';
+  if(!S.order.date){
+    const d = new Date(); d.setMonth(d.getMonth()+2);
+    S.order.date = d.toISOString().slice(0,10);
+  }
+  S.products.forEach(p=>{
+    if(!p.material && META.material) p.material = META.material;   // M4: the row's 材质, still editable per 货号
+    if(!p.variants.length) p.variants.push(newVariant(p));
+  });
+}
+let loadSeq = 0;
+async function loadRow(id){
+  const seq = ++loadSeq;
+  if(wz) wheelEnd();
+  pan = null;
+  await saveNow();                          // the previous product's pending edits
+  loading = true;
+  document.body.classList.add('loading');
+  ROW = id; embed.row = id;
+  let st, meta, saved, s1;
+  try{
+    [st, meta, saved, s1] = await Promise.all([api.settings(), api.get('rows/'+id+'/meta.json'),
+      api.get('rows/'+id+'/step2.json'), api.get('rows/'+id+'/step1.json')]);
+  }catch(e){ return; }                      // offline: api.onError has shown the toast
+  if(seq !== loadSeq) return;               // another product was asked for meanwhile
+  META = meta || {};
+  S = JSON.parse(JSON.stringify(DEFAULTS));
+  if(saved && Array.isArray(saved.products)){
+    S.products = saved.products;
+    S.order  = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.order)),  saved.order||{});
+    S.memory = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.memory)), saved.memory||{});
+    S.hub    = Object.assign({}, saved.hub||{});
+  }
+  applySettings(st);
+  applyDefaults(!(saved && saved.order));
+  const p0 = S.products[0];
+  if(p0 && META.thumbCrop) p0.crop = Object.assign({}, META.thumbCrop);   // 货号 #1's position = the table thumb's
+  step1Rows = (s1 && Array.isArray(s1.rows) ? s1.rows : [])
+    .filter(r => ['sku','price','l','w','h'].some(k => String(r[k]==null?'':r[k]).trim()));
+  sel = {pid:null, ids:new Set()}; selAnchor = null; clip = null; mq = null; mqWait = null; dragFrom = null;
+  sent = {main: mainKey(), delivery: META.deliveryDate || ''};
+  $('savedAt').textContent = '';
+  loading = false;
+  document.body.classList.remove('loading');
+  render();
+  ensureNat();
+  window.scrollTo(0, 0);
+  embed.post('loaded');
+}
+embed.on('load-row', d => loadRow(d.id));
+embed.on('flush', () => { if(wz) wheelEnd(); saveNow(); });
+embed.on('settings-changed', async () => {
+  try{ applySettings(await api.settings()); }catch(e){ return; }
+  if(ROW && !loading) render();
+});
+if(embed.row) loadRow(embed.row);           // opened directly as tools/step2.html?row=<id>
+embed.post('ready');
+})();
+</script>
+</body>
+</html>

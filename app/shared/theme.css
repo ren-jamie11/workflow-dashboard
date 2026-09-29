@@ -70,6 +70,7 @@ h2{font-size:1rem;font-weight:600;color:var(--dark);margin:0}
   background:var(--dark);color:#fff;padding:.8rem 1.4rem;border-radius:10px;font-size:.9rem;
   box-shadow:0 10px 25px rgba(0,0,0,.2);transition:transform .28s;z-index:200;max-width:min(90vw,60ch)}
 .toast.show{transform:translateX(-50%) translateY(0)}
+.toast:not(.show){visibility:hidden;transition:transform .28s,visibility 0s .28s}   /* a hidden toast never peeks over a pop-up */
 .toast.warn{background:#78350f}
 
 /* ---------- modal ---------- */
