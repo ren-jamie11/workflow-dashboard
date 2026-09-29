@@ -42,8 +42,12 @@ hubEmbed.broadcast(type)   // parent → every tool iframe (e.g. 'settings-chang
 Check `event.origin === location.origin` on every message.
 
 ## Hub changes (index.html)
-- Clicking the row or the 报价 pill toggles an expand panel below the row. **Only one row is
+- Clicking the 报价 pill toggles an expand panel below the row. **Only one row is
   expanded at a time**; opening another row collapses the current one.
+- A click on the row's blank space toggles it too (changed 2026-09-29, README G7). `hitRow(target, x, y)` rejects
+  points within `HIT_PAD` (10px) of any field, button, `.sub-asin` or `.draft-tag` in that cell, so near misses
+  don't count. A `pointerdown` capture listener records `rowPress` only when no date picker / combo is open and no
+  text box has focus; the `click` toggles only if `hitRow` gives the same row, it moved < 5px and `e.detail <= 1`.
 - The panel holds `<iframe src="tools/step1.html?row=<id>">` with its height taken from the `height`
   messages. There is no inner scrollbar; the table's own horizontal scroll still works.
 - **保存** in the tool completes 报价 (this replaced the ✓ 确认价格 button on 2026-09-29): after the file is written the tool posts `step1-saved`, and the hub sets `meta.step1Confirmed = true`

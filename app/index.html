@@ -19,6 +19,7 @@
 #matFilter{width:150px;padding:.4rem .7rem;padding-right:1.6rem;font-size:.9rem;height:34px}
 #matFilter.on{border-color:var(--primary);background-color:#eef2ff;color:var(--primary);font-weight:500}
 #clearFilters{align-self:flex-end;margin-bottom:.5rem}
+#catToggle{margin-left:auto;align-self:flex-end}
 
 /* ---------- table ---------- */
 .table-card{padding:.5rem .75rem 1rem}
@@ -33,6 +34,11 @@ table.hub tbody tr.row:hover td{background:#fafbff}
 tr.grp td{background:#f8fafc;color:var(--primary);font-weight:600;font-size:.82rem;padding:.45rem .75rem;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 tr.grp td .n{color:var(--muted);font-weight:400;margin-left:.35rem}
 tr.grp.none td{color:var(--muted)}
+tr.grp td{cursor:pointer;user-select:none}
+tr.grp:hover td{background:#f1f5f9}
+tr.grp .caret{display:inline-block;width:.42rem;height:.42rem;border:solid currentColor;border-width:0 2px 2px 0;
+  margin:0 .6rem .18rem .1rem;transform:rotate(45deg);transition:transform .15s}
+tr.grp.collapsed .caret{transform:rotate(-45deg);margin-bottom:.05rem}
 
 .cell-in{width:100%;padding:.42rem .5rem;border:1px solid var(--line);border-radius:6px;font-size:.88rem;font-family:inherit;background:#fff;color:var(--dark)}
 .cell-in:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(79,70,229,.12)}
@@ -98,7 +104,7 @@ tr.row.draft .step,tr.row.draft .step:hover{color:#cbd5e1;border-color:#f1f5f9;b
 tr.row{scroll-margin-top:40px}
 tr.row.open td{background:#f8faff}
 tr.row.open td:first-child{box-shadow:inset 3px 0 0 var(--primary)}
-tr.row td.hit{cursor:pointer}
+tr.row td{cursor:pointer}
 tr.xp-spacer td{padding:0;border:0}
 .xp-gap{height:0;background:#f8faff;transition:height .22s ease}
 .xp-panel{position:absolute;z-index:1;background:#f8faff;height:0;overflow:hidden;transition:height .22s ease}
@@ -185,6 +191,7 @@ tr.xp-spacer td{padding:0;border:0}
           autocomplete="off" spellcheck="false" title="输入可筛选选项">
       </div>
       <button type="button" class="menu-link hidden" id="clearFilters">清除筛选</button>
+      <button type="button" class="btn btn-ghost btn-sm hidden" id="catToggle">全部收起</button>
     </div>
   </div>
 
@@ -318,6 +325,8 @@ const ui = { q: '', status: '', cat: '', mat: '' };   // '' = no filter
 const justAdded = new Set();      // new rows stay visible whatever the filters, until reload
 const drafts = new Set();         // new rows that aren't saved yet: they need an image and 品名
 const draftImg = new Map();       // draft id → full image, written to step2.json once the draft is saved
+const collapsedCats = new Set();  // collapsed category groups ('' = 未分类); this session only
+const showCat = c => collapsedCats.delete(c || '');   // an edited / new row must not vanish into a collapsed group
 const imgCount = r => r.imgCount != null ? r.imgCount : (r.thumb ? 1 : 0);
 
 /* ============ toast ============ */
@@ -408,7 +417,10 @@ function renderChips(){
   mf.classList.toggle('on', !!ui.mat);
   const filtering = ui.q.trim() || ui.status || ui.cat || ui.mat;
   $('clearFilters').classList.toggle('hidden', !filtering);
-  const shown = visibleRows().length;
+  const vis = visibleRows(), shown = vis.length;
+  const cats = ROWS.groupRows(vis, settings.categories).map(g => g.cat);
+  $('catToggle').classList.toggle('hidden', !cats.length);
+  $('catToggle').textContent = cats.every(c => collapsedCats.has(c)) ? '全部展开' : '全部收起';
   $('countLine').textContent = '共 ' + rows.length + ' 个产品' + (filtering ? ' · 显示 ' + shown + ' 个' : '');
 }
 
@@ -422,11 +434,13 @@ function renderBody(){
     ? '<tr class="xp-spacer" data-id="' + esc(id) + '"><td colspan="9"><div class="xp-gap" data-id="' + esc(id) +
       '" style="height:' + (cur[id] || 0) + 'px"></div></td></tr>'
     : '';
-  $('tbody').innerHTML = groups.map(g =>
-    '<tr class="grp' + (g.cat ? '' : ' none') + '"><td colspan="9">' + esc(g.label) +
-    '<span class="n">' + g.rows.length + ' 个</span></td></tr>' +
-    g.rows.map(r => rowHtml(r) + spacer(r.id)).join('')
-  ).join('');
+  $('tbody').innerHTML = groups.map(g => {
+    const shut = collapsedCats.has(g.cat);
+    return '<tr class="grp' + (g.cat ? '' : ' none') + (shut ? ' collapsed' : '') + '" data-cat="' + esc(g.cat) +
+      '" title="' + (shut ? '点击展开' : '点击收起') + '"><td colspan="9"><span class="caret"></span>' + esc(g.label) +
+      '<span class="n">' + g.rows.length + ' 个</span></td></tr>' +
+      (shut ? '' : g.rows.map(r => rowHtml(r) + spacer(r.id)).join(''));
+  }).join('');
   const box = $('emptyBox');
   if (!rows.length) {
     box.innerHTML = '<b>还没有产品</b>点击右上角「+ 新建产品」开始。';
@@ -530,6 +544,7 @@ function commitSku(r, el){
   const clash = rows.find(o => o.id !== r.id && SKU.overlaps(p, SKU.parse(o.sku)));
   r.sku = SKU.format(p);
   r.category = p.cat;
+  showCat(p.cat);
   el.value = r.sku;
   saveRow(r);
   renderSoon();
@@ -756,12 +771,55 @@ hubEmbed.listen((m, frame) => {
   }
 });
 
-/* clicking an empty part of a row also toggles it */
+/* clicking the blank space of a row also toggles it, except within HIT_PAD px of a field or button (a near miss).
+   Neither does a drag, a double-click's second click, or a click that only closes a popup or leaves a text box */
+const HIT_PAD = 10;
+const hitRow = (t, x, y) => {
+  if (!t.closest || t.closest('[data-act], input, select, button')) return null;
+  const td = t.closest('td'), tr = td && td.closest('tr.row');
+  if (!tr) return null;
+  const near = [...td.querySelectorAll('[data-act], input, select, button, .sub-asin, .draft-tag')].some(el => {
+    const b = el.getBoundingClientRect();
+    return x > b.left - HIT_PAD && x < b.right + HIT_PAD && y > b.top - HIT_PAD && y < b.bottom + HIT_PAD;
+  });
+  return near ? null : tr.dataset.row;
+};
+const typing = () => {
+  const a = document.activeElement;
+  return !!a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && /^(text|search|number|)$/.test(a.type)));
+};
+let rowPress = null;              // {id, x, y}: a press that may become a row toggle
+document.addEventListener('pointerdown', e => {
+  const id = e.button === 0 && hitRow(e.target, e.clientX, e.clientY);
+  rowPress = id && !isDatePickerOpen() && !combo.isOpen() && !typing() ? { id, x: e.clientX, y: e.clientY } : null;
+}, true);
 $('tbody').addEventListener('click', e => {
-  if (e.target.closest('[data-act], input, select, button')) return;
-  const tr = e.target.closest('tr.row');
-  const r = tr && byId(tr.dataset.row);
+  const g = e.target.closest('tr.grp');
+  if (g) return toggleCat(g.dataset.cat);
+  const p = rowPress;
+  rowPress = null;
+  if (!p || e.detail > 1 || hitRow(e.target, e.clientX, e.clientY) !== p.id || Math.abs(e.clientX - p.x) + Math.abs(e.clientY - p.y) >= 5) return;
+  const r = byId(p.id);
   if (r) toggleExpand(r);
+});
+
+/* category headers: collapse / expand that group's rows. Nothing stays open inside a collapsed group */
+function toggleCat(cat){
+  if (collapsedCats.has(cat)) { collapsedCats.delete(cat); return render(); }
+  holdScroll();                                         // near the page bottom the page would slide down
+  collapsedCats.add(cat);
+  closeIfCollapsed();
+}
+function closeIfCollapsed(){
+  const r = expandedId && byId(expandedId);
+  if (r && collapsedCats.has(r.category || '')) collapse(true);
+  else render();
+}
+$('catToggle').addEventListener('click', () => {
+  const cats = ROWS.groupRows(visibleRows(), settings.categories).map(g => g.cat);
+  if (cats.every(c => collapsedCats.has(c))) { collapsedCats.clear(); return render(); }
+  ROWS.groupRows(rows, settings.categories).forEach(g => collapsedCats.add(g.cat));
+  closeIfCollapsed();
 });
 /* clicking the grey page margins (outside the cards) collapses the open panel. Both press and release must be
    on a margin (a text selection dragged out doesn't count), and a click that only closes a popup doesn't count */
@@ -810,6 +868,7 @@ async function deleteRow(r){
 
 $('addBtn').addEventListener('click', () => {
   const r = ROWS.newRow(ui.cat);
+  showCat(r.category);
   rows.push(r);
   justAdded.add(r.id);
   drafts.add(r.id);                 // saved once it has an image and 品名 (commitDraft)
@@ -1185,9 +1244,10 @@ let viewer = null;
 let viewerBusy = false;     // one add / delete at a time
 let gridKey = '';
 
-/* ← → order = the table's visible order (groups + sort); saved rows with an image only */
+/* ← → order = the table's visible order (groups + sort, collapsed groups skipped); saved rows with an image only */
 function viewerOrder(){
   return ROWS.groupRows(visibleRows(), settings.categories)
+    .filter(g => !collapsedCats.has(g.cat))
     .reduce((a, g) => a.concat(g.rows), [])
     .filter(r => r.thumb && !drafts.has(r.id));
 }
@@ -1455,7 +1515,7 @@ function comboConfig(el){
   const what = f === 'category' ? '类目' : '材质';
   return {
     value: r[f], empty: '—', options: list.map(v => ({ value: v })),
-    onPick: v => { r[f] = v; saveRow(r); renderSoon(); },
+    onPick: v => { r[f] = v; if (f === 'category') showCat(v); saveRow(r); renderSoon(); },
     onReject: t => toast('没有' + what + '「' + t + '」，请从列表中选择；新' + what + '在 ⚙ 设置 中添加', true)
   };
 }

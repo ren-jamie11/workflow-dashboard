@@ -68,6 +68,9 @@ Each chip group allows at most one active chip; clicking the active chip again c
 `XK · 12 个`, and groups ordered as in the settings list. Within a group rows are newest first
 (`createdAt` descending), so a row never moves after it is created or edited. Column headers are not
 sortable (changed 2026-09-29).
+Clicking a group header collapses / expands it (a CSS chevron pointing down / right); `#catToggle` (全部收起 / 全部展开) at the right
+of the filter bar does every group. State is the session-only Set `collapsedCats` (`''` = 未分类); `showCat(c)`
+re-opens a group when a row is added to it or moved into it (added 2026-09-29, README G6).
 
 **Saving:** each edit PUTs that row's `meta.json` (debounced ~300ms). There is no Save button.
 
