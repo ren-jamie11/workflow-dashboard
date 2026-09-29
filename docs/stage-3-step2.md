@@ -99,8 +99,8 @@ One parent-ASIN group can be ordered in several Excels (e.g. XK_012-023: 4x6 + 5
   |---|---|
   | `step2-generated {row, form, deliveryDate}` | status → at least 已下单; the entry gets `generatedAt` + `deliveryDate`; `meta.deliveryDate` = the earliest generated (M13) |
   | `import-failed {form}` | removes the entry (and file) created for 从 Excel 导入, back to the list |
-  | `meta-changed {name, material}` | 品名 / 产品材质 edited in 订单信息 → `meta.name` (if not empty) / `meta.material` (if empty or in `settings.materials`), `saveRow`, re-render the table and header |
-  | `factory-used {name, taxRate?, add?, imported?}` | moves that 工厂 to the top of `settings.factories` (adds it when new and `add`), saves, `broadcast('settings-changed')`; `imported` → toast `已新增工厂「X」` |
+  | `meta-changed {name, material, factory, category}` | 品名 / 产品材质 / 工厂 edited in 订单信息 → `meta.name` (if not empty) / `meta.material` (if empty or in `settings.materials`) / `meta.factory` / `meta.category` (only without SKU, if in `settings.categories`), `saveRow`, re-render the table and header |
+  | `factory-used {name, taxRate?, add?, imported?}` | a new 工厂 (with `add`) is appended to `settings.factories`, saved, `broadcast('settings-changed')`; known ones change nothing; `imported` → toast `已新增工厂「X」` |
   | `key`, `ready`, `loaded` | close / switch; send the pending `load-row`; focus the tool |
   Hub → tool: `load-row`, `unload`, `flush`, `form-renamed {form, name}` (the file-name hint follows), `settings-changed`.
   `main-changed` / `delivery-changed` were removed with M9 / M13.
@@ -124,7 +124,8 @@ One parent-ASIN group can be ordered in several Excels (e.g. XK_012-023: 4x6 + 5
   selection / clipboard state, then renders. `loadSeq` drops a load that a newer one overtook. `embed.row` is reassigned.
   `flatten()` turns a legacy draft / an import into one card (each row: `imgOverride` or its card's image → `v.img`).
 - **Order fields (S1–S4):** `S.order = {factory, date, sku, plant, taxRate, freight}`. 工厂 is a `combo.js` dropdown of
-  `S.settings.factories` (`pickFactory` fills 税率); `taxRate` defaults to `''` and an empty one leaves the Excel cell blank. 品名 / 材质 are read from `META`
+  `S.settings.factories` (`pickFactory` fills 税率 and sets `META.factory` / 材质 / 类目); `syncFactoryFromRow()` shows the row's
+  工厂 on load, 清空全部 and import (README F10); `taxRate` defaults to `''` and an empty one leaves the Excel cell blank. 品名 / 材质 are read from `META`
   and posted with `meta-changed`; `autoDesc`, the file name and the Excel 产品材质 column use them. `buildRows()` writes
   T/U/W from `S.order` and Y from `META.material` on every row; `latestDate()` = `S.order.date`.
 - **Defaults (`applyDefaults`)**: an empty order SKU = `<category>_`, an empty order date = today + 2 months,

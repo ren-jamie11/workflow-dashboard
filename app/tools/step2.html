@@ -178,9 +178,6 @@ input.combo:focus{cursor:text}
 .cb-opt.sel{font-weight:600}
 .cb-opt.add{color:var(--primary);font-weight:500}
 .cb-empty{padding:.45rem .55rem;color:#94a3b8}
-/* HUB: 税率 filled from the picked 工厂 flashes once */
-@keyframes taxFlash{from{background:#e0e7ff;border-color:var(--primary)}to{background:#fff}}
-.form-control.flash{animation:taxFlash 1.2s ease-out}
 </style>
 </head>
 <body>
@@ -1136,19 +1133,31 @@ document.addEventListener('change', e=>{
 
 /* ============ 顶部字段 ============ */
 /* HUB: 运营 / 店铺 / SKU 前缀 inputs removed (hub ⚙ 设置 → 下单 and 类目) */
-/* HUB: 工厂 = a dropdown of the global list (hub 设置 → 工厂, most recently used first). Picking one fills its 税率;
-   '+ 添加「X」' adds a factory without 税率. The hub keeps the list: factory-used moves it to the top (adds it if new) */
+/* HUB: 工厂 = a dropdown of the global list (hub 设置 → 工厂, in its order). Picking one fills its 税率;
+   '+ 添加「X」' adds a factory without 税率. The hub keeps the list: factory-used adds it at the end if new */
 function findFactory(name){
   const k = api.factoryKey(name);
   return k ? (S.settings.factories||[]).find(f => api.factoryKey(f.name) === k) : null;
+}
+/* HUB: a row with a 工厂 shows it in every form; a form saved with another 工厂 takes it and that factory's 税率 */
+function syncFactoryFromRow(){
+  const rf = String(META.factory || '').trim();
+  if(!rf || rf === S.order.factory) return;
+  const f = findFactory(rf);
+  S.order.factory = rf;
+  S.order.taxRate = f ? (f.taxRate || '') : '';
 }
 function pickFactory(name){
   const f = findFactory(name);
   S.order.factory = name;
   S.order.taxRate = f ? (f.taxRate || '') : '';
+  /* HUB: the 工厂 is the hub row's too (synced both ways): it also sets the row's 类目 (unless the SKU decides it) and 材质 */
+  META.factory = name;
+  if(f && f.material && (S.settings.materials||[]).includes(f.material)) META.material = f.material;
+  if(f && f.category && !META.sku) META.category = f.category;
+  tellMeta();
   embed.post('factory-used', {name, add: true});
   save(); renderOrder(); softRefresh();
-  const t = $('ofTax'); t.classList.remove('flash'); void t.offsetWidth; t.classList.add('flash');
 }
 combo.bind($('ofFactory').parentNode, () => {
   const names = (S.settings.factories||[]).map(f => f.name);
@@ -1156,12 +1165,13 @@ combo.bind($('ofFactory').parentNode, () => {
   return {
     value: S.order.factory, empty: null, options: names.map(n => ({value: n})),
     onPick: pickFactory,
-    onCreate: name => { S.settings.factories.unshift({name, taxRate: ''}); },
+    onCreate: name => { S.settings.factories.push({name, taxRate: ''}); },
     onReject: t => toast('没有工厂「'+t+'」，选择「+ 添加」新增')
   };
 });
 /* HUB: 品名 / 材质 are the hub row's: edited here, they update the main table (meta-changed); not stored in step2.json */
-function tellMeta(){ embed.post('meta-changed', {name: META.name || '', material: META.material || ''}); }
+function tellMeta(){ embed.post('meta-changed', {name: META.name || '', material: META.material || '',
+                                                  factory: META.factory || '', category: META.category || ''}); }   /* HUB: + 工厂 / 类目 */
 $('ofPname').addEventListener('input', e=>{ e.target.classList.toggle('missing', !e.target.value.trim()); });
 $('ofPname').addEventListener('change', e=>{
   const v = e.target.value.trim();
@@ -1189,6 +1199,7 @@ $('clearBtn').addEventListener('click',()=>{
   p.variants.push(v);
   S.products = [p];
   applyDefaults();
+  syncFactoryFromRow();                     /* HUB */
   save(); render(); toast('已清空');
 });
 
@@ -1382,9 +1393,12 @@ async function runImport(file){
     /* HUB: an unknown 工厂 joins the global list with the file's 税率 (a known one keeps its default) */
     if(S.order.factory.trim() && !findFactory(S.order.factory)){
       const name = S.order.factory.trim();
-      S.settings.factories.unshift({name, taxRate: S.order.taxRate || ''});
+      S.settings.factories.push({name, taxRate: S.order.taxRate || ''});
       embed.post('factory-used', {name, taxRate: S.order.taxRate || '', add: true, imported: true});
     }
+    /* HUB: the row's 工厂 wins; a row without one takes the file's (类目 / 材质 unchanged) */
+    if(String(META.factory || '').trim()) syncFactoryFromRow();
+    else if(S.order.factory.trim()){ META.factory = S.order.factory.trim(); tellMeta(); }
     S.products.forEach(p=>p.variants.forEach(v=>remember('colorNames', v.colorCode)));
     clearSel(); save(); render(); ensureNat();
     const st = res.stats;
@@ -1669,6 +1683,7 @@ async function loadRow(id, form, name, file){
   memSent = mem ? JSON.stringify(S.memory) : '';
   applySettings(st);
   applyDefaults();
+  syncFactoryFromRow();                     /* HUB: in memory only, written with the first edit */
   step1Rows = (s1 && Array.isArray(s1.rows) ? s1.rows : [])
     .filter(r => ['sku','price','l','w','h'].some(k => String(r[k]==null?'':r[k]).trim()));
   sel = {pid:null, ids:new Set()}; selAnchor = null; clip = null; mq = null; mqWait = null;

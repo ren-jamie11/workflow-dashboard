@@ -5,7 +5,7 @@
 const DEFAULT_SETTINGS = {
   categories: ['XK', 'MUG'],
   materials: ['树脂', '金属', '实木', '陶瓷', '塑料'],
-  /* 工厂 list for 下单计划, most recently used first; taxRate '' = unknown */
+  /* 工厂 list (设置 → 工厂), in a fixed order; taxRate '' = unknown */
   factories: [{ name: '博罗', taxRate: '专票13%' }, { name: '华智', taxRate: '专票1%' }, { name: '合兴', taxRate: '专票13%' },
               { name: '莱伯特', taxRate: '专票13%' }, { name: '佰利源', taxRate: '' }],
   liveOffsetDays: 45,

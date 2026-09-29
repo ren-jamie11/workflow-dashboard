@@ -17,7 +17,7 @@ function newId() {
 
 function newRow(category) {
   return {
-    id: newId(), name: '', category: category || '', material: '', sku: '', parentAsin: '',
+    id: newId(), name: '', factory: '', category: category || '', material: '', sku: '', parentAsin: '',
     status: STATUSES[0], liveDate: '', step1Confirmed: false, deliveryDate: '',
     thumb: null, createdAt: Date.now()
   };
@@ -52,7 +52,7 @@ function filterRows(rows, ui, always) {
     if (ui.status && r.status !== ui.status) return false;
     if (ui.cat && r.category !== ui.cat) return false;
     if (ui.mat && r.material !== ui.mat) return false;
-    if (q && ![r.name, r.sku, r.parentAsin].join(' ').toLowerCase().includes(q)) return false;
+    if (q && ![r.name, r.factory, r.sku, r.parentAsin].join(' ').toLowerCase().includes(q)) return false;
     return true;
   });
 }

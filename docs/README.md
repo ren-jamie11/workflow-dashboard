@@ -56,10 +56,11 @@ browser.
 ### Data model (`data/`)
 ```
 settings.json         { categories:["XK","MUG"], materials:["树脂","金属","实木","陶瓷","塑料"], liveOffsetDays:45,
-                        factories:[{name, taxRate}]   (工厂 list, most recently used first; taxRate '' = unknown)
+                        factories:[{name, taxRate, category, material}]   (工厂 list in a fixed order, new ones at the end; '' = not set),
+                        rowFactoriesFilled   (the one-time 工厂 fill of existing rows has run)
                         step1:{shippingPrice,exchangeRate,profitMargin,storageFee,isPeak},
                         step2:{operator,store}, step3:{targetDays:90, invTargetDays:180} }
-rows/<id>/meta.json   { id, name, category, material, sku, parentAsin, status, liveDate,
+rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, status, liveDate,
                         step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt }
 rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
 rows/<id>/images.json { main:{url,w,h}, extra:[{url,w,h,crop}] }  the row's images: main + up to 8 more (image viewer,
@@ -171,11 +172,16 @@ a new one is built in a picker (images × 报价 lines) as one 货号 card with 
 |---|---|
 | F1 | One global list `settings.factories [{name, taxRate}]`, seeded with 博罗 专票13% · 华智 专票1% · 合兴 专票13% · 莱伯特 专票13% · 佰利源 (none). 税率 is one string (`专票13%`, 对私 …); `''` = unknown. Names match ignoring case and spaces (`api.factoryKey`) |
 | F2 | 下单计划 工厂 = a `combo.js` dropdown (pinyin). Text with no exact match shows `+ 添加「X」` (click / Enter; Tab never adds) which adds X without 税率; other unknown text reverts with a toast |
-| F3 | Picking a 工厂 always replaces the form's 税率 (flash); no 税率 → empty, placeholder `该工厂未设税率`. A hand-typed 税率 is form-only |
+| F3 | Picking a 工厂 always replaces the form's 税率; no 税率 → empty, placeholder `该工厂未设税率`. A hand-typed 税率 is form-only |
 | F4 | Settings → **工厂**: name · 税率 · × per line, add line below, saves at once. Rename / delete (with confirm) change the list only, never saved forms |
-| F5 | Most recently used first: a pick, add or import moves the factory to the top (the tool posts `factory-used`; only the hub writes `settings.json`) |
+| F5 | ~~Most recently used first~~ *(Changed 2026-09-29)* Every 工厂 dropdown uses the Settings order, which never changes by use; new factories (Settings, `+ 添加`, import) go at the end. The tool posts `factory-used` for a new one; only the hub writes `settings.json` |
 | F6 | 从 Excel 导入: an unknown 工厂 is added with the file's 税率 (toast `已新增工厂「X」`) |
-| F7 | New forms start with 工厂 and 税率 empty; an empty 税率 leaves the Excel 税率 cell blank (was `专票1%`). Saved forms keep their 工厂 / 税率 (e.g. "Huazhi") |
+| F7 | New forms start with 工厂 and 税率 empty; an empty 税率 leaves the Excel 税率 cell blank (was `专票1%`). Saved forms keep their 工厂 / 税率 (e.g. "Huazhi") *(a row's 工厂 now overrides them, F10)* |
+| F8 | Main table column **工厂** between 品名 and 类目 (`meta.factory`), optional (`—`), also for new products; the same dropdown with `+ 添加「X」`. The search box matches it |
+| F9 | Each factory has optional 类目 · 材质 · 税率 (Settings → 工厂). Picking a factory (table or form) always overwrites the row's 材质 and 类目, except that a row with a SKU keeps its SKU-prefix 类目 (silently); fields left `—` change nothing |
+| F10 | Row ↔ 下单计划 synced both ways: a row with a 工厂 shows it in all its forms (a form saved with another one takes it and that factory's 税率, in memory until the next edit); picking one in a form sets the row's 工厂 / 类目 / 材质 (`meta-changed`). A row without 工厂 leaves its forms' own. 从 Excel 导入: the row's 工厂 wins; an empty row takes the file's |
+| F11 | Renaming a factory renames it in every row using it; deleting leaves the rows' text. Deleting a 类目 / 材质 clears it from the factories |
+| F12 | One-time fill: each row without 工厂 takes it from its most recent 下单计划 (or old `step2.json`), 'Huazhi' → 华智; 类目 / 材质 unchanged |
 
 **Out of scope for now:** Amazon upload templates, price preview in the collapsed row, bundling
 several rows into one Excel, Step 3 numbers in the main table.
