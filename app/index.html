@@ -63,7 +63,7 @@ select.cell-in:disabled{background:#f8fafc;color:var(--dark);opacity:1;cursor:no
   background:rgba(15,23,42,.72);color:#fff;font-size:.7rem;line-height:1;cursor:pointer;opacity:0;padding:0}
 .thumb:hover .clear{opacity:1}
 
-/* draft row: not saved until it has an image and 品名 */
+/* draft row: not saved until it has an image and 类目 */
 tr.row.draft td{background:#fcfcfd}
 tr.row.draft td:first-child{box-shadow:inset 3px 0 0 #cbd5e1}
 .draft-tag{display:block;font-size:.7rem;color:var(--warn-text);margin:.15rem 0 0 .15rem}
@@ -475,7 +475,7 @@ let settings = null;
 let rows = [];
 const ui = { q: '', status: '', cat: '', mat: '' };   // '' = no filter
 const justAdded = new Set();      // new rows stay visible whatever the filters, until reload
-const drafts = new Set();         // new rows that aren't saved yet: they need an image and 品名
+const drafts = new Set();         // new rows that aren't saved yet: they need an image and 类目
 const draftImg = new Map();       // draft id → full image, written to images.json once the draft is saved
 const collapsedCats = new Set();  // collapsed category groups ('' = 未分类); this session only
 const showCat = c => collapsedCats.delete(c || '');   // an edited / new row must not vanish into a collapsed group
@@ -510,15 +510,15 @@ window.addEventListener('pagehide', () => {
     if (r) api.saveRowBeacon(r);
   });
 });
-/* a draft is written for the first time once it has both an image and 品名 */
+/* a draft is written for the first time once it has both an image and 类目 */
 function commitDraft(r){
-  if (!r.name.trim() || !draftImg.has(r.id)) return;
+  if (!r.category || !draftImg.has(r.id)) return;
   const full = draftImg.get(r.id);
   drafts.delete(r.id);
   draftImg.delete(r.id);
   api.saveRow(r)
     .then(() => updateMainImage(r, full))
-    .then(() => toast('已保存「' + r.name + '」'))
+    .then(() => toast('已保存「' + (r.name || r.category) + '」'))
     .catch(() => {});
 }
 function saveSettings(){ return api.saveSettings(settings).catch(() => {}); }
@@ -639,7 +639,8 @@ function renderBody(){
 
 /* 工厂 / 类目 / 材质 cell: a type-to-filter dropdown (shared/combo.js, set up in comboConfig) */
 function comboCell(r, f, extra){
-  return '<input type="text" class="cell-in combo" data-combo="' + f + '" data-id="' + esc(r.id) + '" data-f="' + f + '" value="' +
+  const missing = f === 'category' && !r.category ? ' missing' : '';              // 类目 is required
+  return '<input type="text" class="cell-in combo' + missing + '" data-combo="' + f + '" data-id="' + esc(r.id) + '" data-f="' + f + '" value="' +
     esc(r[f]) + '" placeholder="—" autocomplete="off" spellcheck="false"' + (extra || '') + '>';
 }
 
@@ -654,10 +655,10 @@ function rowHtml(r){
   const steps = j.map((s, i) =>
     (i ? '<span class="ln' + (j[i - 1].state === 'done' ? ' on' : '') + '"></span>' : '') +
     '<button type="button" class="step ' + s.state + '" data-act="step" data-step="' + s.key + '" data-id="' + id +
-    '" title="' + (draft ? '请先添加图片和品名' : s.label + '：' + STEP_TIPS[s.state]) + '"' + (draft ? ' disabled' : '') + '>' +
+    '" title="' + (draft ? '请先添加图片和类目' : s.label + '：' + STEP_TIPS[s.state]) + '"' + (draft ? ' disabled' : '') + '>' +
     (s.state === 'done' ? '✓ ' : '') + s.label + '</button>'
   ).join('');
-  const missing = [r.thumb ? '' : '图片', r.name.trim() ? '' : '品名'].filter(Boolean);
+  const missing = [r.thumb ? '' : '图片', r.category ? '' : '类目'].filter(Boolean);
   const viewable = r.thumb && !draft;
 
   return '<tr class="row' + (r.id === expandedId ? ' open' : '') + (draft ? ' draft' : '') + '" data-row="' + id + '">' +
@@ -669,7 +670,7 @@ function rowHtml(r){
                  (imgCount(r) > 1 && !draft ? '<button type="button" class="clear" data-act="imgclr" data-id="' + id + '" title="删除主图（下一张成为主图）">×</button>' : '')
                : '<span>+ 图片</span>') +
     '</div></td>' +
-    '<td><input class="cell-in' + (r.name.trim() ? '' : ' missing') + '" data-id="' + id + '" data-f="name" value="' + esc(r.name) + '" placeholder="品名（必填）">' +
+    '<td><input class="cell-in" data-id="' + id + '" data-f="name" value="' + esc(r.name) + '" placeholder="品名">' +
       (draft ? '<span class="draft-tag">未保存 · 请添加' + missing.join('和') + '</span>' : '') + '</td>' +
     '<td>' + comboCell(r, 'factory') + '</td>' +
     '<td>' + comboCell(r, 'category', r.sku ? ' disabled title="由 SKU 前缀决定"' : '') + '</td>' +
@@ -693,7 +694,6 @@ $('tbody').addEventListener('change', e => {
   switch (el.dataset.f) {
     case 'name':
       r.name = el.value.trim();
-      el.classList.toggle('missing', !r.name);
       saveRow(r); renderSoon();
       break;
     case 'status':
@@ -769,7 +769,7 @@ const STEP_STAGE = { live: '上架（Step 3）将在 Stage 4 接入' };
 function stepClick(r, step){
   if (step === 'quote') return toggleExpand(r);
   if (step === 'order') {
-    if (drafts.has(r.id)) return toast('请先填写品名并添加图片', true);
+    if (drafts.has(r.id)) return toast('请先选择类目并添加图片', true);
     const s = ROWS.journey(r).find(x => x.key === 'order');
     if (s && s.state === 'locked' && !confirm('前一步未完成，仍要打开？')) return;   // soft lock (the pop-up's ← → don't ask)
     return openOrder(r);
@@ -796,7 +796,7 @@ let pendTimer = null;
 const xpPanel = $('xpPanel'), xpFrame = $('xpFrame');
 
 function toggleExpand(r){
-  if (drafts.has(r.id)) return toast('请先添加图片和品名，产品才会保存', true);
+  if (drafts.has(r.id)) return toast('请先添加图片和类目，产品才会保存', true);
   if (expandedId === r.id) return collapse();
   const top0 = rowTop(r.id);
   clearPending();
@@ -1063,7 +1063,7 @@ $('addBtn').addEventListener('click', () => {
   showCat(r.category);
   rows.push(r);
   justAdded.add(r.id);
-  drafts.add(r.id);                 // saved once it has an image and 品名 (commitDraft)
+  drafts.add(r.id);                 // saved once it has an image and 类目 (commitDraft)
   render();
   const el = $('tbody').querySelector('[data-id="' + r.id + '"][data-f="name"]');
   if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus(); }
@@ -1155,8 +1155,8 @@ async function setRowImage(r, file){
     r.thumb = d.thumb; r.thumbCrop = d.crop; r.imgCount = Math.max(1, imgCount(r));
     if (drafts.has(r.id)) {
       draftImg.set(r.id, d.full);
-      saveRow(r); render();                               // saves the draft if 品名 is already filled
-      if (drafts.has(r.id)) toast('填写品名后自动保存');
+      saveRow(r); render();                               // saves the draft if 类目 is already chosen
+      if (drafts.has(r.id)) toast('选择类目后自动保存');
       return;
     }
     saveRow(r); render();
@@ -2173,7 +2173,10 @@ function comboConfig(el){
   const what = f === 'category' ? '类目' : '材质';
   return {
     value: r[f], empty: '—', options: list.map(v => ({ value: v })),
-    onPick: v => { r[f] = v; if (f === 'category') showCat(v); saveRow(r); renderSoon(); },
+    onPick: v => {
+      if (f === 'category' && !v) { renderSoon(); return toast('类目为必填项', true); }
+      r[f] = v; if (f === 'category') showCat(v); saveRow(r); renderSoon();
+    },
     onReject: t => toast('没有' + what + '「' + t + '」，请从列表中选择；新' + what + '在 ⚙ 设置 中添加', true)
   };
 }

@@ -30,7 +30,7 @@ Columns: **图片 · 品名 · 类目 · 材质 · SKU (父ASIN sub-line) · 状
   `loadImageData`) in `step2.json` → `products[0].image`, creating a minimal `step2.json`
   (`{products:[{id,code:'',productName:<品名>,material:'',plant:'不含',image,imgNat,frame,variants:[]}]}`)
   if it doesn't exist.
-- **品名:** required, inline text input.
+- **品名:** optional, inline text input. *(Changed 2026-09-29: 类目 is the required field instead)*
 - **类目:** a type-to-filter dropdown (`shared/combo.js`) over `settings.categories`. It is set automatically
   from the SKU prefix and locked (disabled) once a SKU is set.
 - **材质:** (added 2026-09-29) an optional type-to-filter dropdown over `settings.materials`, `—` = none. A value
