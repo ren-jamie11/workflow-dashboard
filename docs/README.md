@@ -62,7 +62,10 @@ rows/<id>/step3.json  { seasonality:[12 numbers] }
 sales.json            Step 3 store (sales/skus/inv/manual/lastSeen/snapshotDate), keyed by MSKU
 ```
 `sku` is normalized: `XK_012-023` or `XK_406`. `thumb` is a 320×320 square JPEG data URL cut from the
-main image by `thumbCrop` `{x, y` (fractions of width / height)`, s` (side as a fraction of the short edge)`}`.
+main image by `thumbCrop` — the square frame as a window onto the image: `{x, y` (its top-left, fractions of
+width / height; negative when zoomed out past the image)`, s` (its side as a fraction of the short edge:
+`< 1` zoomed in, `1` fills, up to long ÷ short edge = whole image with white padding)`}`. The full image is
+never modified, so any earlier position can always be restored.
 Rows saved before this have a ~160px thumb and no `thumbCrop`; they upgrade the first time the viewer
 opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The hub table reads **only**
 `meta.json`; `step2.json` (several MB) and `images.json` are read only when the image viewer opens.
@@ -126,7 +129,7 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 | I4 | Up to 6 images per row (main + 5 extras in `images.json`). Add with "+" (multi-select), paste or drop in the viewer. Per-image delete only; deleting the main image promotes the next one |
 | I5 | Every row must have an image: the last one can't be deleted, only replaced (替换主图) |
 | I6 | New rows are **drafts** (shown, not saved) until they have an image **and** 品名; a draft is lost on reload |
-| I7 | 调整缩略图: drag + zoom a square over the main image; changes only `thumb`/`thumbCrop`, never Step 2's image or `frame` |
+| I7 | Reposition as in `collage-app.html`: the square frame stays still and the image moves inside it. Press + drag to move, Ctrl + wheel to zoom around the pointer (zoom out down to the whole image). Works on the row thumb (a click without moving still opens the viewer) and on the viewer's main image, which is shown in a large square frame identical to the row thumb. Saves automatically; the table and the 主图 tile update at once. 重置位置 = centred fill. Changes only `thumb`/`thumbCrop`, never Step 2's image or `frame` |
 
 **Out of scope for now:** Amazon upload templates, price preview in the collapsed row, bundling
 several rows into one Excel, Step 3 numbers in the main table.

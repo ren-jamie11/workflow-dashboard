@@ -86,7 +86,9 @@ again reverses the order.
 - **Row images (added 2026-09-28, decisions I1–I7 in README):** all in `index.html`, sections
   `images` and `image viewer`. `makeThumb(img, crop)` / `centerCrop(w,h)` build the 320 square thumb;
   `setRowImage` replaces the main image, `deleteMainImage` promotes the next one, `loadRowImages` returns
-  `[main, ...extras]` and is cached per session (`imgCache`). Drafts live in the `drafts` Set;
+  `[main, ...extras]` and is cached per session (`imgCache`). Section `reposition`: `clampCrop`,
+  `panCrop`, `zoomCrop`, `layoutFrame` (full image inside a square frame), `openFrame` (decoded main
+  image, preloaded on thumb hover), `commitCrop` (rebuilds the thumb). Drafts live in the `drafts` Set;
   `saveRow()` on a draft calls `commitDraft()` instead of writing, and the draft's full image waits in
   `draftImg` until then.
 - **For Stage 3:** the sidebar should reuse `meta.thumb`. When Step 2 posts `image-changed`, the parent
