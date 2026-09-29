@@ -447,7 +447,9 @@ function rowHtml(r){
 
   return '<tr class="row' + (r.id === expandedId ? ' open' : '') + (draft ? ' draft' : '') + '" data-row="' + id + '">' +
     '<td><div class="thumb' + (r.thumb ? ' has' : '') + (r.thumb && !viewable ? ' pick' : '') + '" data-act="img" data-id="' + id + '" data-f="img" tabindex="0" ' +
-      'title="' + (viewable ? '点击查看大图 · 按住拖动调整位置 · Ctrl+滚轮缩放 · 拖入或粘贴图片替换主图' : '点击上传、拖入图片，或悬停后按 Ctrl+V 粘贴') + '">' +
+      'title="' + (viewable ? '点击查看大图 · 按住拖动调整位置 · Ctrl+滚轮缩放 · 拖入或粘贴图片替换主图'
+                 : r.thumb ? '点击更换图片 · 按住拖动调整位置 · Ctrl+滚轮缩放'
+                 : '点击上传、拖入图片，或悬停后按 Ctrl+V 粘贴') + '">' +
       (r.thumb ? '<img src="' + r.thumb + '" alt="" draggable="false">' +
                  (imgCount(r) > 1 && !draft ? '<button type="button" class="clear" data-act="imgclr" data-id="' + id + '" title="删除主图（下一张成为主图）">×</button>' : '')
                : '<span>+ 图片</span>') +
@@ -822,7 +824,7 @@ document.addEventListener('mouseover', e => {
   const id = t ? t.dataset.id : null;
   if (id && id !== hoverThumb) {                       // preload the full image for drag / Ctrl+wheel
     const r = byId(id);
-    if (r && r.thumb && !drafts.has(r.id)) openFrame(r).catch(() => {});
+    if (r && r.thumb) openFrame(r).catch(() => {});
   }
   hoverThumb = id;
 });
@@ -907,7 +909,7 @@ function zoomCrop(c, W, H, k, fx, fy){
   c.y = (py - fy * c.s * m) / H;
   return clampCrop(c, W, H);
 }
-const wheelFactor = e => Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0015));
+const wheelFactor = e => Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.013 : 0.0004));   // ≈ 4% per wheel notch
 /* place the full image inside a square frame of `size` px */
 function layoutFrame(im, size, f, c){
   if (im.getAttribute('src') !== f.main.url) im.src = f.main.url;
@@ -916,10 +918,11 @@ function layoutFrame(im, size, f, c){
   s.width = f.W * k + 'px'; s.height = f.H * k + 'px';
   s.left = -c.x * f.W * k + 'px'; s.top = -c.y * f.H * k + 'px';
 }
-/* the decoded main image of a row → {main, img, W, H}; null when the row has none */
+/* the decoded main image of a row → {main, img, W, H}; null when the row has none.
+   A draft's image isn't saved yet: it comes from draftImg */
 const decoded = new WeakMap();
 async function openFrame(r){
-  const list = await loadRowImages(r), main = list[0];
+  const main = drafts.has(r.id) ? draftImg.get(r.id) : (await loadRowImages(r))[0];
   if (!main) return null;
   if (!decoded.has(main)) decoded.set(main, loadImg(main.url));
   const img = await decoded.get(main);
@@ -936,7 +939,8 @@ function commitCrop(r, f, c){
   return true;
 }
 
-/* ---- row thumb: press + drag moves the image, Ctrl + wheel zooms; a click without moving opens the viewer ---- */
+/* ---- row thumb (saved rows and drafts): press + drag moves the image, Ctrl + wheel zooms;
+   a click without moving opens the viewer (a draft: the file picker) ---- */
 let tg = null;              // {r, el, x0, y0, dx, dy, moved, f, c0, c}
 let skipThumbClick = false;
 function thumbPan(g){
@@ -949,7 +953,7 @@ $('tbody').addEventListener('pointerdown', e => {
   const t = e.target.closest('.thumb.has');
   if (!t || e.button !== 0 || e.target.closest('.clear')) return;
   const r = byId(t.dataset.id);
-  if (!r || drafts.has(r.id)) return;
+  if (!r) return;
   const g = tg = { r, el: t, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, moved: false, f: null };
   t.setPointerCapture(e.pointerId);
   openFrame(r).then(f => {
@@ -971,7 +975,7 @@ $('tbody').addEventListener('pointermove', e => {
   const g = tg;
   if (!g) return;
   tg = null;
-  if (!g.moved) return;                                 // a plain click: the click handler opens the viewer
+  if (!g.moved) return;                                 // a plain click: the click handler takes it
   skipThumbClick = true;
   setTimeout(() => { skipThumbClick = false; }, 0);
   if (g.c) commitCrop(g.r, g.f, g.c);
@@ -983,7 +987,7 @@ $('tbody').addEventListener('wheel', e => {
   if (!e.ctrlKey && !e.metaKey) return;
   const t = e.target.closest('.thumb.has');
   const r = t && byId(t.dataset.id);
-  if (!r || drafts.has(r.id)) return;
+  if (!r) return;
   e.preventDefault();                                   // no browser zoom
   if (wz && wz.r !== r) wheelEnd();
   if (!wz) {
