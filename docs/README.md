@@ -61,7 +61,7 @@ settings.json         { categories:["XK","MUG"], materials:["树脂","金属","�
 rows/<id>/meta.json   { id, name, category, material, sku, parentAsin, status, liveDate,
                         step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt }
 rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
-rows/<id>/images.json { main:{url,w,h}, extra:[{url,w,h}] }  the row's images: main + up to 5 more (image viewer,
+rows/<id>/images.json { main:{url,w,h}, extra:[{url,w,h,crop}] }  the row's images: main + up to 8 more (image viewer,
                       下单计划 picker). Rows from before 2026-09-29 kept `main` in step2.json; it moves here on first read
 rows/<id>/orders.json { forms:[{id, name, createdAt, generatedAt|null, deliveryDate}] }  the row's 下单计划 list (hub writes it)
 rows/<id>/orders/<fid>.json  one 下单计划 (Step 2 writes it): {order, products:[ONE 货号 card], images:{<imgId>:{url,w,h}}, hub}.
@@ -80,7 +80,7 @@ width / height; negative when zoomed out past the image)`, s` (its side as a fra
 `< 1` zoomed in, `1` fills, up to long ÷ short edge = whole image with white padding)`}`. The full image is
 never modified, so any earlier position can always be restored.
 Rows saved before this have a ~160px thumb and no `thumbCrop`; they upgrade the first time the viewer
-opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The hub table reads **only**
+opens them. `imgCount` = main + extras (1–9; missing → `thumb ? 1 : 0`). The hub table reads **only**
 `meta.json`; `images.json` (several MB) is read only when the image viewer or the 下单计划 picker opens, `orders.json`
 when the 下单 pop-up opens.
 
@@ -152,11 +152,11 @@ when the 下单 pop-up opens.
 |---|---|
 | I1 | Row thumb is a 96×96 square, filled (cover/crop); stored thumb is a 320 square |
 | I2 | Clicking a thumb with an image opens the **image viewer**; without one it opens the file picker. Hover ×, paste and drop on the row thumb still work (× deletes the main image, paste/drop replace it) |
-| I3 | Viewer: big image with < > (images of this row), side panel with 品名/SKU, `产品 x / y`, `图片 n / N`, thumbnail grid + one "+" tile. ← → move through the table's visible rows that have an image. Everything stops at the ends. × / Esc / backdrop close |
-| I4 | Up to 6 images per row (main + 5 extras in `images.json`). Add with "+" (multi-select), paste or drop in the viewer. Per-image delete only; deleting the main image promotes the next one |
-| I5 | Every row must have an image: the last one can't be deleted, only replaced (替换主图) |
+| I3 | Viewer: big square frame with < > (images of this row), side panel with 品名/SKU, `产品 x / y`, `图片 n / N`, thumbnail grid (3 across) + one "+" tile. ← → move through the table's visible rows that have an image. Everything stops at the ends. × / Esc / backdrop close. *(2026-09-29: the "按 ← → 切换" and 主图方框 hints were removed)* |
+| I4 | Up to 9 images per row (main + 8 extras in `images.json`). Add with "+" (multi-select), paste or drop in the viewer. Per-image delete; deleting the main image promotes the next one (keeping its position). **设为主图** (shown on any other image) swaps that image with the 主图; each keeps its own position *(2026-09-29)* |
+| I5 | Every row must have an image: the last one can't be deleted, only replaced. Replace the 主图 by clicking its tile while it is already selected (the first click selects it), or by pasting / dropping an image onto the 主图 tile; paste / drop anywhere else adds an image. 替换主图 was removed *(2026-09-29)* |
 | I6 | New rows are **drafts** (shown, not saved) until they have an image **and** 品名; a draft is lost on reload |
-| I7 | Reposition as in `collage-app.html`: the square frame stays still and the image moves inside it. Press + drag to move, Ctrl + wheel to zoom around the pointer (≈ 4% per notch; zoom out down to the whole image). Works on the row thumb, including a new product's draft row before it is saved (a click without moving still opens the viewer, or the file picker on a draft) and on the viewer's main image, which is shown in a large square frame identical to the row thumb. Saves automatically; the table and the 主图 tile update at once. 重置位置 = centred fill. Changes only `thumb`/`thumbCrop`, never a 下单计划's images. *(A new 下单计划 starts the main image at `thumbCrop`; after that the form's positions are its own — M9 in stage-3-step2.md)* |
+| I7 | Reposition as in `collage-app.html`: the square frame stays still and the image moves inside it. Press + drag to move, Ctrl + wheel to zoom around the pointer (≈ 4% per notch; zoom out down to the whole image). Works on the row thumb, including a new product's draft row before it is saved (a click without moving still opens the viewer, or the file picker on a draft), and on **every image** in the viewer, each shown in a large square frame. Saves automatically. The 主图's position is `meta.thumbCrop` (the table thumb and the 主图 tile update at once); every other image keeps its own `extra[i].crop` in `images.json` (missing = centred), and its tile shows that square. 重置位置 was removed *(2026-09-29)*. Never changes a 下单计划's images. *(A new 下单计划 starts each image at its own position; after that the form's positions are its own — M9 in stage-3-step2.md)* |
 
 ### 下单 pop-up (scoping, 2026-09-29)
 Decisions are listed in [stage-3-step2.md](stage-3-step2.md). In short: a pop-up instead of the workspace page;

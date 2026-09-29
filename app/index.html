@@ -125,8 +125,6 @@ tr.xp-spacer td{padding:0;border:0}
 .iv{background:#fff;border-radius:var(--radius);box-shadow:0 20px 40px rgba(15,23,42,.3);width:100%;height:100%;max-width:1700px;display:flex;overflow:hidden}
 .iv.over{box-shadow:0 0 0 3px var(--primary),0 20px 40px rgba(15,23,42,.3)}
 .iv-stage{flex:1;min-width:0;position:relative;background:#fff}
-.iv-img{position:absolute;inset:2rem 5.5rem;width:calc(100% - 11rem);height:calc(100% - 4rem);object-fit:contain;display:block;user-select:none;-webkit-user-drag:none}
-.iv-img.soft{filter:blur(1px);opacity:.85}
 .iv-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border:1px solid var(--line);border-radius:8px;background:#fff;
   color:var(--dark);font-size:1.6rem;line-height:1;cursor:pointer;box-shadow:0 2px 6px rgba(15,23,42,.08);font-family:inherit}
 .iv-nav:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
@@ -144,8 +142,13 @@ tr.xp-spacer td{padding:0;border:0}
 .iv-tile{position:relative;aspect-ratio:1/1;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:#fff;padding:0}
 .iv-tile img{width:100%;height:100%;object-fit:cover;display:block}
 .iv-tile.on{border:2px solid var(--primary)}
+.iv-tile.over{box-shadow:0 0 0 3px var(--primary)}
+.iv-tile.main.on:hover::after{content:'更换';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(15,23,42,.35);color:#fff;font-size:.78rem;font-weight:600}
+/* a tile image at its square position (tileStyle): percentages of the tile */
+.iv-tile img.pos,.pk-tile img.pos{position:absolute;max-width:none;object-fit:fill}
 .iv-tile .tag{position:absolute;left:3px;bottom:3px;font-size:.62rem;line-height:1.4;background:rgba(15,23,42,.72);color:#fff;border-radius:3px;padding:0 .3rem}
-.iv-tile .del{position:absolute;top:3px;right:3px;width:18px;height:18px;border:none;border-radius:4px;background:rgba(15,23,42,.72);
+.iv-tile .del{position:absolute;z-index:1;top:3px;right:3px;width:18px;height:18px;border:none;border-radius:4px;background:rgba(15,23,42,.72);
   color:#fff;font-size:.7rem;line-height:1;cursor:pointer;opacity:0;padding:0}
 .iv-tile:hover .del{opacity:1}
 .iv-tile.add{border:1px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;font-size:1.5rem;font-family:inherit;display:flex;align-items:center;justify-content:center}
@@ -351,8 +354,7 @@ table.pk .none{color:#cbd5e1}
 <div class="iv-back hidden" id="ivBack">
   <div class="iv" id="iv" role="dialog" aria-modal="true" aria-labelledby="ivTitle">
     <div class="iv-stage" id="ivStage">
-      <img class="iv-img" id="ivImg" alt="">
-      <div class="iv-frame hidden" id="ivFrame" title="按住拖动调整位置，Ctrl+滚轮缩放"><img id="ivFrameImg" alt="" draggable="false"></div>
+      <div class="iv-frame" id="ivFrame" title="按住拖动调整位置，Ctrl+滚轮缩放"><img id="ivFrameImg" alt="" draggable="false"></div>
       <button type="button" class="iv-nav prev" id="ivPrev" title="上一张">‹</button>
       <button type="button" class="iv-nav next" id="ivNext" title="下一张">›</button>
     </div>
@@ -363,11 +365,9 @@ table.pk .none{color:#cbd5e1}
       <div class="iv-count" id="ivCount"></div>
       <div class="iv-grid" id="ivGrid"></div>
       <div class="iv-actions" id="ivActions">
-        <button type="button" class="btn btn-ghost btn-sm" id="ivReplace" title="用新图片替换主图">替换主图</button>
-        <button type="button" class="btn btn-ghost btn-sm" id="ivReset" title="恢复为居中、铺满方框">重置位置</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="ivMakeMain" title="与主图交换位置，表格缩略图随之更新">设为主图</button>
       </div>
-      <div class="hint" id="ivFrameHint">主图方框 = 表格缩略图：按住拖动调整位置，Ctrl + 滚轮缩放（可缩小到显示整张图），自动保存。</div>
-      <div class="hint" id="ivHint">粘贴或拖入图片即可添加，每个产品最多 6 张。</div>
+      <div class="hint" id="ivHint"></div>
     </div>
   </div>
 </div>
@@ -447,7 +447,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const IMG_STORE_MAX = 1400;       // same as Step 2: longest side kept for the full image
 const THUMB_SIZE = 320;           // meta.thumb is a THUMB_SIZE square, cropped by meta.thumbCrop
-const IMG_LIMIT = 6;              // images per row: the main one + 5 more (viewer only)
+const IMG_LIMIT = 9;              // images per row: the main one + 8 more
 
 let settings = null;
 let rows = [];
@@ -1014,7 +1014,7 @@ $('addBtn').addEventListener('click', () => {
 });
 
 /* ============ images ============ */
-/* images.json {main, extra: up to 5 more}: the row's images (the viewer, the 下单计划 picker). Each 下单计划 keeps its own copies.
+/* images.json {main, extra: up to 8 more, each with its own square position crop}: the row's images (the viewer, the 下单计划 picker). Each 下单计划 keeps its own copies.
    meta keeps imgCount and a THUMB_SIZE square thumb cut by thumbCrop
    {x, y: fractions of the width / height, s: side as a fraction of the short edge}.
    Before 下单计划 had several forms, the main image lived in step2.json products[0]: loadRowImages moves it once */
@@ -1068,7 +1068,7 @@ async function updateMainImage(r, full){
                                  extra: Array.isArray(im.extra) ? im.extra : [] });
 }
 
-/* row id → [main, ...extras] as {url,w,h}; loaded when the viewer opens, kept in step with every write */
+/* row id → [main, ...extras] as {url,w,h} (extras also crop: their square position); loaded when the viewer opens, kept in step with every write */
 const imgCache = new Map();
 async function loadRowImages(r){
   if (imgCache.has(r.id)) return imgCache.get(r.id);
@@ -1090,7 +1090,7 @@ async function loadRowImages(r){
 }
 const saveExtras = (r, list) => api.put(imagesPath(r), { main: list[0] || null, extra: list.slice(1) });   // main + extras
 
-/* replace the main image (row thumb click / paste / drop, or 替换主图 in the viewer) */
+/* replace the main image (row thumb click / paste / drop, or the viewer's 主图 tile) */
 async function setRowImage(r, file){
   if (!file || !/^image\//.test(file.type)) return toast('请选择图片文件', true);
   try {
@@ -1122,8 +1122,9 @@ async function deleteMainImage(r){
     const img = await loadImg(next.url);
     next.w = next.w || img.naturalWidth; next.h = next.h || img.naturalHeight;
     list.splice(0, 1);
+    r.thumbCrop = roundCrop(CROP.cropOf(next.crop, img.naturalWidth, img.naturalHeight));   // keeps its own position
+    delete next.crop;
     await saveExtras(r, list);                           // the next image becomes main
-    r.thumbCrop = centerCrop(img.naturalWidth, img.naturalHeight);
     r.thumb = makeThumb(img, r.thumbCrop);
     r.imgCount = list.length;
     saveRow(r); render();
@@ -1162,8 +1163,11 @@ document.addEventListener('mouseover', e => {
 document.addEventListener('paste', e => {
   const files = [...((e.clipboardData || {}).items || [])]
     .filter(it => it.type.indexOf('image/') === 0).map(it => it.getAsFile()).filter(Boolean);
-  if (viewer) {                                         // the viewer is open: paste adds an image
-    if (files.length) { e.preventDefault(); viewerAdd(files); }
+  if (viewer) {                                         // the viewer is open: paste adds an image (over the 主图 tile: replaces it)
+    if (!files.length) return;
+    e.preventDefault();
+    if (document.querySelector('#ivGrid .iv-tile.main:hover')) viewerReplaceMain(files[0]);
+    else viewerAdd(files);
     return;
   }
   if (order) {                                          // the 下单 pop-up: only its picker takes images
@@ -1179,22 +1183,30 @@ document.addEventListener('paste', e => {
 });
 document.addEventListener('dragover', e => {
   e.preventDefault();                                   // never let a stray drop navigate away
-  if (viewer) return $('iv').classList.add('over');
+  if (viewer) {
+    const m = e.target.closest && e.target.closest('#ivGrid .iv-tile.main');
+    document.querySelectorAll('#ivGrid .iv-tile.over').forEach(x => { if (x !== m) x.classList.remove('over'); });
+    if (m) m.classList.add('over');
+    return $('iv').classList.toggle('over', !m);
+  }
   if (order) return $('pkCard').classList.toggle('over', order.view === 'pick');
   const t = e.target.closest && e.target.closest('.thumb');
   document.querySelectorAll('.thumb.over').forEach(x => { if (x !== t) x.classList.remove('over'); });
   if (t) t.classList.add('over');
 });
 document.addEventListener('dragleave', e => {
-  if (viewer && !e.relatedTarget) $('iv').classList.remove('over');
+  if (viewer && !e.relatedTarget) { $('iv').classList.remove('over'); document.querySelectorAll('#ivGrid .iv-tile.over').forEach(x => x.classList.remove('over')); }
   if (order && !e.relatedTarget) $('pkCard').classList.remove('over');
 });
 document.addEventListener('drop', e => {
   e.preventDefault();
-  if (viewer) {                                         // the viewer is open: drop adds images
+  if (viewer) {                                         // the viewer is open: drop adds images (on the 主图 tile: replaces it)
     $('iv').classList.remove('over');
+    document.querySelectorAll('#ivGrid .iv-tile.over').forEach(x => x.classList.remove('over'));
     const files = [...(e.dataTransfer.files || [])];
-    if (files.length) viewerAdd(files);
+    if (!files.length) return;
+    if (e.target.closest && e.target.closest('#ivGrid .iv-tile.main')) viewerReplaceMain(files[0]);
+    else viewerAdd(files);
     return;
   }
   if (order) {                                          // the 下单 pop-up: the picker adds the dropped images
@@ -1227,15 +1239,24 @@ const cropFor = (r, W, H) => CROP.cropOf(r.thumbCrop, W, H);
 const decoded = new WeakMap();
 async function openFrame(r){
   const main = drafts.has(r.id) ? draftImg.get(r.id) : (await loadRowImages(r))[0];
-  if (!main) return null;
-  if (!decoded.has(main)) decoded.set(main, loadImg(main.url));
-  const img = await decoded.get(main);
-  return { main, img, W: img.naturalWidth, H: img.naturalHeight };
+  return main ? decodeImg(main) : null;
+}
+/* any image {url,w,h} → {main: that image, img, W, H} */
+async function decodeImg(im){
+  if (!decoded.has(im)) decoded.set(im, loadImg(im.url));
+  const img = await decoded.get(im);
+  return { main: im, img, W: img.naturalWidth, H: img.naturalHeight };
+}
+const roundCrop = c => { const rd = v => Math.round(v * 1e4) / 1e4; return { x: rd(c.x), y: rd(c.y), s: rd(c.s) }; };
+/* a tile <img> at the image's own square position (percentages of the tile); plain cover without a known size */
+function tileStyle(im){
+  if (!im.w || !im.h) return '';
+  const c = CROP.cropOf(im.crop, im.w, im.h), k = 100 / (c.s * Math.min(im.w, im.h));
+  return ' class="pos" style="width:' + im.w * k + '%;height:' + im.h * k + '%;left:' + (-c.x * im.w * k) + '%;top:' + (-c.y * im.h * k) + '%"';
 }
 /* save a new position: rebuild the 320 thumb from the full image; false when nothing changed */
 function commitCrop(r, f, c){
-  const rd = v => Math.round(v * 1e4) / 1e4, o = r.thumbCrop;
-  const n = { x: rd(c.x), y: rd(c.y), s: rd(c.s) };
+  const o = r.thumbCrop, n = roundCrop(c);
   if (![n.x, n.y, n.s].every(Number.isFinite)) return false;
   if (o && o.x === n.x && o.y === n.y && o.s === n.s) return false;
   r.thumbCrop = n;
@@ -1331,7 +1352,7 @@ function wheelEnd(noRender){
 }
 
 /* ============ image viewer ============ */
-/* {id, idx, list: null while loading | [{url,w,h}], ver, f: main image frame | null, c: its crop, drag, saveTimer} */
+/* {id, idx, list: null while loading | [{url,w,h,crop?}], ver, f: the shown image's frame | null, c: its crop, drag, saveTimer} */
 let viewer = null;
 let viewerBusy = false;     // one add / delete at a time
 let gridKey = '';
@@ -1366,7 +1387,6 @@ function closeViewer(){
   viewer = null; gridKey = '';
   $('ivBack').classList.add('hidden');
   $('iv').classList.remove('over');
-  $('ivImg').removeAttribute('src');
   $('ivFrameImg').removeAttribute('src');
   const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
   if (tr) tr.scrollIntoView({ block: 'nearest' });
@@ -1376,8 +1396,15 @@ function viewerChanged(r){
   if (!viewer || viewer.id !== r.id) return;
   viewer.list = imgCache.get(r.id) || viewer.list;
   viewer.idx = Math.max(0, Math.min(viewer.idx, (viewer.list || []).length - 1));
-  if (viewer.f && (!viewer.list || viewer.f.main !== viewer.list[0])) viewer.f = null;   // the main image changed
+  viewer.f = null;                                      // images (and their positions) may have moved: start again
   viewer.ver++;
+  renderViewer();
+}
+/* show image i (a pending position is saved first) */
+function viewerShow(i){
+  if (!viewer || !viewer.list || i < 0 || i >= viewer.list.length) return;
+  viewerSaveNow();
+  viewer.idx = i;
   renderViewer();
 }
 
@@ -1386,76 +1413,86 @@ function renderViewer(){
   const r = byId(viewer.id);
   if (!r) return closeViewer();
   const list = viewer.list, cur = list && list[viewer.idx];
-  const onMain = !!(cur && viewer.idx === 0);
   const order = viewerOrder(), pos = order.indexOf(r);
   const ids = [r.sku, r.parentAsin].filter(Boolean).map(esc).join(' · ');
   $('ivTitle').textContent = r.name || '未命名';
-  $('ivMeta').innerHTML = ids + (pos > -1 ? (ids ? '<br>' : '') + '产品 ' + (pos + 1) + ' / ' + order.length + ' · 按 ← → 切换' : '');
+  $('ivMeta').innerHTML = ids + (pos > -1 ? (ids ? '<br>' : '') + '产品 ' + (pos + 1) + ' / ' + order.length : '');
   $('ivCount').textContent = !list ? '加载中…' : list.length ? '图片 ' + (viewer.idx + 1) + ' / ' + list.length : '没有找到原图';
   $('ivPrev').disabled = !list || viewer.idx <= 0;
   $('ivNext').disabled = !list || viewer.idx >= list.length - 1;
 
-  /* main image: the square frame (what the table shows); other images: whole */
-  $('ivFrame').classList.toggle('hidden', !onMain);
-  $('ivImg').classList.toggle('hidden', onMain);
-  if (onMain) {
-    layoutViewerFrame();
-    if (!viewer.f) {
-      const want = cur;
-      openFrame(r).then(f => {
-        if (!viewer || viewer.id !== r.id || !f || f.main !== want || viewer.f) return;
-        viewer.f = f; viewer.c = cropFor(r, f.W, f.H);
-        layoutViewerFrame();
-      }).catch(() => {});
-    }
-  } else {
-    const img = $('ivImg'), src = cur ? cur.url : r.thumb;
-    if (img.getAttribute('src') !== src) img.src = src;
-    img.classList.toggle('soft', !cur);
+  /* every image sits in the square frame; the main image's square is the table thumb */
+  if (viewer.f && viewer.f.main !== cur) viewer.f = null;
+  layoutViewerFrame();
+  if (cur && !viewer.f) {
+    const id = r.id, isMain = viewer.idx === 0;
+    decodeImg(cur).then(f => {
+      if (!viewer || viewer.id !== id || viewer.f || !viewer.list || viewer.list[viewer.idx] !== cur) return;
+      viewer.f = f; viewer.c = isMain ? cropFor(r, f.W, f.H) : CROP.cropOf(cur.crop, f.W, f.H);
+      layoutViewerFrame();
+    }).catch(() => {});
   }
 
   const key = viewer.id + '#' + viewer.ver + '#' + (list ? list.length : -1);
   if (key !== gridKey) {                                // rebuild only when the images change
     gridKey = key;
     $('ivGrid').innerHTML = !list ? '' : list.map((x, i) =>
-      '<div class="iv-tile" data-iv="pick" data-i="' + i + '" title="' + (i ? '图片 ' + (i + 1) : '主图（表格中显示）') + '">' +
-        '<img src="' + (i ? x.url : r.thumb) + '" alt="" draggable="false">' + (i ? '' : '<span class="tag">主图</span>') +
+      '<div class="iv-tile' + (i ? '' : ' main') + '" data-iv="pick" data-i="' + i + '" title="' +
+        (i ? '图片 ' + (i + 1) : '主图（表格中显示）· 选中后再次点击可更换主图，也可把图片粘贴或拖到这里') + '">' +
+        (i ? '<img src="' + x.url + '" alt="" draggable="false"' + tileStyle(x) + '>'
+           : '<img src="' + r.thumb + '" alt="" draggable="false"><span class="tag">主图</span>') +
         (list.length > 1 ? '<button type="button" class="del" data-iv="del" data-i="' + i + '" title="删除这张图片">×</button>' : '') +
       '</div>').join('') +
       (list.length < IMG_LIMIT ? '<button type="button" class="iv-tile add" data-iv="add" title="添加图片（可多选，最多 ' + IMG_LIMIT + ' 张）">+</button>' : '');
   }
   $('ivGrid').querySelectorAll('.iv-tile[data-i]').forEach(t => t.classList.toggle('on', +t.dataset.i === viewer.idx));
-  $('ivActions').classList.toggle('hidden', !list || !list.length);
-  $('ivReset').classList.toggle('hidden', !onMain);
-  $('ivFrameHint').classList.toggle('hidden', !onMain);
+  $('ivActions').classList.toggle('hidden', !cur || viewer.idx === 0);
+  $('ivHint').textContent = '粘贴或拖入图片即可添加（拖到主图上即替换主图），每个产品最多 ' + IMG_LIMIT + ' 张。';
 }
-/* size the square to the stage and place the image in it (the thumb stands in while the full image loads) */
+/* size the square to the stage and place the image in it (a stand-in shows while the full image decodes) */
 function layoutViewerFrame(){
   if (!viewer) return;
   const st = $('ivStage'), fr = $('ivFrame'), im = $('ivFrameImg'), r = byId(viewer.id);
   const size = Math.max(120, Math.floor(Math.min(st.clientWidth - 176, st.clientHeight - 64)));
   fr.style.width = fr.style.height = size + 'px';
-  if (viewer.f) layoutFrame(im, fr.clientWidth, viewer.f, viewer.c);
-  else if (r) { im.style.cssText = ''; if (im.getAttribute('src') !== r.thumb) im.src = r.thumb; }
+  if (viewer.f) return layoutFrame(im, fr.clientWidth, viewer.f, viewer.c);
+  const cur = viewer.list && viewer.list[viewer.idx];
+  const src = cur && viewer.idx ? cur.url : r && r.thumb;
+  im.style.cssText = '';
+  if (src && im.getAttribute('src') !== src) im.src = src;
 }
 window.addEventListener('resize', layoutViewerFrame);
 
-/* save the viewer's position: table thumb and the 主图 tile follow at once */
+/* save the viewer's position. The main image: the table thumb and the 主图 tile follow at once;
+   any other image: its crop in images.json and its tile */
 function viewerSave(){
   if (!viewer) return;
   clearTimeout(viewer.saveTimer);
   viewer.saveTimer = null;
-  const r = byId(viewer.id);
-  if (!r || !viewer.f || !commitCrop(r, viewer.f, viewer.c)) return;
-  render();
-  const tile = $('ivGrid').querySelector('.iv-tile[data-i="0"] img');
-  if (tile) tile.src = r.thumb;
+  const r = byId(viewer.id), f = viewer.f, list = viewer.list;
+  if (!r || !f || !list) return;
+  const i = list.indexOf(f.main);
+  if (i === 0) {
+    if (!commitCrop(r, f, viewer.c)) return;
+    render();
+    const tile = $('ivGrid').querySelector('.iv-tile[data-i="0"] img');
+    if (tile) tile.src = r.thumb;
+    return;
+  }
+  if (i < 0) return;
+  const n = roundCrop(viewer.c), o = f.main.crop;
+  if (![n.x, n.y, n.s].every(Number.isFinite) || (o && o.x === n.x && o.y === n.y && o.s === n.s)) return;
+  f.main.crop = n;
+  saveExtras(r, list).catch(() => {});
+  const tile = $('ivGrid').querySelector('.iv-tile[data-i="' + i + '"] img');
+  if (tile) tile.outerHTML = '<img src="' + f.main.url + '" alt="" draggable="false"' + tileStyle(f.main) + '>';
 }
 function viewerSaveNow(){ if (viewer && viewer.saveTimer) viewerSave(); }
 
 $('ivFrame').addEventListener('pointerdown', e => {
   if (!viewer || !viewer.f || e.button !== 0) return;
   e.preventDefault();
+  viewerSaveNow();                                      // a zoom still waiting to save
   $('ivFrame').setPointerCapture(e.pointerId);
   $('ivFrame').classList.add('dragging');
   viewer.drag = { x0: e.clientX, y0: e.clientY, c0: Object.assign({}, viewer.c) };
@@ -1473,11 +1510,11 @@ $('ivFrame').addEventListener('pointermove', e => {
   viewer.drag = null;
   viewerSave();
 }));
-/* Ctrl + wheel anywhere in the viewer: zoom the main image around the pointer; never the browser page */
+/* Ctrl + wheel anywhere in the viewer: zoom the shown image around the pointer; never the browser page */
 $('ivBack').addEventListener('wheel', e => {
   if (!e.ctrlKey && !e.metaKey) return;
   e.preventDefault();
-  if (!viewer || !viewer.f || $('ivFrame').classList.contains('hidden')) return;
+  if (!viewer || !viewer.f || viewer.drag) return;
   const fr = $('ivFrame'), b = fr.getBoundingClientRect(), size = fr.clientWidth;
   const at = v => Math.min(1, Math.max(0, v));
   zoomCrop(viewer.c, viewer.f.W, viewer.f.H, wheelFactor(e),
@@ -1486,21 +1523,9 @@ $('ivBack').addEventListener('wheel', e => {
   clearTimeout(viewer.saveTimer);
   viewer.saveTimer = setTimeout(viewerSave, 300);
 }, { passive: false });
-$('ivReset').addEventListener('click', () => {
-  if (!viewer || !viewer.f) return;
-  viewer.c = centerCrop(viewer.f.W, viewer.f.H);
-  layoutViewerFrame();
-  viewerSave();
-});
 
 /* < > : images within the row · ← → : rows */
-function viewerStep(d){
-  if (!viewer || !viewer.list) return;
-  const i = viewer.idx + d;
-  if (i < 0 || i >= viewer.list.length) return;
-  viewer.idx = i;
-  renderViewer();
-}
+function viewerStep(d){ if (viewer) viewerShow(viewer.idx + d); }
 function viewerRow(d){
   if (!viewer) return;
   const order = viewerOrder();
@@ -1536,10 +1561,25 @@ async function viewerAdd(files){
   if (viewerBusy) return toast('正在处理上一张图片…');
   viewerBusy = true;
   try {
+    viewerSaveNow();
     if (await addRowImages(r, list, files) && viewer && viewer.id === r.id) { viewer.idx = list.length - 1; viewerChanged(r); }
   } catch (e) {
     imgCache.delete(r.id);
     if (!e.offline) toast(e.message, true);
+  } finally {
+    viewerBusy = false;
+  }
+}
+/* a new main image from a file (the 主图 tile: second click, paste or drop); the other images stay as they are */
+async function viewerReplaceMain(file){
+  const r = viewer && byId(viewer.id);
+  if (!r || !viewer.list) return;
+  if (viewerBusy) return toast('正在处理上一张图片…');
+  viewerBusy = true;
+  try {
+    viewerSaveNow();
+    await setRowImage(r, file);
+    if (viewer && viewer.id === r.id) { viewer.idx = 0; viewerChanged(r); }
   } finally {
     viewerBusy = false;
   }
@@ -1550,6 +1590,7 @@ async function viewerDelete(i){
   if (!confirm(i ? '删除这张图片？' : '删除主图？下一张图片将成为主图。')) return;
   viewerBusy = true;
   try {
+    viewerSaveNow();
     if (i === 0) { viewer.idx = 0; return await deleteMainImage(r); }   // show the new main image
     list.splice(i, 1);
     await saveExtras(r, list);
@@ -1564,22 +1605,51 @@ async function viewerDelete(i){
     viewerBusy = false;
   }
 }
+/* 设为主图: image i and the main image swap places, each keeping its own position (the main one's is thumbCrop) */
+async function viewerMakeMain(i){
+  const r = viewer && byId(viewer.id), list = viewer && viewer.list;
+  if (!r || !list || !(i > 0) || !list[i] || viewerBusy) return;
+  viewerBusy = true;
+  try {
+    viewerSaveNow();
+    const old = list[0], im = list[i];
+    const f = await decodeImg(im);
+    if (!viewer || viewer.id !== r.id || viewer.list !== list || list[i] !== im) return;
+    const c = roundCrop(CROP.cropOf(im.crop, f.W, f.H));
+    if (r.thumbCrop) old.crop = Object.assign({}, r.thumbCrop); else delete old.crop;
+    delete im.crop;
+    list[0] = im; list[i] = old;
+    r.thumbCrop = c;
+    r.thumb = makeThumb(f.img, c);
+    await saveExtras(r, list);
+    saveRow(r); render();
+    viewer.idx = 0;
+    viewerChanged(r);
+    toast('已设为主图');
+  } catch (e) {
+    imgCache.delete(r.id);
+    if (!e.offline) toast(e.message, true);
+  } finally {
+    viewerBusy = false;
+  }
+}
 
 $('ivGrid').addEventListener('click', e => {
   const t = e.target.closest('[data-iv]');
   if (!t || !viewer) return;
-  if (t.dataset.iv === 'del') viewerDelete(+t.dataset.i);
-  else if (t.dataset.iv === 'pick') { viewer.idx = +t.dataset.i; renderViewer(); }
+  const i = +t.dataset.i;
+  if (t.dataset.iv === 'del') viewerDelete(i);
+  else if (t.dataset.iv === 'pick') {
+    if (i === 0 && viewer.idx === 0 && viewer.list && viewer.list.length) pickImage(f => viewerReplaceMain(f));   // second click on 主图
+    else viewerShow(i);
+  }
   else if (t.dataset.iv === 'add') pickImage(files => viewerAdd(files), true);
 });
+$('ivMakeMain').addEventListener('click', () => { if (viewer) viewerMakeMain(viewer.idx); });
 $('ivPrev').addEventListener('click', () => viewerStep(-1));
 $('ivNext').addEventListener('click', () => viewerStep(1));
 $('ivClose').addEventListener('click', closeViewer);
 $('ivBack').addEventListener('mousedown', e => { if (e.target === $('ivBack')) closeViewer(); });
-$('ivReplace').addEventListener('click', () => {
-  const r = viewer && byId(viewer.id);
-  if (r) pickImage(f => setRowImage(r, f).then(() => { if (viewer && viewer.id === r.id) { viewer.idx = 0; renderViewer(); } }));
-});
 document.addEventListener('keydown', e => {
   if (!viewer) return;
   if (e.key === 'Escape') { e.preventDefault(); closeViewer(); }
@@ -1836,7 +1906,8 @@ function renderPickGrid(){
   $('pkGrid').innerHTML = pk.list.map((im, i) =>
     '<button type="button" class="pk-tile' + (pk.sel.has(im) ? ' on' : '') + '" data-pk="img" data-i="' + i + '" title="' +
       (i ? '图片 ' + (i + 1) : '主图') + '（点击选择 / 取消）">' +
-      '<img src="' + (i ? im.url : (pk.r.thumb || im.url)) + '" alt="" draggable="false">' +
+      (i || !pk.r.thumb ? '<img src="' + im.url + '" alt="" draggable="false"' + (i ? tileStyle(im) : '') + '>'
+                        : '<img src="' + pk.r.thumb + '" alt="" draggable="false">') +
       (i ? '' : '<span class="tag">主图</span>') + '<span class="chk">✓</span></button>').join('') +
     (pk.list.length < IMG_LIMIT ? '<button type="button" class="pk-tile add" data-pk="add" title="添加图片（可多选，也可粘贴或拖入；最多 ' +
       IMG_LIMIT + ' 张）">+</button>' : '');
@@ -1922,7 +1993,8 @@ $('pkOk').addEventListener('click', async () => {
     /* 图片 = the row's main image on every row (where the table thumb is); each selected image = the 色号 image of its rows */
     const main = pk.list[0], mainId = newId(), images = {}, variants = [];
     images[mainId] = { url: main.url, w: main.w || 0, h: main.h || 0 };
-    const cropOf = im => im === main && r.thumbCrop ? r.thumbCrop : (im.w && im.h ? centerCrop(im.w, im.h) : null);
+    const cropOf = im => im === main ? r.thumbCrop || (im.w && im.h ? centerCrop(im.w, im.h) : null)
+                                     : im.w && im.h ? CROP.cropOf(im.crop, im.w, im.h) : im.crop || null;
     const copy = c => c ? Object.assign({}, c) : null;
     imgs.forEach(im => {
       (lines.length ? lines : [null]).forEach(l => variants.push({
