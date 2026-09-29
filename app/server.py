@@ -5,6 +5,7 @@ API (see docs/README.md):
   GET    /api/rows                   all data/rows/*/meta.json as one array
   GET    /api/data/<path>.json       file contents, or null if missing
   PUT    /api/data/<path>.json       write JSON (temp file + rename)
+  DELETE /api/data/<path>.json       remove one JSON file (e.g. a 下单计划 form)
   DELETE /api/rows/<id>              remove data/rows/<id>/
   POST   /api/output?dir=&name=      write raw body into an allowed output folder
 """
@@ -121,6 +122,13 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_DELETE(self):
         path = urlsplit(self.path).path
+        if path.startswith('/api/data/'):
+            p = data_path(path[len('/api/data/'):])
+            if not p:
+                return self.fail(400, 'bad path')
+            if p.is_file():
+                p.unlink()
+            return self.send_json({'ok': True})
         m = re.fullmatch(r'/api/rows/([^/]+)', path)
         if not m or not ROW_ID.match(m.group(1)):
             return self.fail(400, 'bad row id')

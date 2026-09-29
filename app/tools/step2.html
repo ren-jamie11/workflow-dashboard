@@ -61,9 +61,13 @@ textarea.form-control{resize:vertical;min-height:64px;line-height:1.5}
 /* HUB: 货号 in the card header; the image on the left, the colour / size table beside it */
 .prod-head .code-input{flex:1;max-width:320px;padding:.4rem .65rem;font-weight:600;font-size:.92rem}
 .prod-head .sub{font-weight:400;color:var(--muted);font-size:.85rem;flex:1}
-.prod-row{display:flex;gap:1.25rem;align-items:flex-start}
 .prod-rows{flex:1;min-width:0}
 .prod-rows .vwrap{margin-top:0;border-top:none;padding:0 0 .25rem}
+/* HUB: one card per 下单计划; every row has its own square 图片 (evenly spaced fixed columns) */
+table.vt{table-layout:fixed;min-width:980px}
+td.imgcell{padding:.4rem .3rem}
+.imgbox.rimg{width:72px;height:72px;padding:0;border-width:1px;border-radius:8px}
+.imgbox.rimg .ph{font-size:.68rem}
 
 /* ---------- image drop ---------- */
 .imgbox{
@@ -175,9 +179,8 @@ body.loading .container{opacity:.45;pointer-events:none;transition:opacity .1s .
       <h2>订单信息</h2><!-- HUB: the pop-up header shows the product -->
       <div style="display:flex;align-items:center;gap:.8rem">
         <span class="saved" id="savedAt"></span>
-        <button type="button" class="btn btn-ghost sm" id="syncBtn" style="display:none" title="把报价表的单价、内盒尺寸更新到尺寸相同的行，并添加新的尺寸">从报价更新</button><!-- HUB -->
-        <button type="button" class="btn btn-ghost sm" id="importBtn">导入已有 Excel</button>
-        <input type="file" id="importFile" accept=".xlsx" style="display:none">
+        <button type="button" class="btn btn-ghost sm" id="syncBtn" style="display:none" title="把报价表的单价、内盒尺寸更新到尺寸相同的行">从报价更新</button><!-- HUB -->
+        <!-- HUB: 导入已有 Excel moved to the hub's 下单计划 list (从 Excel 导入 creates a new form) -->
       </div>
     </div>
     <div class="params-body" style="padding:0;border-top:none">
@@ -219,14 +222,11 @@ body.loading .container{opacity:.45;pointer-events:none;transition:opacity .1s .
       </div>
     </div>
   </div>
-  <!-- HUB: 从报价表导入 banner removed — a new form fills itself from 报价; 从报价更新 re-syncs -->
+  <!-- HUB: rows are picked from 报价 in the hub when the form is created; 从报价更新 re-syncs prices -->
 
   <!-- 货号列表 -->
   <div id="prodList"></div>
-
-  <div class="actions" style="margin-bottom:1.5rem">
-    <button type="button" class="btn btn-primary" id="addProd">+ 添加产品货号</button>
-  </div>
+  <!-- HUB: one 货号 card per 下单计划 (+ 添加产品货号 removed) -->
 
   <!-- HUB: Excel 预览 removed -->
 
@@ -344,6 +344,7 @@ const ACC_BOX_W = 100;                      // H 列配件图最大宽度
 const IMG_STORE_MAX = 1400;                 // 存储时最长边上限（保留完整画面）
 const UI_BOX = 200;                         /* HUB: 货号图片方框（CSS px） */
 const SW_BOX = 60;                          /* HUB: 色号图片方框（CSS px） */
+const ROW_BOX = 72;                         /* HUB: 每行图片方框（CSS px） */
 const EXPORT_PX = 900;                      /* HUB: 导出时方形图片的像素边长 */
 const COL_C_PX = Math.round(COL_W[3]*7)+5;  // 图片列 C = 266 px
 const COL_E_PX = Math.round(COL_W[5]*7)+5;  // 色号列 E = 160 px
@@ -356,31 +357,41 @@ const DEFAULTS = {
   /* HUB: 交货日期 / SKU / 是否含真植物 are order-wide (every row); 订单名称 and the 下单数量 default are gone;
      品名 / 材质 are the hub row's (META.name / META.material), never stored here */
   order:{factory:'',date:'',sku:'',plant:'不含',taxRate:'专票1%',freight:'含运费'},
+  /* HUB: exactly one 货号 card; each row has its own 图片: v.img = an id in `images` ({url,w,h}, stored once), v.imgCrop */
   products:[],
+  images:{},
   memory:{factories:[],materials:[],productNames:[],colorNames:[]},
-  hub:{}                                    /* HUB: {prefillDone} */
+  hub:{}                                    /* HUB: {legacy} = copied from the old step2.json, flattened on load */
 };
 let S = JSON.parse(JSON.stringify(DEFAULTS));
 const uid = ()=> Math.random().toString(36).slice(2,10);
 
-/* ============ HUB: 自动保存到 data/rows/<id>/step2.json ============
-   One draft per hub row. Only user actions call save(): the defaults filled in when a row opens are not written,
-   so opening a product without editing it changes nothing on disk. settings are global (hub ⚙ 设置 → 下单), never saved here */
-let ROW = null, META = {}, loading = false, saveTimer = null, pendingPath = null;
-let sent = {main:'', delivery:''};          // last 货号 #1 image / position and 交货日期 told to the hub
-const stateFor = () => ({order:S.order, products:S.products, memory:S.memory, hub:S.hub});
+/* ============ HUB: 自动保存到 data/rows/<id>/orders/<form>.json ============
+   A row has several 下单计划 (the hub's list: rows/<id>/orders.json); this page edits one at a time. Only user actions call
+   save(): the defaults filled in when a form opens are not written, so opening one without editing it changes nothing on disk.
+   The suggestion lists (memory) are shared by the row's forms: rows/<id>/order-memory.json.
+   settings are global (hub ⚙ 设置 → 下单), never saved here */
+let ROW = null, FORM = null, FNAME = '', META = {}, loading = false, saveTimer = null, pendingPath = null, pendingRow = null;
+let memSent = '';                           // order-memory.json as last read / written
+function stateFor(){
+  const images = {};                        // only the images some row still uses
+  S.products.forEach(p => p.variants.forEach(v => { if(v.img && S.images[v.img]) images[v.img] = S.images[v.img]; }));
+  return {order:S.order, products:S.products, images, hub:S.hub};
+}
 function save(){
-  if(!ROW || loading) return;
+  if(!ROW || !FORM || loading) return;
   clearTimeout(saveTimer);
-  pendingPath = 'rows/'+ROW+'/step2.json';
+  pendingPath = 'rows/'+ROW+'/orders/'+FORM+'.json'; pendingRow = ROW;
   saveTimer = setTimeout(saveNow, 400);
-  tellHub();
 }
 function saveNow(){
   clearTimeout(saveTimer); saveTimer = null;
   const path = pendingPath; pendingPath = null;
   if(!path) return Promise.resolve();
-  return api.put(path, stateFor()).then(()=>{
+  const jobs = [api.put(path, stateFor())];
+  const mem = JSON.stringify(S.memory);
+  if(mem !== memSent){ memSent = mem; jobs.push(api.put('rows/'+pendingRow+'/order-memory.json', S.memory)); }
+  return Promise.all(jobs).then(()=>{
     const d = new Date();
     $('savedAt').textContent = '已自动保存 '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
   }).catch(()=>{});
@@ -394,24 +405,8 @@ window.addEventListener('pagehide', ()=>{
     {method:'PUT', keepalive: body.length < 60000, headers:{'Content-Type':'application/json'}, body}); }catch(e){}
 });
 api.onError = err => toast(err.offline ? err.message : '保存失败：'+err.message);
-/* 货号 #1 = the hub row's main image; its square position = meta.thumbCrop. Tell the hub when either changes,
-   and when the latest 交货日期 changes (the hub's 上架时间 estimate follows it) */
-function mainCrop(p){ return p.crop || (p.imgNat ? CROP.centerCrop(p.imgNat.w, p.imgNat.h) : null); }
+/* HUB: forms are independent of the row's images (the table thumb never follows a form). The hub reads 交货日期 at 生成 */
 function latestDate(){ return S.order.date || ''; }   /* HUB: one 交货日期 for the whole order */
-function mainKey(){
-  const p = S.products[0];
-  return p && p.image && p.imgNat ? p.image.length+':'+p.image.slice(-64)+'|'+JSON.stringify(mainCrop(p)) : '';
-}
-function tellHub(){
-  const p = S.products[0], key = mainKey();
-  if(key && key !== sent.main){
-    const imgChanged = key.split('|')[0] !== sent.main.split('|')[0];
-    sent.main = key;
-    embed.post('main-changed', {image: imgChanged ? {url:p.image, w:p.imgNat.w, h:p.imgNat.h} : null, crop:mainCrop(p)});
-  }
-  const d = latestDate();
-  if(d !== sent.delivery){ sent.delivery = d; embed.post('delivery-changed', {deliveryDate:d}); }
-}
 
 /* ============ helpers ============ */
 const $ = id => document.getElementById(id);
@@ -442,10 +437,11 @@ function autoDesc(p,v){
   return parts.map(x=>(x||'').trim()).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
 }
 function descOf(p,v){ return autoDesc(p,v); }   /* HUB: always automatic (the column is hidden, no hand edits) */
-/* HUB: Excel file name = 日期_运营_品名_下单计划.xlsx */
+/* HUB: Excel file name = 日期_运营_品名_<表单名>_下单计划.xlsx */
 function fileName(){
-  const nm = (META.name||S.order.factory||'订单').trim().replace(/[\\/:*?"<>|]/g,'_');
-  return todayParts()+'_'+(S.settings.operator||'Jamie')+'_'+nm+'_下单计划.xlsx';
+  const clean = s => String(s||'').trim().replace(/[\\/:*?"<>|]/g,'_');
+  const nm = clean(META.name||S.order.factory||'订单'), form = clean(FNAME);
+  return todayParts()+'_'+(S.settings.operator||'Jamie')+'_'+nm+(form ? '_'+form : '')+'_下单计划.xlsx';
 }
 
 /* 图片：完整保留画面，只在超大时等比缩小 → {url,w,h} */
@@ -471,16 +467,32 @@ function loadImageFile(file, cb){
   fr.readAsDataURL(file);
 }
 
-/* HUB: square images. Each image has a crop {x,y,s} (shared/crop.js): 货号 p.crop (货号 #1: the hub's meta.thumbCrop),
-   色号 v.colorCrop. A missing crop = the centred square. The old resizable frame (p.frame) is no longer used */
+/* HUB: square images. Each has a crop {x,y,s} (shared/crop.js): a row's 图片 v.imgCrop, its 色号 v.colorCrop.
+   A missing crop = the centred square. A slot = {url, nat, crop, set(crop), setNat(nat)} */
+function rowSlot(v){
+  const im = v && v.img ? S.images[v.img] : null;
+  if(!im) return null;
+  return {url:im.url, nat: im.w ? {w:im.w, h:im.h} : null, crop:v.imgCrop || null,
+          set: c => { v.imgCrop = c; }, setNat: n => { im.w = n.w; im.h = n.h; }};
+}
+function colorSlot(v){
+  if(!v || !v.colorImage) return null;
+  return {url:v.colorImage, nat:v.colorNat, crop:v.colorCrop || null,
+          set: c => { v.colorCrop = c; }, setNat: n => { v.colorNat = n; }};
+}
 const imgSlots = () => {
   const out = [];
-  S.products.forEach(p=>{
-    if(p.image) out.push({o:p, url:'image', nat:'imgNat', crop:'crop'});
-    p.variants.forEach(v=>{ if(v.colorImage) out.push({o:v, url:'colorImage', nat:'colorNat', crop:'colorCrop'}); });
-  });
+  S.products.forEach(p => p.variants.forEach(v => { const r = rowSlot(v), c = colorSlot(v); if(r) out.push(r); if(c) out.push(c); }));
   return out;
 };
+/* an image → its id in S.images (the same picture is stored once) */
+function addImage(d){
+  const hit = Object.keys(S.images).find(k => S.images[k].url === d.url);
+  if(hit) return hit;
+  const id = uid();
+  S.images[id] = {url:d.url, w:d.w||0, h:d.h||0};
+  return id;
+}
 /* the <img> style that shows crop c of a W×H image in a size px square */
 function squareStyle(nat, c, size){
   const k = size / (c.s * Math.min(nat.w, nat.h));
@@ -492,16 +504,16 @@ function squareImg(url, nat, crop, size){
 }
 /* older drafts may miss an image's natural size: measure it (in memory only, nothing is written) */
 function ensureNat(){
-  const todo = imgSlots().filter(s => !s.o[s.nat] || !s.o[s.nat].w);
+  const todo = imgSlots().filter(s => !s.nat || !s.nat.w);
   let pending = todo.length;
   const row = ROW;
   todo.forEach(s=>{
     const im = new Image();
     im.onload = im.onerror = () => {
-      if(im.naturalWidth) s.o[s.nat] = {w:im.naturalWidth, h:im.naturalHeight};
+      if(im.naturalWidth) s.setNat({w:im.naturalWidth, h:im.naturalHeight});
       if(--pending === 0 && row === ROW) render();
     };
-    im.src = s.o[s.url];
+    im.src = s.url;
   });
 }
 
@@ -512,14 +524,13 @@ function validate(){
   if(!(META.name||'').trim()) miss.push('品名');           /* HUB: order-wide fields, checked once */
   if(!(S.order.date||'').trim()) miss.push('交货日期');
   if(!(S.order.sku||'').trim()) miss.push('SKU 前缀');
-  if(!S.products.length) miss.push('至少一个产品货号');
-  S.products.forEach((p,pi)=>{
-    const tag = '货号 '+(p.code.trim()||('#'+(pi+1)));
-    if(!p.code.trim()) miss.push(tag+'：产品货号');
-    if(!p.image) miss.push(tag+'：图片');
-    if(!p.variants.length) miss.push(tag+'：至少一个颜色/尺寸');
+  /* HUB: one 货号 card; the 图片 is per row */
+  S.products.forEach(p=>{
+    if(!p.code.trim()) miss.push('产品货号');
+    if(!p.variants.length) miss.push('至少一行');
     p.variants.forEach((v,vi)=>{
-      const vt = tag+' 第'+(vi+1)+'行';
+      const vt = '第'+(vi+1)+'行';
+      if(!rowSlot(v)) miss.push(vt+'：图片');
       if(!String(v.price).trim()) miss.push(vt+'：产品单价');
       if(!(v.boxSize||'').trim()) miss.push(vt+'：预估内盒尺寸');
       if(!String(v.qty==null?'':v.qty).trim()) miss.push(vt+'：下单数量');
@@ -557,29 +568,32 @@ function renderOrder(){
   $('syncBtn').style.display = step1Rows.length ? '' : 'none';
 }
 function renderProducts(){
+  /* HUB: one 货号 card per 下单计划; each row has its own square 图片 (drag / Ctrl + wheel to position it) */
   const wrap = $('prodList');
-  if(!S.products.length){
-    wrap.innerHTML = '<div class="empty"><b>还没有产品货号</b>点击下方「+ 添加产品货号」开始。同一货号下可添加多个颜色 / 尺寸 / 套数。</div>';
-    return;
-  }
+  if(!S.products.length){ wrap.innerHTML = ''; return; }
   wrap.innerHTML = S.products.map((p,pi)=>{
     const rows = p.variants.map((v,vi)=>{
+      const rs = rowSlot(v);
       return '<tr data-vid="'+v.id+'">'+
-        '<td class="gutter" style="width:40px;text-align:center;color:#cbd5e1;font-size:.8rem">'+(vi+1)+'</td>'+
-        '<td style="min-width:190px"><div class="colorcell">'+
+        '<td class="gutter" style="text-align:center;color:#cbd5e1;font-size:.8rem">'+(vi+1)+'</td>'+
+        '<td class="imgcell"><div class="imgbox rimg'+(rs?' has':' missing')+'" data-act="rimg" data-pi="'+pi+'" data-vi="'+vi+'" title="'+
+          (rs?'点击更换 · 按住拖动调整位置 · Ctrl+滚轮缩放':'点击上传、拖入，或悬停后按 Ctrl+V 粘贴')+'">'+
+          (rs?squareImg(rs.url, rs.nat, rs.crop, ROW_BOX):'<span class="ph">图片</span>')+
+        '</div></td>'+
+        '<td><div class="colorcell">'+
           /* HUB: square 色号 image, press + drag / Ctrl + wheel to position it */
           '<div class="imgbox sm'+(v.colorImage?' has':'')+'" data-act="cimg" data-pi="'+pi+'" data-vi="'+vi+'" title="'+
             (v.colorImage?'点击更换 · 按住拖动调整位置 · Ctrl+滚轮缩放':'点击上传、拖入，或悬停后按 Ctrl+V 粘贴')+'">'+
             (v.colorImage?squareImg(v.colorImage, v.colorNat, v.colorCrop, SW_BOX)+'<button class="clear" data-act="cimgclr" data-pi="'+pi+'" data-vi="'+vi+'">×</button>':'<span class="ph">图</span>')+
           '</div>'+
           '<input class="cell-input" list="dlColor" data-f="colorCode" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.colorCode)+'" placeholder="色号 / 颜色名"></div></td>'+
-        '<td style="width:110px"><input class="cell-input" data-f="size" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.size)+'" placeholder="14oz"></td>'+
-        '<td style="width:86px"><input class="cell-input num" data-f="setQty" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.setQty)+'" placeholder="4"></td>'+
-        '<td style="width:92px"><input class="cell-input num'+(String(v.price).trim()?'':' missing')+'" data-f="price" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.price)+'" placeholder="28"></td>'+
-        '<td style="width:160px"><input class="cell-input'+((v.boxSize||'').trim()?'':' missing')+'" data-f="boxSize" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.boxSize)+'" placeholder="25.5x25.5x12cm"></td>'+
-        '<td style="width:92px"><input class="cell-input num'+(String(v.qty==null?'':v.qty).trim()?'':' missing')+'" data-f="qty" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.qty)+'" placeholder="200"></td>'+
+        '<td><input class="cell-input" data-f="size" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.size)+'" placeholder="4x6"></td>'+
+        '<td><input class="cell-input num" data-f="setQty" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.setQty)+'" placeholder="4"></td>'+
+        '<td><input class="cell-input num'+(String(v.price).trim()?'':' missing')+'" data-f="price" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.price)+'" placeholder="28"></td>'+
+        '<td><input class="cell-input'+((v.boxSize||'').trim()?'':' missing')+'" data-f="boxSize" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.boxSize)+'" placeholder="25.5x25.5x12cm"></td>'+
+        '<td><input class="cell-input num'+(String(v.qty==null?'':v.qty).trim()?'':' missing')+'" data-f="qty" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.qty)+'" placeholder="200"></td>'+
         /* HUB: 交货日期 / SKU are in 订单信息; 产品描述 is written automatically at 生成 */
-        '<td style="width:64px;text-align:center">'+
+        '<td style="text-align:center">'+
           '<button class="del-btn" data-act="vdup" data-pi="'+pi+'" data-vi="'+vi+'" title="复制此行">⧉</button>'+
           '<button class="del-btn" data-act="vdel" data-pi="'+pi+'" data-vi="'+vi+'" title="删除此行">×</button></td>'+
       '</tr>';
@@ -587,36 +601,21 @@ function renderProducts(){
 
     return '<div class="prod" draggable="false" data-pi="'+pi+'">'+
       '<div class="prod-head">'+
-        '<span class="grip" data-act="grip" draggable="true" data-pi="'+pi+'" title="拖动排序">⠿</span>'+
         /* HUB: 产品货号 is edited in the card header; 产品名称 / 材质 / 是否含真植物 are in 订单信息 */
         '<input class="form-control code-input'+(p.code.trim()?'':' missing')+'" data-pf="code" data-pi="'+pi+'" value="'+esc(p.code)+'" placeholder="产品货号 *  例 HZ5404">'+
-        '<span class="sub">'+p.variants.length+' 个颜色 / 尺寸</span>'+
-        '<button class="btn btn-ghost sm" data-act="pdup" data-pi="'+pi+'">复制整个货号</button>'+
-        '<button class="del-btn" data-act="pdel" data-pi="'+pi+'" title="删除货号">×</button>'+
+        '<span class="sub">'+p.variants.length+' 行</span>'+
       '</div>'+
       '<div class="prod-body">'+
-        '<div class="prod-row">'+
-          '<div>'+
-            (function(){
-              if(!p.image)
-                return '<div class="imgbox empty sq missing" data-act="pimg" data-pi="'+pi+'" tabindex="0">'+
-                       '<span class="ph"><b>点击上传</b>拖入图片，或按 Ctrl+V 粘贴</span></div>';
-              /* HUB: a 1:1 square; the image moves inside it. 货号 #1 = the product's main image: never emptied */
-              return '<div class="imgbox sq has" data-act="pimg" data-pi="'+pi+'" tabindex="0" title="'+
-                       (pi ? '' : '货号 #1 的图片 = 产品主图（与总览表格同步）\n')+'点击更换 · 按住拖动调整位置 · Ctrl+滚轮缩放">'+
-                       squareImg(p.image, p.imgNat, p.crop, UI_BOX)+
-                       (pi ? '<button class="clear" data-act="pimgclr" data-pi="'+pi+'">×</button>' : '')+
-                     '</div>';
-            })()+
-          '</div>'+
-          '<div class="prod-rows">'+
-            '<div class="vwrap"><table><thead><tr>'+
-              '<th class="gutter" style="width:40px"></th><th>产品色号</th><th>产品尺寸</th><th>套数</th>'+
-              '<th>单价 (￥)</th><th>预估内盒尺寸</th><th>下单数量</th><th style="width:64px"></th>'+
-            '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
-            '<div class="actions tight">'+
-              '<button class="btn btn-ghost sm" data-act="vadd" data-pi="'+pi+'">+ 添加颜色 / 尺寸</button>'+
-            '</div>'+
+        '<div class="prod-rows">'+
+          '<div class="vwrap"><table class="vt"><colgroup>'+
+            '<col style="width:40px"><col style="width:92px"><col style="width:220px"><col style="width:150px"><col style="width:100px">'+
+            '<col style="width:120px"><col style="width:170px"><col style="width:120px"><col style="width:72px">'+
+          '</colgroup><thead><tr>'+
+            '<th class="gutter"></th><th>图片</th><th>产品色号</th><th>产品尺寸</th><th>套数</th>'+
+            '<th>单价 (￥)</th><th>预估内盒尺寸</th><th>下单数量</th><th></th>'+
+          '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
+          '<div class="actions tight">'+
+            '<button class="btn btn-ghost sm" data-act="vadd" data-pi="'+pi+'">+ 添加一行</button>'+
           '</div>'+
         '</div>'+
       '</div></div>';
@@ -633,10 +632,11 @@ function buildRows(){
       const setq = String(v.setQty).trim();
       const ps = v.pass || {};
       const keep = k => ps[k]!==undefined && ps[k]!==null ? ps[k] : '';
+      const rs = rowSlot(v);                 /* HUB: every row has its own 图片 */
       out.push({
-        groupStart: vi===0,
-        crop: v.imgOverride ? null : (p.crop || null),   /* HUB: 方形取景（行内图片 = 居中方形） */
-        image: v.imgOverride || p.image,      // 行内图片优先于货号图片
+        groupStart: vi===0 || v.img !== p.variants[vi-1].img,   /* HUB: rows of one image = one group */
+        crop: rs ? rs.crop : null,            /* HUB: 方形取景 */
+        image: rs ? rs.url : null,
         colorImage: v.colorImage,
         colorCrop: v.colorCrop || null,       /* HUB */
         accImg: v.accImg || null,             // 配件图片（导入时保留）
@@ -661,31 +661,18 @@ function buildRows(){
   return out;
 }
 function renderPreview(){ /* HUB: Excel 预览 removed */ }
-/* HUB: 报价 → 下单. A fresh form (no variant filled in yet) fills 货号 #1 from the row's 报价 lines when it opens
-   (in memory: written with the first edit). 从报价更新 re-syncs later. Nothing flows back to 报价 */
+/* HUB: 报价 → 下单. The rows of a new form are picked from 报价 in the hub's picker (images × lines).
+   从报价更新 re-syncs prices later. Nothing flows back to 报价 */
 let step1Rows = [];
-const variantFilled = v => [v.colorCode, v.size, v.price, v.boxSize, v.colorImage].some(x => String(x||'').trim());
 const s1Box = r => [r.l, r.w, r.h].every(x => String(x==null?'':x).trim()) ? r.l+'x'+r.w+'x'+r.h+'cm' : '';
 const s1Val = x => String(x==null?'':x).trim();
-function autoFillFromStep1(){
-  const p = S.products[0];
-  if(!p || S.hub.prefillDone || !step1Rows.length || S.products.some(q => q.variants.some(variantFilled))) return;
-  step1Rows.forEach((r,i)=>{
-    const v = p.variants[i] || (p.variants[i] = newVariant(p));
-    const fill = (k, val) => { if(!String(v[k]||'').trim() && val) v[k] = val; };
-    fill('size', s1Val(r.sku)); fill('price', s1Val(r.price)); fill('boxSize', s1Box(r));
-  });
-  S.hub.prefillDone = true;
-}
-/* 从报价更新: a labelled 报价 line updates every row (any 货号) whose 尺寸 equals its label; an unlabelled line updates
-   货号 #1's row at the same position. 单价 / 内盒尺寸 are overwritten when 报价 has a value. Labelled lines that match
-   no row are added to 货号 #1. Rows that aren't in 报价 are left alone */
+/* 从报价更新: a labelled 报价 line (尺寸 / 规格) updates every row whose 尺寸 equals it: 单价 / 内盒尺寸 are overwritten
+   when 报价 has a value. Lines are never added (the form holds only what was picked); unlabelled lines are skipped */
 function syncFromStep1(){
-  const p0 = S.products[0];
-  if(!p0 || !step1Rows.length) return;
+  if(!S.products.length || !step1Rows.length) return;
   const key = s => String(s==null?'':s).trim().toLowerCase();
   const before = S.products.map(p => [p, JSON.parse(JSON.stringify(p.variants))]);
-  const touched = new Set(), adds = [];
+  const touched = new Set();
   const put = (v, r) => {
     const price = s1Val(r.price), box = s1Box(r);
     let ch = false;
@@ -693,22 +680,14 @@ function syncFromStep1(){
     if(box && (v.boxSize||'').trim() !== box){ v.boxSize = box; ch = true; }
     if(ch) touched.add(v.id);
   };
-  step1Rows.forEach((r,i)=>{
+  step1Rows.forEach(r=>{
     const label = key(r.sku);
-    if(!label){ if(p0.variants[i]) put(p0.variants[i], r); return; }
-    const hits = [];
-    S.products.forEach(p => p.variants.forEach(v => { if(key(v.size) === label) hits.push(v); }));
-    if(hits.length) hits.forEach(v => put(v, r)); else adds.push(r);
+    if(!label) return;
+    S.products.forEach(p => p.variants.forEach(v => { if(key(v.size) === label) put(v, r); }));
   });
-  adds.forEach(r=>{
-    const v = newVariant(p0);
-    v.size = s1Val(r.sku); v.price = s1Val(r.price); v.boxSize = s1Box(r);
-    p0.variants.push(v);
-  });
-  S.hub.prefillDone = true;
-  if(!touched.size && !adds.length) return toast('已与报价一致');
+  if(!touched.size) return toast('已与报价一致');
   clearSel(); save(); render();
-  showToast('已从报价更新 '+touched.size+' 行'+(adds.length ? '，新增 '+adds.length+' 行' : ''), {label:'撤销', fn:()=>{
+  showToast('已从报价更新 '+touched.size+' 行', {label:'撤销', fn:()=>{
     before.forEach(([p, vs]) => { p.variants = vs; });
     clearSel(); save(); render();
     toast('已撤销');
@@ -726,22 +705,35 @@ function render(){ renderSettings(); renderOrder(); renderProducts(); renderPrev
 
 /* ============ 数据操作 ============ */
 function newVariant(p){
-  /* HUB: 交货日期 / SKU are order-wide; 下单数量 starts as the row above's */
+  /* HUB: 交货日期 / SKU are order-wide; 下单数量 and the 图片 (with its position) start as the row above's */
   const last = p && p.variants.length ? p.variants[p.variants.length-1] : null;
   return {id:uid(),colorCode:'',colorImage:null,size:'',setQty:'',price:'',boxSize:'',
     qty: last && last.qty != null ? last.qty : '',
-    imgOverride:null, accImg:null, colorNat:null, gRaw:'', pass:{}};
+    img: last ? last.img || null : null, imgCrop: last && last.imgCrop ? Object.assign({}, last.imgCrop) : null,
+    accImg:null, colorNat:null, gRaw:'', pass:{}};
 }
-function addProduct(){
-  S.products.push({id:uid(),code:'',   /* HUB: 品名 / 材质 / 是否含真植物 are in 订单信息 */
-    image:null, imgNat:null, crop:null, variants:[]});
-  const p = S.products[S.products.length-1];
-  p.variants.push(newVariant(p));
-  save(); render();
-  const cards = document.querySelectorAll('.prod');
-  const last = cards[cards.length-1];
-  if(last){ last.scrollIntoView({behavior:'smooth',block:'center'}); const i=last.querySelector('[data-pf="code"]'); if(i) i.focus(); }
+/* HUB: one 货号 card per form. Older drafts (several cards, the image on the card) and imported files are flattened:
+   every row keeps its image (a row's imgOverride, else its card's image) and position, in the original order.
+   crop0 = the position of the first card's image (the old 货号 #1 = the row's main image → meta.thumbCrop) */
+function flatten(products, crop0){
+  const out = {id:uid(), code:'', image:null, imgNat:null, crop:null, variants:[]};
+  products.forEach((p,pi)=>{
+    if(!out.code.trim() && String(p.code||'').trim()) out.code = String(p.code);
+    const vs = p.variants && p.variants.length ? p.variants : (p.image ? [newVariant(null)] : []);
+    vs.forEach(v=>{
+      const url = v.imgOverride || p.image;
+      if(url && !v.img){
+        const nat = v.imgOverride ? null : p.imgNat;
+        v.img = addImage({url, w: nat ? nat.w : 0, h: nat ? nat.h : 0});
+        v.imgCrop = v.imgOverride ? null : ((pi === 0 && crop0) ? Object.assign({}, crop0) : (p.crop || null));
+      }
+      delete v.imgOverride;
+      out.variants.push(v);
+    });
+  });
+  return [out];
 }
+const needsFlatten = () => S.products.length > 1 || S.products.some(p => p.image);
 
 
 /* ============ 行多选 / 复制粘贴 ============ */
@@ -832,7 +824,7 @@ function deleteSelected(){
   const p = S.products.find(x=>x.id===sel.pid);
   if(!p || !sel.ids.size) return;
   const keep = p.variants.filter(v=>!sel.ids.has(v.id));
-  if(!keep.length) return toast('每个货号至少保留一行');
+  if(!keep.length) return toast('至少保留一行');
   const n = p.variants.length - keep.length;
   p.variants = keep;
   clearSel(); save(); render();
@@ -937,12 +929,12 @@ document.addEventListener('keydown', e=>{
 });
 
 /* ============ HUB: 方形图片 — 按住拖动调整位置，Ctrl + 滚轮缩放（与总览表格的缩略图相同） ============ */
-/* the image object behind an .imgbox: {o, url, nat, crop} as in imgSlots(), or null */
+/* the image slot behind an .imgbox (see rowSlot / colorSlot), or null while its size is unknown */
 function slotOf(box){
   const p = S.products[+box.dataset.pi]; if(!p) return null;
-  if(box.dataset.act === 'pimg') return p.image && p.imgNat ? {o:p, url:'image', nat:'imgNat', crop:'crop'} : null;
   const v = p.variants[+box.dataset.vi];
-  return v && v.colorImage && v.colorNat ? {o:v, url:'colorImage', nat:'colorNat', crop:'colorCrop'} : null;
+  const s = box.dataset.act === 'rimg' ? rowSlot(v) : colorSlot(v);
+  return s && s.nat && s.nat.w ? s : null;
 }
 let pan = null, skipImgClick = false;       // pan: {box, s, size, x0, y0, c0, c, moved}
 document.addEventListener('pointerdown', e=>{
@@ -950,8 +942,8 @@ document.addEventListener('pointerdown', e=>{
   if(!box || e.button!==0 || e.target.closest('.clear')) return;
   const s = slotOf(box); if(!s) return;
   if(wz) wheelEnd();                        // a zoom still waiting to be saved: the drag starts from it
-  const n = s.o[s.nat];
-  pan = {box, s, size:box.clientWidth, x0:e.clientX, y0:e.clientY, c0:CROP.cropOf(s.o[s.crop], n.w, n.h), c:null, moved:false};
+  const n = s.nat;
+  pan = {box, s, size:box.clientWidth, x0:e.clientX, y0:e.clientY, c0:CROP.cropOf(s.crop, n.w, n.h), c:null, moved:false};
   box.setPointerCapture(e.pointerId);
 });
 document.addEventListener('pointermove', e=>{
@@ -959,7 +951,7 @@ document.addEventListener('pointermove', e=>{
   const dx = e.clientX-g.x0, dy = e.clientY-g.y0;
   if(!g.moved && Math.abs(dx)+Math.abs(dy) < 4) return;
   g.moved = true; g.box.classList.add('panning');
-  const n = g.s.o[g.s.nat];
+  const n = g.s.nat;
   g.c = CROP.panCrop(Object.assign({}, g.c0), n.w, n.h, dx/g.size, dy/g.size);
   g.box.querySelector('img').setAttribute('style', squareStyle(n, g.c, g.size));
 });
@@ -969,7 +961,7 @@ document.addEventListener('pointermove', e=>{
   g.box.classList.remove('panning');
   if(!g.moved) return;                      // a plain click: the click handler opens the file picker
   skipImgClick = true; setTimeout(()=>{ skipImgClick = false; }, 0);
-  if(g.c){ g.s.o[g.s.crop] = roundCrop(g.c); save(); }
+  if(g.c){ g.s.set(roundCrop(g.c)); save(); }
 }));
 const roundCrop = c => ({x:Math.round(c.x*1e4)/1e4, y:Math.round(c.y*1e4)/1e4, s:Math.round(c.s*1e4)/1e4});
 let wz = null;                              // Ctrl + wheel: {box, s, c, timer}; saved once the wheel goes quiet
@@ -981,8 +973,8 @@ document.addEventListener('wheel', e=>{
   e.preventDefault();                       // no browser zoom
   if(pan) return;
   if(wz && wz.box !== box) wheelEnd();
-  const n = s.o[s.nat], size = box.clientWidth, b = box.getBoundingClientRect();
-  if(!wz) wz = {box, s, c:CROP.cropOf(s.o[s.crop], n.w, n.h)};
+  const n = s.nat, size = box.clientWidth, b = box.getBoundingClientRect();
+  if(!wz) wz = {box, s, c:CROP.cropOf(s.crop, n.w, n.h)};
   const at = v => Math.min(1, Math.max(0, v));
   CROP.zoomCrop(wz.c, n.w, n.h, CROP.wheelFactor(e),
     at((e.clientX-b.left-box.clientLeft)/size), at((e.clientY-b.top-box.clientTop)/size));
@@ -994,7 +986,7 @@ function wheelEnd(){
   const z = wz; wz = null;
   if(!z) return;
   clearTimeout(z.timer);
-  z.s.o[z.s.crop] = roundCrop(z.c);
+  z.s.set(roundCrop(z.c));
   save();
 }
 
@@ -1006,19 +998,20 @@ function pickImage(cb){
   inp.onchange = () => { if(inp.files[0]) cb(inp.files[0]); };
   inp.click();
 }
-function setProdImg(pi,file){
-  const row = ROW, p = S.products[pi];
+/* HUB: a row's 图片 (this form only; the row's own images in the hub are untouched) */
+function setRowImg(pi,vi,file){
+  const form = FORM, v = S.products[pi] && S.products[pi].variants[vi];
   loadImageFile(file, d=>{
-    if(row !== ROW || !p) return;     /* HUB: switched to another product meanwhile */
-    p.image = d.url; p.imgNat = {w:d.w, h:d.h};
-    p.crop = CROP.centerCrop(d.w, d.h);   /* HUB: a new image starts as the centred square */
+    if(form !== FORM || !v) return;   /* HUB: switched to another form meanwhile */
+    v.img = addImage(d);
+    v.imgCrop = CROP.centerCrop(d.w, d.h);   /* HUB: a new image starts as the centred square */
     save(); render();
   });
 }
 function setColorImg(pi,vi,file){
-  const row = ROW, v = S.products[pi] && S.products[pi].variants[vi];
+  const form = FORM, v = S.products[pi] && S.products[pi].variants[vi];
   loadImageFile(file, d=>{
-    if(row !== ROW || !v) return;     /* HUB */
+    if(form !== FORM || !v) return;   /* HUB */
     v.colorImage = d.url; v.colorNat = {w:d.w, h:d.h};
     v.colorCrop = CROP.centerCrop(d.w, d.h);   /* HUB */
     save(); render();
@@ -1032,7 +1025,7 @@ document.addEventListener('paste', e=>{
       if(it.type.indexOf('image')===0){
         const f = it.getAsFile();
         if(f){ e.preventDefault();
-          if(pasteTarget.kind==='p') setProdImg(pasteTarget.pi,f); else setColorImg(pasteTarget.pi,pasteTarget.vi,f);
+          if(pasteTarget.kind==='r') setRowImg(pasteTarget.pi,pasteTarget.vi,f); else setColorImg(pasteTarget.pi,pasteTarget.vi,f);
           toast('图片已粘贴'); }
         return;
       }
@@ -1042,27 +1035,26 @@ document.addEventListener('paste', e=>{
   if(!inField() && clip){ e.preventDefault(); pasteRows(); }
 });
 document.addEventListener('mouseover', e=>{
-  const box = e.target.closest('[data-act="pimg"],[data-act="cimg"]');
-  pasteTarget = !box ? null : (box.dataset.act==='pimg'
-    ? {kind:'p',pi:+box.dataset.pi} : {kind:'c',pi:+box.dataset.pi,vi:+box.dataset.vi});
+  const box = e.target.closest('[data-act="rimg"],[data-act="cimg"]');   /* HUB: row 图片 / 色号 */
+  pasteTarget = !box ? null : {kind: box.dataset.act==='rimg' ? 'r' : 'c', pi:+box.dataset.pi, vi:+box.dataset.vi};
 });
 document.addEventListener('dragover', e=>{
-  const box = e.target.closest('[data-act="pimg"],[data-act="cimg"]');
+  const box = e.target.closest('[data-act="rimg"],[data-act="cimg"]');
   if(box){ e.preventDefault(); box.classList.add('over'); }
   /* HUB: a file dropped next to a box must not replace this page (the pop-up would lose the form) */
   else if(e.dataTransfer && [...(e.dataTransfer.types||[])].includes('Files')) e.preventDefault();
 });
 document.addEventListener('dragleave', e=>{
-  const box = e.target.closest('[data-act="pimg"],[data-act="cimg"]');
+  const box = e.target.closest('[data-act="rimg"],[data-act="cimg"]');
   if(box) box.classList.remove('over');
 });
 document.addEventListener('drop', e=>{
-  const box = e.target.closest('[data-act="pimg"],[data-act="cimg"]');
+  const box = e.target.closest('[data-act="rimg"],[data-act="cimg"]');
   if(!box){ if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) e.preventDefault(); return; }   /* HUB */
   e.preventDefault(); box.classList.remove('over');
   const f = (e.dataTransfer.files||[])[0];
   if(!f || f.type.indexOf('image')!==0) return toast('请拖入图片文件');
-  if(box.dataset.act==='pimg') setProdImg(+box.dataset.pi,f);
+  if(box.dataset.act==='rimg') setRowImg(+box.dataset.pi,+box.dataset.vi,f);
   else setColorImg(+box.dataset.pi,+box.dataset.vi,f);
 });
 
@@ -1072,29 +1064,17 @@ document.addEventListener('click', e=>{
   const t = e.target.closest('[data-act]'); if(!t) return;
   const act = t.dataset.act, pi = +t.dataset.pi, vi = +t.dataset.vi;
   switch(act){
-    case 'pimgclr': e.stopPropagation(); if(!pi) return;   /* HUB: 货号 #1 keeps its image */
-      { const q=S.products[pi]; q.image=null; q.imgNat=null; q.crop=null; } save(); render(); break;
     case 'cimgclr': e.stopPropagation(); { const v=S.products[pi].variants[vi]; v.colorImage=null; v.colorNat=null; v.colorCrop=null; } save(); render(); break;
-    case 'pimg': if(!skipImgClick) pickImage(f=>setProdImg(pi,f)); break;   /* HUB: not after a drag */
+    case 'rimg': if(!skipImgClick) pickImage(f=>setRowImg(pi,vi,f)); break;   /* HUB: not after a drag */
     case 'cimg': if(!skipImgClick) pickImage(f=>setColorImg(pi,vi,f)); break;
-    case 'pdel': {
-      const next = S.products.filter((x,i)=>i!==pi);
-      if(!keepsMainImage(next)) break;                     /* HUB */
-      if(confirm('删除货号「'+(S.products[pi].code||'未命名')+'」及其全部行？')){ S.products = next; save(); render(); }
-      break;
-    }
-    case 'pdup': {
-      const c = JSON.parse(JSON.stringify(S.products[pi]));
-      c.id = uid(); c.variants.forEach(v=>v.id=uid());
-      S.products.splice(pi+1,0,c); save(); render(); break;
-    }
+    /* HUB: one 货号 card per form: no 删除 / 复制整个货号 */
     case 'vadd': S.products[pi].variants.push(newVariant(S.products[pi])); save(); render(); break;
     case 'vdup': {
       const c = JSON.parse(JSON.stringify(S.products[pi].variants[vi]));
       c.id = uid(); S.products[pi].variants.splice(vi+1,0,c); save(); render(); break;
     }
     case 'vdel':
-      if(S.products[pi].variants.length<=1) return toast('每个货号至少保留一行');
+      if(S.products[pi].variants.length<=1) return toast('至少保留一行');
       S.products[pi].variants.splice(vi,1); save(); render(); break;
   }
 });
@@ -1122,7 +1102,7 @@ function softRefresh(){
       const ci = card.querySelector('.code-input');
       if(ci) ci.classList.toggle('missing', !p.code.trim());
       const sub = card.querySelector('.prod-head .sub');
-      if(sub) sub.textContent = p.variants.length+' 个颜色 / 尺寸';
+      if(sub) sub.textContent = p.variants.length+' 行';
     });
     renderPreview(); renderAlert(); renderOrder();
   },260);
@@ -1135,46 +1115,7 @@ document.addEventListener('change', e=>{
   }
 });
 
-/* 拖动排序 */
-let dragFrom = null;
-document.addEventListener('dragstart', e=>{
-  const g = e.target.closest('[data-act="grip"]'); if(!g) return;
-  dragFrom = +g.dataset.pi;
-  const card = g.closest('.prod'); card.classList.add('dragging');
-  e.dataTransfer.effectAllowed='move';
-  try{ e.dataTransfer.setData('text/plain',String(dragFrom)); }catch(err){}
-});
-document.addEventListener('dragend', ()=>{
-  document.querySelectorAll('.prod').forEach(c=>c.classList.remove('dragging','drop-target'));
-  dragFrom = null;
-});
-document.addEventListener('dragover', e=>{
-  if(dragFrom===null) return;
-  const card = e.target.closest('.prod'); if(!card) return;
-  e.preventDefault();
-  document.querySelectorAll('.prod').forEach(c=>c.classList.remove('drop-target'));
-  if(+card.dataset.pi !== dragFrom) card.classList.add('drop-target');
-});
-document.addEventListener('drop', e=>{
-  if(dragFrom===null) return;
-  const card = e.target.closest('.prod'); if(!card) return;
-  const to = +card.dataset.pi;
-  if(to!==dragFrom){
-    const next = S.products.slice();
-    const [m] = next.splice(dragFrom,1);
-    next.splice(to,0,m);
-    if(!keepsMainImage(next)){ dragFrom = null; return; }   /* HUB */
-    S.products = next;
-    save(); render();
-  }
-  dragFrom = null;
-});
-/* HUB: 货号 #1's image is the product's main image (the hub table thumb), so the first 货号 always needs one */
-function keepsMainImage(next){
-  if(next.length && next[0].image) return true;
-  toast('货号 #1 的图片即产品主图，不能为空');
-  return false;
-}
+/* HUB: 货号 drag-sorting removed (one card per form); the row 图片 is independent of the hub's main image */
 
 /* ============ 顶部字段 ============ */
 /* HUB: 运营 / 店铺 / SKU 前缀 inputs removed (hub ⚙ 设置 → 下单 and 类目) */
@@ -1196,16 +1137,19 @@ $('ofSku').addEventListener('change',e=>{ S.order.sku=e.target.value; save(); so
 $('syncBtn').addEventListener('click', syncFromStep1);
 $('ofTax').addEventListener('input',e=>{ S.order.taxRate=e.target.value; save(); softRefresh(); });
 $('ofFreight').addEventListener('input',e=>{ S.order.freight=e.target.value; save(); softRefresh(); });
-$('addProd').addEventListener('click',addProduct);
 $('clearBtn').addEventListener('click',()=>{
-  if(!confirm('清空这个产品的下单计划？货号 #1 的图片（产品主图）会保留。')) return;   /* HUB */
-  const keep = S.settings, mem = S.memory, main = S.products[0];
+  if(!confirm('清空这个下单计划？第一行的图片会保留。')) return;   /* HUB */
+  const keep = S.settings, mem = S.memory, images = S.images;
+  const v0 = S.products[0] && S.products[0].variants[0];
   S = JSON.parse(JSON.stringify(DEFAULTS));
-  S.settings = keep; S.memory = mem;
-  /* HUB: start again from the row's defaults, keeping the main image and its position */
-  S.products = [{id:uid(), code:'',
-    image: main ? main.image : null, imgNat: main ? main.imgNat : null, crop: main ? main.crop : null, variants:[]}];
-  applyDefaults(); autoFillFromStep1();   /* HUB: starts again from 报价, like a new form */
+  S.settings = keep; S.memory = mem; S.images = images;
+  /* HUB: one blank row, keeping the first row's image and its position */
+  const p = {id:uid(), code:'', image:null, imgNat:null, crop:null, variants:[]};
+  const v = newVariant(p);
+  if(v0){ v.img = v0.img || null; v.imgCrop = v0.imgCrop ? Object.assign({}, v0.imgCrop) : null; }
+  p.variants.push(v);
+  S.products = [p];
+  applyDefaults();
   save(); render(); toast('已清空');
 });
 
@@ -1382,43 +1326,34 @@ async function importWorkbook(file){
   };
 }
 
-function formHasContent(){
-  return S.products.some((p,pi) => p.code.trim() || (pi && p.image) ||   /* HUB: 货号 #1 always has the main image */
-    p.variants.some(v => v.colorCode || v.size || v.price || v.boxSize || v.colorImage));
-}
-
-$('importBtn').addEventListener('click', ()=> $('importFile').click());
-$('importFile').addEventListener('change', async e => {
-  const f = e.target.files && e.target.files[0];
-  e.target.value = '';
-  if(!f) return;
-  if(formHasContent() &&
-     !confirm('导入会覆盖当前表单的全部内容，确定继续？')) return;
-  const b = $('importBtn'); b.disabled = true; b.textContent = '读取中…';
-  const row = ROW, main = S.products[0];
+/* HUB: 从 Excel 导入 (the hub's 下单计划 list) creates a new form and sends the file with load-row. Every 货号 of the file
+   goes into the one card (the first 产品货号 is kept); the row's main image in the hub is never changed */
+async function runImport(file){
+  const form = FORM;
   try{
-    const res = await importWorkbook(f);
-    if(row !== ROW) return;                 /* HUB: switched to another product meanwhile */
+    const res = await importWorkbook(file);
+    if(form !== FORM) return;               /* HUB: switched to another form meanwhile */
     if(!res.products.length) throw new Error('没有读到任何货号');
-    S.products = res.products;
+    const codes = [...new Set(res.products.map(p => normCode(p.code)).filter(Boolean))];
+    S.images = {};
+    S.products = flatten(res.products, null);
     S.order    = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.order)), res.order);
     /* HUB: 运营 / 店铺 stay the global settings; an unknown SKU 前缀 only shows in this form's dropdowns */
+    applyDefaults();
     remember('factories', S.order.factory);
     S.products.forEach(p=>p.variants.forEach(v=>remember('colorNames', v.colorCode)));
-    /* HUB: the file's first image becomes the product's main image (centred); without one, keep the current image */
-    const p0 = S.products[0];
-    if(p0.image) p0.crop = CROP.centerCrop(p0.imgNat.w, p0.imgNat.h);
-    else if(main){ p0.image = main.image; p0.imgNat = main.imgNat; p0.crop = main.crop; }
-    S.hub.prefillDone = true;
-    clearSel(); save(); render();
+    clearSel(); save(); render(); ensureNat();
     const st = res.stats;
-    toast('已导入 '+st.rows+' 行 / '+st.groups+' 个货号 / '+st.images+' 张图片'
+    toast('已导入 '+st.rows+' 行 / '+st.images+' 张图片'
+          + (codes.length > 1 ? '；'+codes.length+' 个货号已合并为「'+codes[0]+'」' : '')
           + (st.skipped ? '（跳过 '+st.skipped+' 张位置异常的图片）' : ''));
   }catch(err){
     console.error(err);
+    if(form !== FORM) return;
     toast('导入失败：'+(err && err.message ? err.message : err));
-  }finally{ b.disabled = false; b.textContent = '导入已有 Excel'; }
-});
+    embed.post('import-failed', {form});    /* HUB: the hub removes the empty form it created */
+  }
+}
 
 /* ============ Excel 生成 ============ */
 /* 按取景框把原图裁出来；exact=true 用精确像素区域（主图），否则按比例取最大区域 */
@@ -1504,7 +1439,7 @@ async function generate(){
   if(!rows.length) return toast('还没有可导出的内容');
   const miss = validate();
   if(miss.length && !confirm('还有 '+miss.length+' 项必填未完成。仍然生成？')) return;   /* HUB: 生成 */
-  const row = ROW, delivery = latestDate();   /* HUB */
+  const row = ROW, form = FORM, delivery = latestDate();   /* HUB */
 
   const wb = new ExcelJS.Workbook();
   wb.creator = S.settings.operator||'Jamie';
@@ -1619,7 +1554,7 @@ async function generate(){
   /* HUB: straight into 下单计划 Order Forms (no dialog); the hub then sets 已下单 and the 交货日期 */
   const saved = await api.output('下单计划 Order Forms', fname, blob);
   savedToast(saved);
-  if(row === ROW) embed.post('step2-generated', {deliveryDate: delivery});
+  embed.post('step2-generated', {row, form, deliveryDate: delivery});   /* HUB: that form is 已生成 */
 }
 $('genBtn').addEventListener('click',()=>{
   const b = $('genBtn'); b.disabled=true; b.textContent='生成中…';
@@ -1656,57 +1591,70 @@ function foldOldDraft(saved){
   delete S.order.orderName; delete S.order.qty;   // no longer used
 }
 let loadSeq = 0;
-async function loadRow(id){
+/* HUB: load-row {id, form, name, file?}: one 下单计划 of a row (rows/<id>/orders/<form>.json) */
+async function loadRow(id, form, name, file){
   const seq = ++loadSeq;
   if(wz) wheelEnd();
   pan = null;
-  await saveNow();                          // the previous product's pending edits
+  await saveNow();                          // the previous form's pending edits
   loading = true;
   document.body.classList.add('loading');
-  ROW = id; embed.row = id;
-  let st, meta, saved, s1;
+  ROW = id; FORM = form || null; FNAME = name || ''; embed.row = id;
+  let st, meta, saved, mem, s1;
   try{
-    [st, meta, saved, s1] = await Promise.all([api.settings(), api.get('rows/'+id+'/meta.json'),
-      api.get('rows/'+id+'/step2.json'), api.get('rows/'+id+'/step1.json')]);
+    [st, meta, saved, mem, s1] = await Promise.all([api.settings(), api.get('rows/'+id+'/meta.json'),
+      FORM ? api.get('rows/'+id+'/orders/'+FORM+'.json') : null, api.get('rows/'+id+'/order-memory.json'),
+      api.get('rows/'+id+'/step1.json')]);
   }catch(e){ return; }                      // offline: api.onError has shown the toast
-  if(seq !== loadSeq) return;               // another product was asked for meanwhile
+  if(seq !== loadSeq) return;               // another form was asked for meanwhile
   META = meta || {};
   S = JSON.parse(JSON.stringify(DEFAULTS));
   if(saved && Array.isArray(saved.products)){
     S.products = saved.products;
     S.order  = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.order)),  saved.order||{});
-    S.memory = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.memory)), saved.memory||{});
+    S.images = Object.assign({}, saved.images||{});
     S.hub    = Object.assign({}, saved.hub||{});
     foldOldDraft(saved);                    /* HUB */
+    /* HUB: a draft copied from the old step2.json: its 货号 #1 image was the row's main image (position = thumbCrop) */
+    if(S.hub.legacy || needsFlatten()) S.products = flatten(S.products, S.hub.legacy ? META.thumbCrop : null);
+    delete S.hub.legacy; delete S.hub.prefillDone;
   }
+  S.memory = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.memory)), mem || (saved && saved.memory) || {});
+  memSent = mem ? JSON.stringify(S.memory) : '';
   applySettings(st);
   applyDefaults();
-  const p0 = S.products[0];
-  if(p0 && META.thumbCrop) p0.crop = Object.assign({}, META.thumbCrop);   // 货号 #1's position = the table thumb's
   step1Rows = (s1 && Array.isArray(s1.rows) ? s1.rows : [])
     .filter(r => ['sku','price','l','w','h'].some(k => String(r[k]==null?'':r[k]).trim()));
-  autoFillFromStep1();                      /* HUB: a fresh form fills from 报价 (in memory until the first edit) */
-  sel = {pid:null, ids:new Set()}; selAnchor = null; clip = null; mq = null; mqWait = null; dragFrom = null;
-  sent = {main: mainKey(), delivery: META.deliveryDate || ''};
+  sel = {pid:null, ids:new Set()}; selAnchor = null; clip = null; mq = null; mqWait = null;
   $('savedAt').textContent = '';
   loading = false;
   document.body.classList.remove('loading');
   render();
   ensureNat();
   window.scrollTo(0, 0);
-  embed.post('loaded');
+  embed.post('loaded', {form: FORM});
+  if(file) runImport(file);                 /* HUB: 从 Excel 导入 */
 }
-embed.on('load-row', d => loadRow(d.id));
+embed.on('load-row', d => loadRow(d.id, d.form, d.name, d.file));
 embed.on('flush', () => {
   if(wz) wheelEnd();
   if(document.activeElement === $('ofPname')) $('ofPname').blur();   /* HUB: commit a 品名 being typed (change → hub) */
   saveNow();
 });
+/* HUB: the hub went back to the list: save, then forget the form (a deleted form must not be written again) */
+embed.on('unload', () => {
+  if(wz) wheelEnd();
+  if(document.activeElement && document.activeElement.blur) document.activeElement.blur();   // commits a field being typed
+  ++loadSeq;                                // a load still in progress is dropped
+  saveNow();                                // takes the pending path and S now
+  FORM = null;
+});
+embed.on('form-renamed', d => { if(d.form === FORM){ FNAME = d.name || ''; if(!loading) renderOrder(); } });
 embed.on('settings-changed', async () => {
   try{ applySettings(await api.settings()); }catch(e){ return; }
   if(ROW && !loading) render();
 });
-if(embed.row) loadRow(embed.row);           // opened directly as tools/step2.html?row=<id>
+if(embed.row) loadRow(embed.row, new URLSearchParams(location.search).get('form'));   // opened directly as tools/step2.html?row=<id>&form=<fid>
 embed.post('ready');
 })();
 </script>

@@ -9,7 +9,7 @@ Read this file first, then only the stage doc you are working on.
 |---|---|---|
 | 1 | [stage-1-hub.md](stage-1-hub.md) | Product tracker: add/filter/delete rows; data saved to `data/` |
 | 2 | [stage-2-step1.md](stage-2-step1.md) | Expand a row to price it (Step 1) and confirm the price |
-| 3 | [stage-3-step2.md](stage-3-step2.md) | 下单 pop-up over the hub (← → between products); Step 2 order form per row; Excel written to `下单计划 Order Forms/` |
+| 3 | [stage-3-step2.md](stage-3-step2.md) | 下单 pop-up over the hub (← → between products); several 下单计划 per row, each built from chosen images × 报价 lines; Excel written to `下单计划 Order Forms/` |
 | 4 | [stage-4-step3.md](stage-4-step3.md) | Step 3 inventory per row; uploads set 已上架 automatically and fill 父ASIN |
 
 ## Launch
@@ -31,6 +31,7 @@ app/
     rows.js            status order, journey state, filter + sort (hub and sidebar)
     embed.js           iframe ↔ parent postMessage (resize, settings-changed, load-row, events)
     crop.js            square image positions (thumbCrop / crop): pan, zoom, render — hub and Step 2
+    pricing.js         报价 price calculation (computeRow, moved unchanged from Step 1) — Step 1 and the 下单计划 picker
     datepicker.js      small popover calendar that can open on a given month
     combo.js           type-to-filter dropdown on a text input (existing values only)
     pinyin.js          pinyin matching for combo.js (shi / shimu / sm → 实木), ~5 KB, no dictionary
@@ -46,6 +47,7 @@ Step 1/2/3 - *.html    ORIGINALS: never edit; they are the reference implementat
 | GET | `/api/rows` | all `data/rows/*/meta.json`, combined into one array |
 | GET / PUT | `/api/data/<path>` | read or write any JSON under `data/` (write = temp file + rename); a missing file returns `null` |
 | DELETE | `/api/rows/<id>` | delete the `data/rows/<id>/` folder |
+| DELETE | `/api/data/<path>` | delete one JSON file under `data/` (a 下单计划 form) |
 | POST | `/api/output?dir=<d>&name=<f>` | write the raw body to one of the two output folders (whitelist); if the name is taken, add ` (1)` |
 
 Binds to `127.0.0.1` only and rejects `..` in paths. If the port is already in use, it just opens the
@@ -59,13 +61,16 @@ settings.json         { categories:["XK","MUG"], materials:["树脂","金属","�
 rows/<id>/meta.json   { id, name, category, material, sku, parentAsin, status, liveDate,
                         step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt }
 rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
-rows/<id>/step2.json  Step 2's `S` without settings: {order, products, memory, hub:{prefillDone}} (images as data URLs);
-                      products[0].image = the row's main image. Square positions: products[i].crop,
-                      variants[j].colorCrop (products[0].crop always follows meta.thumbCrop); `frame` is ignored.
-                      order = {factory, date, sku, plant, taxRate, freight}: 交货日期 / SKU / 是否含真植物 are order-wide;
-                      品名 / 材质 are never stored here (read from meta.json, edited in either place)
-                      Written only after the first edit in the 下单 pop-up (the hub creates the minimal file)
-rows/<id>/images.json { extra:[{url,w,h}] }  up to 5 more images, shown only in the hub image viewer
+rows/<id>/images.json { main:{url,w,h}, extra:[{url,w,h}] }  the row's images: main + up to 5 more (image viewer,
+                      下单计划 picker). Rows from before 2026-09-29 kept `main` in step2.json; it moves here on first read
+rows/<id>/orders.json { forms:[{id, name, createdAt, generatedAt|null, deliveryDate}] }  the row's 下单计划 list (hub writes it)
+rows/<id>/orders/<fid>.json  one 下单计划 (Step 2 writes it): {order, products:[ONE 货号 card], images:{<imgId>:{url,w,h}}, hub}.
+                      Each row: variants[j].img = an id in `images` (each picture stored once) + its own square position
+                      variants[j].imgCrop; 色号 variants[j].colorImage / colorCrop. order = {factory, date, sku, plant, taxRate,
+                      freight}: 交货日期 / SKU / 是否含真植物 are order-wide; 品名 / 材质 are never stored here (meta.json).
+                      Created by the picker's 确认 (or 从 Excel 导入); changed only by edits. Independent of the row's images
+rows/<id>/order-memory.json { factories, materials, productNames, colorNames }  suggestion lists shared by the row's forms
+rows/<id>/step2.json  legacy (one draft per row): copied once into the row's first form (`hub.legacy`), then only a backup
 rows/<id>/step3.json  { seasonality:[12 numbers] }
 sales.json            Step 3 store (sales/skus/inv/manual/lastSeen/snapshotDate), keyed by MSKU
 ```
@@ -76,11 +81,12 @@ width / height; negative when zoomed out past the image)`, s` (its side as a fra
 never modified, so any earlier position can always be restored.
 Rows saved before this have a ~160px thumb and no `thumbCrop`; they upgrade the first time the viewer
 opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The hub table reads **only**
-`meta.json`; `step2.json` (several MB) and `images.json` are read only when the image viewer opens.
+`meta.json`; `images.json` (several MB) is read only when the image viewer or the 下单计划 picker opens, `orders.json`
+when the 下单 pop-up opens.
 
 ### Status and journey rules
 - Status order: `未下单 < 已下单 < 已上架`. It changes automatically and only moves
-  forward: Step 2 生成 → 已下单, first sales in the row's SKU range → 已上架. The dropdown can always
+  forward: 生成 of any 下单计划 → 已下单, first sales in the row's SKU range → 已上架. The dropdown can always
   override it. (生产中 was removed on 2026-09-29; a stored 生产中 loads as 已下单.)
 - Journey steps are **报价 — 下单 — 上架**. A step is:
   - **done**: 报价 when `step1Confirmed` (set by 保存 in the 报价 panel); 下单 when status ≥ 已下单; 上架 when status = 已上架
@@ -104,7 +110,7 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 | A1 | Column **SKU** (`XK_012-023`); real 父ASIN auto-filled from Step 3 uploads, shown as a grey sub-line |
 | A2 | Required **品名** column |
 | A3 | Lenient SKU input (`xk-012-023`, single `XK_406`), normalized; overlap = warning only; unknown prefix → "添加新类目？" or cancel |
-| A4 | One shared image: row image = Step 2 first 货号 image |
+| A4 | ~~One shared image: row image = Step 2 first 货号 image~~ *(Changed 2026-09-29: the row's images live in `images.json`; each 下单计划 copies the images it uses — M-series in [stage-3-step2.md](stage-3-step2.md))* |
 | B1 | Status changes automatically (forward only) with manual override (see rules above) |
 | B2 | Step 1 is done when you click **保存** in the 报价 panel; it stays done after later edits (no undo). *(Changed 2026-09-29: replaced the ✓ 确认价格 button)* |
 | B3 | Soft lock on later steps |
@@ -112,8 +118,8 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 | C1 | One Step 1 table per row, autosaved; Open/Save-as/New menu removed |
 | C2 | 参数设置 global and live (Settings → 报价); changes recalculate every row |
 | C3 | Collapsed row shows no price summary (possible later) |
-| C4 | First open of Step 2 offers a one-click prefill from Step 1 (empty fields only) |
-| D1 | One row = one Step 2 draft = one Excel; several 货号 = several cards in the same row |
+| C4 | ~~First open of Step 2 offers a one-click prefill from Step 1 (empty fields only)~~ *(Changed 2026-09-29: a new 下单计划 is built in a picker from chosen images × ticked 报价 lines)* |
+| D1 | ~~One row = one Step 2 draft = one Excel; several 货号 = several cards in the same row~~ *(Changed 2026-09-29: a row has any number of 下单计划, one Excel each; each has one 货号 card with an image per row)* |
 | D2 | Categories = SKU 前缀 list (`XK` ↔ `XK_`) |
 | D3 | Step 2 quantities do **not** fill Step 3 Units Ordered |
 | D4 | Rows created by hand; no bulk seed import |
@@ -122,7 +128,7 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 | E3 | Seasonality curve per **row** (starts flat, presets available); target days global in Settings |
 | F1 | `启动.bat` + Python server; all data saved as files |
 | F2 | Step 1 保存 → `售价计算 Price Calcs/<品名>_<SKU>_售价.json`; Step 2 生成 → `下单计划 Order Forms/` (no dialog) |
-| F3 | Files load back per row (Step 1 导入 JSON; Step 2 导入已有 Excel) |
+| F3 | Files load back per row (Step 1 导入 JSON; 下单计划 list → 从 Excel 导入 creates a new form) |
 | F4 | Migrate only Step 3 history (old backup JSON → Settings → 上架) |
 | G1 | Search + 状态 / 类目 chips, at most one per group (click the active chip again to clear it) + a 材质 dropdown; categories always grouped; within a group newest first (`createdAt`); no column sorting. *(Changed 2026-09-29)* |
 | G2 | Hub UI in Chinese |
@@ -150,13 +156,13 @@ opens them. `imgCount` = main + extras (1–6; missing → `thumb ? 1 : 0`). The
 | I4 | Up to 6 images per row (main + 5 extras in `images.json`). Add with "+" (multi-select), paste or drop in the viewer. Per-image delete only; deleting the main image promotes the next one |
 | I5 | Every row must have an image: the last one can't be deleted, only replaced (替换主图) |
 | I6 | New rows are **drafts** (shown, not saved) until they have an image **and** 品名; a draft is lost on reload |
-| I7 | Reposition as in `collage-app.html`: the square frame stays still and the image moves inside it. Press + drag to move, Ctrl + wheel to zoom around the pointer (≈ 4% per notch; zoom out down to the whole image). Works on the row thumb, including a new product's draft row before it is saved (a click without moving still opens the viewer, or the file picker on a draft) and on the viewer's main image, which is shown in a large square frame identical to the row thumb. Saves automatically; the table and the 主图 tile update at once. 重置位置 = centred fill. Changes only `thumb`/`thumbCrop`, never Step 2's image. *(Changed 2026-09-29: `thumbCrop` is also 货号 #1's position in Step 2 and in the Excel, and can be changed there too — decision C1 in stage-3-step2.md)* |
+| I7 | Reposition as in `collage-app.html`: the square frame stays still and the image moves inside it. Press + drag to move, Ctrl + wheel to zoom around the pointer (≈ 4% per notch; zoom out down to the whole image). Works on the row thumb, including a new product's draft row before it is saved (a click without moving still opens the viewer, or the file picker on a draft) and on the viewer's main image, which is shown in a large square frame identical to the row thumb. Saves automatically; the table and the 主图 tile update at once. 重置位置 = centred fill. Changes only `thumb`/`thumbCrop`, never a 下单计划's images. *(A new 下单计划 starts the main image at `thumbCrop`; after that the form's positions are its own — M9 in stage-3-step2.md)* |
 
 ### 下单 pop-up (scoping, 2026-09-29)
-Decisions A1–D4 are listed in [stage-3-step2.md](stage-3-step2.md). In short: a pop-up instead of the workspace page;
-← → through the table's visible rows; every Step 2 image is a 1:1 square positioned like the row thumbs, and the
-Excel gets exactly that square (12px margin); 货号 #1 = the main image with one shared position; 运营 / 店铺 in
-Settings → 下单; nothing is written until the first edit.
+Decisions are listed in [stage-3-step2.md](stage-3-step2.md). In short: a pop-up instead of the workspace page;
+← → through the table's visible rows; every Step 2 image is a 1:1 square, and the Excel gets exactly that square
+(12px margin); 运营 / 店铺 in Settings → 下单. Since 2026-09-29 (M1–M16) the pop-up opens the row's **list of 下单计划**;
+a new one is built in a picker (images × 报价 lines) as one 货号 card with an image on every row.
 
 **Out of scope for now:** Amazon upload templates, price preview in the collapsed row, bundling
 several rows into one Excel, Step 3 numbers in the main table.

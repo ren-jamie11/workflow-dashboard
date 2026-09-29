@@ -174,6 +174,53 @@ tr.xp-spacer td{padding:0;border:0}
 .s2-btn:disabled{opacity:.35;cursor:default}
 .s2-btn.close{margin-left:.35rem;font-size:1.15rem}
 #s2Frame{flex:1;min-height:0;width:100%;border:0;display:block;background:#f1f5f9}
+/* the row's 下单计划 list and the picker for a new one (drawn by the hub; the form itself is the tool page) */
+.s2-crumb{display:flex;align-items:center;gap:.7rem;min-width:0;max-width:45%;flex:none}
+.s2-crumb .menu-link{font-size:.82rem;text-decoration:none;white-space:nowrap}
+.s2-crumb .menu-link:hover{text-decoration:underline}
+.s2-fname{font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:text;
+  border-bottom:1px dashed transparent;min-width:0}
+.s2-fname:hover{border-bottom-color:#cbd5e1}
+.s2-pane{flex:1;min-height:0;overflow-y:auto;padding:1.25rem 1.5rem 2rem}
+.s2-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.2rem 1.5rem 1.4rem;max-width:1100px;margin:0 auto}
+.s2-card.over{box-shadow:0 0 0 3px var(--primary),var(--shadow)}
+.s2-card-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding-bottom:.9rem;margin-bottom:1rem;border-bottom:1px solid var(--line)}
+.s2-card-head h2{font-size:1rem;margin:0}
+.s2-card-head .acts{display:flex;gap:.5rem}
+.ol-item{display:flex;align-items:center;gap:1rem;padding:.65rem .8rem;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:#fff}
+.ol-item + .ol-item{margin-top:.5rem}
+.ol-item:hover{border-color:var(--primary);background:#fafbff}
+.ol-name{flex:1;min-width:0;font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ol-name-in{padding:.3rem .5rem;font-size:.9rem;font-weight:600;max-width:420px}
+.ol-date{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ol-st{font-size:.74rem;font-weight:500;border-radius:999px;padding:.1rem .6rem;white-space:nowrap;background:#f1f5f9;color:var(--muted)}
+.ol-st.on{background:var(--s1-bg);color:var(--s1-tx)}
+.ol-item .menu-link{white-space:nowrap}
+.pk-sec + .pk-sec{margin-top:1.4rem}
+.pk-label{font-size:.88rem;font-weight:600;margin-bottom:.65rem}
+.pk-label .note{font-weight:400;color:var(--muted);margin-left:.5rem;font-size:.78rem}
+.pk-grid{display:flex;flex-wrap:wrap;gap:.75rem}
+.pk-tile{position:relative;width:128px;height:128px;border:2px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;background:#fff;padding:0;flex:none}
+.pk-tile img{width:100%;height:100%;object-fit:cover;display:block;opacity:.6;transition:opacity .12s}
+.pk-tile:hover{border-color:#a5b4fc}
+.pk-tile.on{border:3px solid var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.15)}
+.pk-tile.on img{opacity:1}
+.pk-tile .tag{position:absolute;left:4px;bottom:4px;font-size:.66rem;line-height:1.4;background:rgba(15,23,42,.72);color:#fff;border-radius:3px;padding:0 .3rem}
+.pk-tile .chk{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;
+  font-size:.78rem;display:none;align-items:center;justify-content:center}
+.pk-tile.on .chk{display:flex}
+.pk-tile.add{border:2px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;font-size:1.8rem;font-family:inherit}
+.pk-tile.add:hover{border-color:var(--primary);color:var(--primary);background:#eef2ff}
+table.pk{width:100%;border-collapse:collapse;font-size:.88rem}
+table.pk th{background:#f8fafc;color:var(--muted);font-weight:600;font-size:.78rem;text-align:left;padding:.5rem .6rem;border-bottom:2px solid var(--line);white-space:nowrap}
+table.pk td{padding:.5rem .6rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums}
+table.pk tbody tr{cursor:pointer}
+table.pk tbody tr:hover td{background:#fafbff}
+table.pk tr.off td{color:#94a3b8}
+table.pk input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--primary);vertical-align:middle}
+table.pk .none{color:#cbd5e1}
+.pk-foot{display:flex;align-items:center;gap:.75rem;margin-top:1.4rem;padding-top:1rem;border-top:1px solid var(--line)}
+.pk-foot .hint{margin:0 auto 0 0;font-size:.82rem}
 </style>
 </head>
 <body>
@@ -334,13 +381,50 @@ tr.xp-spacer td{padding:0;border:0}
         <div class="s2-title" id="s2Title"></div>
         <div class="s2-meta" id="s2Meta"></div>
       </div>
+      <div class="s2-crumb hidden" id="s2Crumb">
+        <button type="button" class="menu-link" id="s2ToList" title="返回这个产品的全部下单计划">‹ 全部下单计划</button>
+        <span class="s2-fname" id="s2FName" title="点击重命名"></span>
+      </div>
       <span class="s2-warn hidden" id="s2Warn" title="报价还没有保存；仍可先填写下单计划">报价未完成</span>
       <span class="s2-pos" id="s2Pos"></span>
       <button type="button" class="s2-btn" id="s2Prev" title="上一个产品（←）">‹</button>
       <button type="button" class="s2-btn" id="s2Next" title="下一个产品（→）">›</button>
       <button type="button" class="s2-btn close" id="s2Close" title="关闭（Esc）">×</button>
     </div>
-    <iframe id="s2Frame" title="下单计划"></iframe>
+    <!-- the row's 下单计划 list -->
+    <div class="s2-pane hidden" id="s2List">
+      <div class="s2-card">
+        <div class="s2-card-head">
+          <h2>下单计划</h2>
+          <div class="acts">
+            <button type="button" class="btn btn-ghost btn-sm" id="olImport" title="用已有的下单计划 Excel 新建一个下单计划">从 Excel 导入</button>
+            <button type="button" class="btn btn-primary btn-sm" id="olNew">+ 新下单计划</button>
+            <input type="file" id="olFile" accept=".xlsx" class="hidden">
+          </div>
+        </div>
+        <div id="olList"></div>
+      </div>
+    </div>
+    <!-- a new 下单计划: images × 报价 lines -->
+    <div class="s2-pane hidden" id="s2Pick">
+      <div class="s2-card" id="pkCard">
+        <div class="s2-card-head"><h2>新下单计划</h2></div>
+        <div class="pk-sec">
+          <div class="pk-label">选择图片<span class="note">每张图片一组行 · 可粘贴或拖入新图片（加入产品图片）</span></div>
+          <div class="pk-grid" id="pkGrid"></div>
+        </div>
+        <div class="pk-sec">
+          <div class="pk-label">选择报价行<span class="note">每张选中的图片下各生成一行</span></div>
+          <div id="pkLines"></div>
+        </div>
+        <div class="pk-foot">
+          <span class="hint" id="pkSum"></span>
+          <button type="button" class="btn btn-ghost btn-sm" id="pkCancel">取消</button>
+          <button type="button" class="btn btn-primary btn-sm" id="pkOk">确认</button>
+        </div>
+      </div>
+    </div>
+    <iframe id="s2Frame" class="hidden" title="下单计划"></iframe>
   </div>
 </div>
 
@@ -354,6 +438,7 @@ tr.xp-spacer td{padding:0;border:0}
 <script src="shared/combo.js"></script>
 <script src="shared/embed.js"></script>
 <script src="shared/crop.js"></script>
+<script src="shared/pricing.js"></script>
 <script>
 (function(){
 'use strict';
@@ -369,7 +454,7 @@ let rows = [];
 const ui = { q: '', status: '', cat: '', mat: '' };   // '' = no filter
 const justAdded = new Set();      // new rows stay visible whatever the filters, until reload
 const drafts = new Set();         // new rows that aren't saved yet: they need an image and 品名
-const draftImg = new Map();       // draft id → full image, written to step2.json once the draft is saved
+const draftImg = new Map();       // draft id → full image, written to images.json once the draft is saved
 const collapsedCats = new Set();  // collapsed category groups ('' = 未分类); this session only
 const showCat = c => collapsedCats.delete(c || '');   // an edited / new row must not vanish into a collapsed group
 const imgCount = r => r.imgCount != null ? r.imgCount : (r.thumb ? 1 : 0);
@@ -410,7 +495,7 @@ function commitDraft(r){
   drafts.delete(r.id);
   draftImg.delete(r.id);
   api.saveRow(r)
-    .then(() => updateStep2Image(r, full))
+    .then(() => updateMainImage(r, full))
     .then(() => toast('已保存「' + r.name + '」'))
     .catch(() => {});
 }
@@ -929,9 +1014,10 @@ $('addBtn').addEventListener('click', () => {
 });
 
 /* ============ images ============ */
-/* main image: step2.json products[0] (shared with Step 2) · up to 5 more: images.json (viewer only)
+/* images.json {main, extra: up to 5 more}: the row's images (the viewer, the 下单计划 picker). Each 下单计划 keeps its own copies.
    meta keeps imgCount and a THUMB_SIZE square thumb cut by thumbCrop
-   {x, y: fractions of the width / height, s: side as a fraction of the short edge} */
+   {x, y: fractions of the width / height, s: side as a fraction of the short edge}.
+   Before 下单计划 had several forms, the main image lived in step2.json products[0]: loadRowImages moves it once */
 const step2Path = r => 'rows/' + r.id + '/step2.json';
 const imagesPath = r => 'rows/' + r.id + '/images.json';
 
@@ -975,37 +1061,34 @@ async function processImage(file){
   const crop = centerCrop(img.width, img.height);
   return { full: drawScaled(img, IMG_STORE_MAX, 0.85), thumb: makeThumb(img, crop), crop };
 }
-/* the full image lives in step2.json products[0] (shared with Step 2); meta keeps only the thumb */
-async function updateStep2Image(r, full){
-  const path = step2Path(r);
-  let s2 = await api.get(path);
-  if (!s2 || typeof s2 !== 'object') s2 = {};
-  if (!Array.isArray(s2.products)) s2.products = [];
-  if (!s2.products.length) {
-    if (!full) return;
-    s2.products.push({ id: Math.random().toString(36).slice(2, 10), code: '',   // 品名 / 材质 are read from meta
-      image: null, imgNat: null, frame: null, variants: [] });
-  }
-  const p = s2.products[0];
-  p.image = full ? full.url : null;
-  p.imgNat = full ? { w: full.w, h: full.h } : null;
-  p.frame = full ? { w: full.w, h: full.h } : null;
-  await api.put(path, s2);
+/* set (or clear) the row's main image in images.json; the extras stay */
+async function updateMainImage(r, full){
+  const im = await api.get(imagesPath(r)) || {};
+  await api.put(imagesPath(r), { main: full ? { url: full.url, w: full.w, h: full.h } : null,
+                                 extra: Array.isArray(im.extra) ? im.extra : [] });
 }
 
 /* row id → [main, ...extras] as {url,w,h}; loaded when the viewer opens, kept in step with every write */
 const imgCache = new Map();
 async function loadRowImages(r){
   if (imgCache.has(r.id)) return imgCache.get(r.id);
-  const [s2, im] = await Promise.all([api.get(step2Path(r)), api.get(imagesPath(r))]);
-  const p = s2 && Array.isArray(s2.products) ? s2.products[0] : null;
-  const list = [];
-  if (p && p.image) list.push({ url: p.image, w: (p.imgNat && p.imgNat.w) || 0, h: (p.imgNat && p.imgNat.h) || 0 });
-  ((im && Array.isArray(im.extra)) ? im.extra : []).forEach(x => { if (x && x.url) list.push(x); });
+  const im = await api.get(imagesPath(r)) || {};
+  const extra = (Array.isArray(im.extra) ? im.extra : []).filter(x => x && x.url);
+  let main = im.main && im.main.url ? im.main : null;
+  if (!main && !imgCache.has(r.id)) {                  // older rows: the main image is still in step2.json
+    const s2 = await api.get(step2Path(r));
+    const p = s2 && Array.isArray(s2.products) ? s2.products[0] : null;
+    if (p && p.image) {
+      main = { url: p.image, w: (p.imgNat && p.imgNat.w) || 0, h: (p.imgNat && p.imgNat.h) || 0 };
+      await api.put(imagesPath(r), { main, extra });
+    }
+  }
+  if (imgCache.has(r.id)) return imgCache.get(r.id);    // another call finished first
+  const list = main ? [main].concat(extra) : extra;
   imgCache.set(r.id, list);
   return list;
 }
-const saveExtras = (r, list) => api.put(imagesPath(r), { extra: list.slice(1) });
+const saveExtras = (r, list) => api.put(imagesPath(r), { main: list[0] || null, extra: list.slice(1) });   // main + extras
 
 /* replace the main image (row thumb click / paste / drop, or 替换主图 in the viewer) */
 async function setRowImage(r, file){
@@ -1021,7 +1104,7 @@ async function setRowImage(r, file){
       return;
     }
     saveRow(r); render();
-    await updateStep2Image(r, d.full);
+    await updateMainImage(r, d.full);
     const c = imgCache.get(r.id);
     if (c) { if (c.length) c[0] = d.full; else c.push(d.full); }
     viewerChanged(r);
@@ -1038,9 +1121,8 @@ async function deleteMainImage(r){
     const next = list[1];
     const img = await loadImg(next.url);
     next.w = next.w || img.naturalWidth; next.h = next.h || img.naturalHeight;
-    await updateStep2Image(r, next);
     list.splice(0, 1);
-    await saveExtras(r, list);
+    await saveExtras(r, list);                           // the next image becomes main
     r.thumbCrop = centerCrop(img.naturalWidth, img.naturalHeight);
     r.thumb = makeThumb(img, r.thumbCrop);
     r.imgCount = list.length;
@@ -1084,6 +1166,10 @@ document.addEventListener('paste', e => {
     if (files.length) { e.preventDefault(); viewerAdd(files); }
     return;
   }
+  if (order) {                                          // the 下单 pop-up: only its picker takes images
+    if (order.view === 'pick' && files.length) { e.preventDefault(); pickAdd(files); }
+    return;
+  }
   const a = document.activeElement;
   const id = hoverThumb || (a && a.classList && a.classList.contains('thumb') ? a.dataset.id : null);
   const r = id && byId(id);
@@ -1094,12 +1180,14 @@ document.addEventListener('paste', e => {
 document.addEventListener('dragover', e => {
   e.preventDefault();                                   // never let a stray drop navigate away
   if (viewer) return $('iv').classList.add('over');
+  if (order) return $('pkCard').classList.toggle('over', order.view === 'pick');
   const t = e.target.closest && e.target.closest('.thumb');
   document.querySelectorAll('.thumb.over').forEach(x => { if (x !== t) x.classList.remove('over'); });
   if (t) t.classList.add('over');
 });
 document.addEventListener('dragleave', e => {
   if (viewer && !e.relatedTarget) $('iv').classList.remove('over');
+  if (order && !e.relatedTarget) $('pkCard').classList.remove('over');
 });
 document.addEventListener('drop', e => {
   e.preventDefault();
@@ -1107,6 +1195,12 @@ document.addEventListener('drop', e => {
     $('iv').classList.remove('over');
     const files = [...(e.dataTransfer.files || [])];
     if (files.length) viewerAdd(files);
+    return;
+  }
+  if (order) {                                          // the 下单 pop-up: the picker adds the dropped images
+    $('pkCard').classList.remove('over');
+    const files = [...(e.dataTransfer.files || [])];
+    if (order.view === 'pick' && files.length) pickAdd(files);
     return;
   }
   const t = e.target.closest && e.target.closest('.thumb');
@@ -1126,7 +1220,7 @@ $('tbody').addEventListener('keydown', e => {
 });
 
 /* ============ reposition: the frame stays still, the image moves inside it (as in collage-app) ============ */
-/* thumbCrop = the frame as a window onto the full image (see shared/crop.js). 货号 #1 in Step 2 and the Excel use it too */
+/* thumbCrop = the frame as a window onto the full image (see shared/crop.js). A new 下单计划 starts the main image here */
 const cropFor = (r, W, H) => CROP.cropOf(r.thumbCrop, W, H);
 /* the decoded main image of a row → {main, img, W, H}; null when the row has none.
    A draft's image isn't saved yet: it comes from draftImg */
@@ -1415,32 +1509,34 @@ function viewerRow(d){
   if (n) openViewer(n);
 }
 
+/* add image files to row r's images (list = its imgCache entry; the first becomes main when there is none);
+   the row's image limit applies. Resolves to the number added */
+async function addRowImages(r, list, files){
+  const imgs = files.filter(f => f && /^image\//.test(f.type));
+  if (!imgs.length) { toast('请选择图片文件', true); return 0; }
+  const room = IMG_LIMIT - list.length;
+  if (room <= 0) { toast('每个产品最多 ' + IMG_LIMIT + ' 张图片', true); return 0; }
+  const take = imgs.slice(0, room);
+  for (const f of take) {
+    const d = await processImage(f);
+    if (!list.length) { r.thumb = d.thumb; r.thumbCrop = d.crop; }   // no main image yet: this one becomes main
+    list.push(d.full);
+  }
+  await saveExtras(r, list);
+  r.imgCount = list.length;
+  saveRow(r); render();
+  toast(imgs.length > room
+    ? '已添加 ' + take.length + ' 张；每个产品最多 ' + IMG_LIMIT + ' 张，其余 ' + (imgs.length - room) + ' 张未添加'
+    : '已添加 ' + take.length + ' 张图片', imgs.length > room);
+  return take.length;
+}
 async function viewerAdd(files){
   const r = viewer && byId(viewer.id), list = viewer && viewer.list;
   if (!r || !list) return;
   if (viewerBusy) return toast('正在处理上一张图片…');
-  const imgs = files.filter(f => f && /^image\//.test(f.type));
-  if (!imgs.length) return toast('请选择图片文件', true);
-  const room = IMG_LIMIT - list.length;
-  if (room <= 0) return toast('每个产品最多 ' + IMG_LIMIT + ' 张图片', true);
-  const take = imgs.slice(0, room);
   viewerBusy = true;
   try {
-    for (const f of take) {
-      const d = await processImage(f);
-      if (!list.length) {                               // no main image yet: this one becomes main
-        await updateStep2Image(r, d.full);
-        r.thumb = d.thumb; r.thumbCrop = d.crop;
-      }
-      list.push(d.full);
-    }
-    await saveExtras(r, list);
-    r.imgCount = list.length;
-    saveRow(r); render();
-    if (viewer && viewer.id === r.id) { viewer.idx = list.length - 1; viewerChanged(r); }
-    toast(imgs.length > room
-      ? '已添加 ' + take.length + ' 张；每个产品最多 ' + IMG_LIMIT + ' 张，其余 ' + (imgs.length - room) + ' 张未添加'
-      : '已添加 ' + take.length + ' 张图片', imgs.length > room);
+    if (await addRowImages(r, list, files) && viewer && viewer.id === r.id) { viewer.idx = list.length - 1; viewerChanged(r); }
   } catch (e) {
     imgCache.delete(r.id);
     if (!e.offline) toast(e.message, true);
@@ -1492,32 +1588,98 @@ document.addEventListener('keydown', e => {
 });
 
 /* ============ 下单 pop-up (Step 2) ============
-   One tools/step2.html page stays loaded: opening or switching a product sends it load-row {id} (ExcelJS makes the page
-   ~1 MB, so it isn't reloaded per product). The tool autosaves step2.json itself and tells the hub about the main image
-   (货号 #1 = the row's main image, its position = thumbCrop), 交货日期 and 生成. ← → follow the table order as it was
-   when the pop-up opened (a row that leaves the filter after 生成 keeps its place) */
+   A row has several 下单计划: rows/<id>/orders.json lists them ({forms:[{id, name, createdAt, generatedAt, deliveryDate}]}),
+   each form is rows/<id>/orders/<fid>.json. The pop-up has three views: the row's list, the picker for a new form
+   (selected images × ticked 报价 lines), and the form itself: one tools/step2.html page that stays loaded and is switched
+   with load-row {id, form, name} (ExcelJS makes it ~1 MB). Forms are independent of the row's images (never the table
+   thumb). ← → follow the table order as it was when the pop-up opened (a row that leaves the filter after 生成 keeps its
+   place) and always land on the next product's list */
 const s2Frame = $('s2Frame');
-let order = null;           // {id, ids: the ← → order} while the pop-up is open
+let order = null;           // {id, ids: the ← → order, view: 'list' | 'pick' | 'form', form: its orders.json entry, pick, file}
 let s2Ready = false;        // the tool page has loaded and listens for load-row
+const ordersPath = r => 'rows/' + r.id + '/orders.json';
+const formPath = (r, fid) => 'rows/' + r.id + '/orders/' + fid + '.json';
+const memPath = r => 'rows/' + r.id + '/order-memory.json';
+const newId = () => Math.random().toString(36).slice(2, 10);
+const dayOf = ms => { const d = new Date(ms || Date.now());
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+/* a form's default name: its sizes (4x6 · 5x7), else 下单计划 N */
+function formName(sizes, n){
+  const u = [...new Set(sizes.map(s => String(s == null ? '' : s).trim()).filter(Boolean))];
+  if (!u.length) return '下单计划 ' + (n + 1);
+  return u.slice(0, 4).join(' · ') + (u.length > 4 ? ' 等 ' + u.length + ' 个尺寸' : '');
+}
+
+/* the row's list, read once per row. A row without orders.json gets one now: its old step2.json draft (from before a
+   row could have several) becomes the first form, flattened by the tool when it opens (hub.legacy) */
+const ordersP = new Map();
+function ensureOrders(r){
+  if (!ordersP.has(r.id)) ordersP.set(r.id, loadOrders(r).catch(e => { ordersP.delete(r.id); throw e; }));
+  return ordersP.get(r.id);
+}
+async function loadOrders(r){
+  const o = await api.get(ordersPath(r));
+  if (o && Array.isArray(o.forms)) return o;
+  const fresh = { forms: [] };
+  const s2 = await api.get(step2Path(r));
+  if (s2 && Array.isArray(s2.products)) {
+    await loadRowImages(r);                             // moves the main image into images.json first
+    const fid = newId(), draft = Object.assign({}, s2, { hub: { legacy: true } });
+    delete draft.memory;
+    await api.put(formPath(r, fid), draft);
+    if (s2.memory && !(await api.get(memPath(r)))) await api.put(memPath(r), s2.memory);
+    const sizes = [];
+    s2.products.forEach(p => (p.variants || []).forEach(v => sizes.push(v.size)));
+    const done = ROWS.statusRank(r.status) >= ROWS.statusRank('已下单');
+    fresh.forms.push({ id: fid, name: formName(sizes, 0), createdAt: r.createdAt || Date.now(),
+      generatedAt: done ? (r.createdAt || Date.now()) : null, deliveryDate: done ? (r.deliveryDate || '') : '' });
+  }
+  await api.put(ordersPath(r), fresh);
+  return fresh;
+}
+const saveOrders = (r, o) => api.put(ordersPath(r), o).catch(() => {});
+/* meta.deliveryDate = the earliest 交货日期 among the generated forms (the 上架时间 picker opens on it + N days) */
+function updateDelivery(r, o){
+  const ds = o.forms.filter(f => f.generatedAt && f.deliveryDate).map(f => f.deliveryDate).sort();
+  if (ds.length && ds[0] !== (r.deliveryDate || '')) { r.deliveryDate = ds[0]; saveRow(r); }
+}
 
 function openOrder(r){
   if (viewer) closeViewer();
   const ids = tableOrder().map(x => x.id);
-  order = { id: r.id, ids: ids.includes(r.id) ? ids : [r.id] };
+  order = { id: r.id, ids: ids.includes(r.id) ? ids : [r.id], view: null, form: null, pick: null, file: null };
   $('s2Back').classList.remove('hidden');
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  if (!s2Frame.getAttribute('src')) s2Frame.src = 'tools/step2.html';
-  showOrder();
+  if (!s2Frame.getAttribute('src')) s2Frame.src = 'tools/step2.html';   // loads in the background while the list shows
+  showOrder(true);
 }
-function showOrder(){
+/* the current product's list; with autoPick, a product without any 下单计划 goes straight to the picker */
+function showOrder(autoPick){
+  const r = order && byId(order.id);
+  if (!r) return;
+  setView('list');
+  renderOrderList(null);
+  ensureOrders(r).then(o => {
+    if (!order || order.id !== r.id || order.view !== 'list') return;
+    if (autoPick && !o.forms.length) openPicker(r); else renderOrderList(o);
+  }).catch(() => {});
+}
+function setView(v){
+  if (order.view === 'form' && v !== 'form') hubEmbed.send(s2Frame, 'unload');   // the tool saves and forgets the form
+  order.view = v;
+  if (v !== 'form') order.form = null;
+  if (v !== 'pick') order.pick = null;
+  $('s2List').classList.toggle('hidden', v !== 'list');
+  $('s2Pick').classList.toggle('hidden', v !== 'pick');
+  s2Frame.classList.toggle('hidden', v !== 'form');
+  $('pkCard').classList.remove('over');
   renderOrderHead();
-  if (s2Ready && order) hubEmbed.send(s2Frame, 'load-row', { id: order.id });
 }
 function closeOrder(){
   if (!order) return;
   const id = order.id;
+  if (order.view === 'form') hubEmbed.send(s2Frame, 'unload');
   order = null;
-  hubEmbed.send(s2Frame, 'flush');
   $('s2Back').classList.add('hidden');
   const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
   if (tr) tr.scrollIntoView({ block: 'nearest' });
@@ -1529,7 +1691,7 @@ function orderStep(d){
   const n = i > -1 ? ids[i + d] : null;
   if (!n) return;                                       // stops at the ends
   order.id = n;
-  showOrder();
+  showOrder(true);
 }
 function renderOrderHead(){
   const r = order && byId(order.id);
@@ -1542,7 +1704,244 @@ function renderOrderHead(){
   $('s2Pos').textContent = pos > -1 ? '产品 ' + (pos + 1) + ' / ' + ids.length + ' · 按 ← → 切换' : '';
   $('s2Prev').disabled = pos <= 0;
   $('s2Next').disabled = pos < 0 || pos >= ids.length - 1;
+  const f = order.view === 'form' ? order.form : null;
+  $('s2Crumb').classList.toggle('hidden', !f);
+  if (f && !$('s2FName').querySelector('input')) $('s2FName').textContent = f.name;
 }
+
+/* ---- the form view ---- */
+function openForm(r, f, file){
+  setView('form');
+  order.form = f;
+  order.file = file || null;
+  renderOrderHead();
+  sendLoad();
+}
+function sendLoad(){
+  if (!s2Ready || !order || order.view !== 'form' || !order.form) return;
+  const d = { id: order.id, form: order.form.id, name: order.form.name };
+  if (order.file) d.file = order.file;                  // 从 Excel 导入: the tool reads it into the new form
+  order.file = null;
+  hubEmbed.send(s2Frame, 'load-row', d);
+}
+
+/* ---- the list ---- */
+function renderOrderList(o){
+  const el = $('olList');
+  if (!o) { el.innerHTML = '<div class="hint">加载中…</div>'; return; }
+  if (!o.forms.length) {
+    el.innerHTML = '<div class="empty-box"><b>还没有下单计划</b>点击「+ 新下单计划」，选择图片和报价行即可生成。</div>';
+    return;
+  }
+  el.innerHTML = o.forms.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(f =>
+    '<div class="ol-item" data-fid="' + esc(f.id) + '" title="打开">' +
+      '<span class="ol-name">' + esc(f.name) + '</span>' +
+      '<span class="ol-date">创建 ' + dayOf(f.createdAt) + '</span>' +
+      '<span class="ol-st' + (f.generatedAt ? ' on' : '') + '">' + (f.generatedAt ? '已生成' : '未生成') + '</span>' +
+      '<button type="button" class="menu-link" data-ol="rename">重命名</button>' +
+      '<button type="button" class="del-btn" data-ol="del" title="删除这个下单计划">×</button>' +
+    '</div>').join('');
+}
+/* edit a name in place: Enter / leaving the field saves, Esc cancels; done(newName) or done(null) */
+function renameInline(el, cur, done){
+  if (!el || el.querySelector('input')) return;
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.className = 'form-control ol-name-in'; inp.value = cur; inp.maxLength = 60;
+  el.textContent = '';
+  el.appendChild(inp);
+  inp.focus(); inp.select();
+  let over = false;
+  const finish = ok => {
+    if (over) return;
+    over = true;
+    const v = inp.value.trim();
+    el.textContent = cur;
+    done(ok && v && v !== cur ? v : null);
+  };
+  inp.addEventListener('keydown', e => {
+    e.stopPropagation();                                // ← → move the caret, Esc only cancels
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
+  inp.addEventListener('blur', () => finish(true));
+  inp.addEventListener('click', e => e.stopPropagation());
+}
+async function renameForm(r, f, name){
+  if (!name) return;
+  const o = await ensureOrders(r);
+  f.name = name;
+  await saveOrders(r, o);
+  if (!order || order.id !== r.id) return;
+  if (order.form === f) hubEmbed.send(s2Frame, 'form-renamed', { form: f.id, name });   // the Excel file name follows
+  renderOrderHead();
+  if (order.view === 'list') renderOrderList(o);
+}
+async function deleteForm(r, f){
+  if (!confirm('删除下单计划「' + f.name + '」？已生成的 Excel 文件不会删除。')) return;
+  const o = await ensureOrders(r);
+  try { await api.del(formPath(r, f.id)); } catch (e) { return; }
+  o.forms = o.forms.filter(x => x !== f);
+  await saveOrders(r, o);
+  if (f.generatedAt) updateDelivery(r, o);
+  if (order && order.id === r.id && order.view === 'list') renderOrderList(o);
+  toast('已删除下单计划「' + f.name + '」');
+}
+$('olList').addEventListener('click', async e => {
+  const item = e.target.closest('.ol-item'), r = order && byId(order.id);
+  if (!item || !r || e.target.closest('input')) return;
+  const o = await ensureOrders(r).catch(() => null);
+  const f = o && o.forms.find(x => x.id === item.dataset.fid);
+  if (!f) return;
+  const act = e.target.closest('[data-ol]');
+  if (act && act.dataset.ol === 'del') return deleteForm(r, f);
+  if (act && act.dataset.ol === 'rename') return renameInline(item.querySelector('.ol-name'), f.name, v => renameForm(r, f, v));
+  openForm(r, f);
+});
+$('olNew').addEventListener('click', () => { const r = order && byId(order.id); if (r) openPicker(r); });
+$('olImport').addEventListener('click', () => $('olFile').click());
+$('olFile').addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0], r = order && byId(order.id);
+  e.target.value = '';
+  if (!file || !r) return;
+  const o = await ensureOrders(r).catch(() => null);
+  if (!o || !order || order.id !== r.id) return;
+  const f = { id: newId(), name: file.name.replace(/\.xlsx$/i, '').trim() || formName([], o.forms.length),
+              createdAt: Date.now(), generatedAt: null, deliveryDate: '' };
+  o.forms.push(f);
+  await saveOrders(r, o);
+  if (order && order.id === r.id) openForm(r, f, file);
+});
+$('s2ToList').addEventListener('click', () => showOrder(false));
+$('s2FName').addEventListener('click', () => {
+  const r = order && byId(order.id), f = order && order.form;
+  if (r && f) renameInline($('s2FName'), f.name, v => renameForm(r, f, v));
+});
+
+/* ---- the picker: images (the row's own, main first) × ticked 报价 lines ---- */
+function openPicker(r){
+  setView('pick');
+  renderPicker();
+  Promise.all([loadRowImages(r), api.get('rows/' + r.id + '/step1.json')]).then(([list, s1]) => {
+    if (!order || order.id !== r.id || order.view !== 'pick') return;
+    const lines = (s1 && Array.isArray(s1.rows) ? s1.rows : [])
+      .filter(x => ['sku', 'price', 'l', 'w', 'h'].some(k => String(x[k] == null ? '' : x[k]).trim()));
+    order.pick = { r, list, sel: new Set(list.slice(0, 1)), lines, on: new Set(lines) };   // main image + every line
+    renderPicker();
+  }).catch(() => {});
+}
+function renderPicker(){ renderPickGrid(); renderPickLines(); renderPickSum(); }
+function renderPickGrid(){
+  const pk = order && order.pick;
+  if (!pk) { $('pkGrid').innerHTML = '<div class="hint">加载中…</div>'; return; }
+  $('pkGrid').innerHTML = pk.list.map((im, i) =>
+    '<button type="button" class="pk-tile' + (pk.sel.has(im) ? ' on' : '') + '" data-pk="img" data-i="' + i + '" title="' +
+      (i ? '图片 ' + (i + 1) : '主图') + '（点击选择 / 取消）">' +
+      '<img src="' + (i ? im.url : (pk.r.thumb || im.url)) + '" alt="" draggable="false">' +
+      (i ? '' : '<span class="tag">主图</span>') + '<span class="chk">✓</span></button>').join('') +
+    (pk.list.length < IMG_LIMIT ? '<button type="button" class="pk-tile add" data-pk="add" title="添加图片（可多选，也可粘贴或拖入；最多 ' +
+      IMG_LIMIT + ' 张）">+</button>' : '');
+}
+const s1Val = x => String(x == null ? '' : x).trim();
+const s1Box = l => [l.l, l.w, l.h].every(x => s1Val(x)) ? l.l + 'x' + l.w + 'x' + l.h + 'cm' : '';
+function renderPickLines(){
+  const pk = order && order.pick;
+  if (!pk) { $('pkLines').innerHTML = ''; return; }
+  if (!pk.lines.length) { $('pkLines').innerHTML = '<div class="hint">报价暂无内容，每张图片将生成一个空行。</div>'; return; }
+  const P = PRICING.params(settings.step1);
+  const cell = v => v ? esc(v) : '<span class="none">—</span>';
+  $('pkLines').innerHTML = '<table class="pk"><thead><tr>' +
+      '<th style="width:44px"><input type="checkbox" data-pk="all" title="全选 / 全不选"' + (pk.on.size === pk.lines.length ? ' checked' : '') + '></th>' +
+      '<th>尺寸 / 规格</th><th>工厂价 (￥)</th><th>内盒尺寸</th><th>建议售价 ($)</th></tr></thead><tbody>' +
+    pk.lines.map((l, i) => {
+      const L = parseFloat(l.l), W = parseFloat(l.w), H = parseFloat(l.h), fp = parseFloat(l.price);   // as in the 报价 panel
+      const sale = L > 0 && W > 0 && H > 0 ? PRICING.computeRow(isNaN(fp) ? 0 : fp, L, W, H, P).price.toFixed(2) : '';
+      const on = pk.on.has(l);
+      return '<tr class="' + (on ? '' : 'off') + '" data-pk="line" data-i="' + i + '">' +
+        '<td><input type="checkbox"' + (on ? ' checked' : '') + '></td>' +
+        '<td>' + cell(s1Val(l.sku)) + '</td><td>' + cell(s1Val(l.price)) + '</td><td>' + cell(s1Box(l)) + '</td><td>' + cell(sale) + '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+function renderPickSum(){
+  const pk = order && order.pick;
+  const ni = pk ? pk.sel.size : 0, nl = pk ? pk.on.size : 0;
+  $('pkOk').disabled = !ni;
+  $('pkSum').textContent = !pk ? '' : !ni ? '请至少选择一张图片'
+    : '将生成 ' + (ni * Math.max(1, nl)) + ' 行（' + ni + ' 张图片 × ' + (nl ? nl + ' 个尺寸' : '1 个空行') + '）';
+}
+$('pkGrid').addEventListener('click', e => {
+  const t = e.target.closest('[data-pk]'), pk = order && order.pick;
+  if (!t || !pk) return;
+  if (t.dataset.pk === 'add') return pickImage(files => pickAdd(files), true);
+  const im = pk.list[+t.dataset.i];
+  if (!im) return;
+  if (pk.sel.has(im)) pk.sel.delete(im); else pk.sel.add(im);
+  t.classList.toggle('on', pk.sel.has(im));
+  renderPickSum();
+});
+$('pkLines').addEventListener('click', e => {
+  const pk = order && order.pick;
+  if (!pk) return;
+  const all = e.target.closest('[data-pk="all"]');
+  if (all) pk.on = all.checked ? new Set(pk.lines) : new Set();
+  else {
+    const tr = e.target.closest('tr[data-pk="line"]');
+    const l = tr && pk.lines[+tr.dataset.i];
+    if (!l) return;
+    if (pk.on.has(l)) pk.on.delete(l); else pk.on.add(l);
+  }
+  renderPickLines(); renderPickSum();
+});
+/* pasted / dropped / '+' images join the row's images (as in the viewer) and start selected */
+let pickBusy = false;
+async function pickAdd(files){
+  const pk = order && order.view === 'pick' && order.pick, r = pk && byId(pk.r.id);
+  if (!pk || !r) return;
+  if (pickBusy) return toast('正在处理上一张图片…');
+  pickBusy = true;
+  const before = pk.list.length;
+  try {
+    const n = await addRowImages(r, pk.list, files);
+    pk.list.slice(before, before + n).forEach(im => pk.sel.add(im));
+    if (order && order.pick === pk) { renderPickGrid(); renderPickSum(); renderOrderHead(); }
+  } catch (e) {
+    imgCache.delete(r.id);
+    if (!e.offline) toast(e.message, true);
+  } finally {
+    pickBusy = false;
+  }
+}
+$('pkCancel').addEventListener('click', () => showOrder(false));
+/* 确认: one 货号 card; rows = each selected image (the row's image order) × each ticked line (报价 order) */
+$('pkOk').addEventListener('click', async () => {
+  const pk = order && order.pick, r = pk && byId(pk.r.id);
+  if (!pk || !r || !pk.sel.size || pickBusy) return;
+  $('pkOk').disabled = true;
+  try {
+    const o = await ensureOrders(r);
+    const imgs = pk.list.filter(im => pk.sel.has(im)), lines = pk.lines.filter(l => pk.on.has(l));
+    const images = {}, variants = [];
+    imgs.forEach(im => {
+      const iid = newId();
+      images[iid] = { url: im.url, w: im.w || 0, h: im.h || 0 };
+      /* the main image starts where the table thumb is; the others centred */
+      const crop = im === pk.list[0] && r.thumbCrop ? r.thumbCrop : (im.w && im.h ? centerCrop(im.w, im.h) : null);
+      (lines.length ? lines : [null]).forEach(l => variants.push({
+        id: newId(), colorCode: '', colorImage: null, colorNat: null,
+        size: l ? s1Val(l.sku) : '', setQty: '', price: l ? s1Val(l.price) : '', boxSize: l ? s1Box(l) : '', qty: '',
+        img: iid, imgCrop: crop ? Object.assign({}, crop) : null, accImg: null, gRaw: '', pass: {} }));
+    });
+    const f = { id: newId(), name: formName(lines.map(l => l.sku), o.forms.length),
+                createdAt: Date.now(), generatedAt: null, deliveryDate: '' };
+    await api.put(formPath(r, f.id), { order: {}, images, hub: {},
+      products: [{ id: newId(), code: '', image: null, imgNat: null, crop: null, variants }] });
+    o.forms.push(f);
+    await saveOrders(r, o);
+    if (order && order.id === r.id && order.pick === pk) openForm(r, f);
+  } catch (e) {
+    renderPickSum();
+  }
+});
+
 $('s2Prev').addEventListener('click', () => orderStep(-1));
 $('s2Next').addEventListener('click', () => orderStep(1));
 $('s2Close').addEventListener('click', closeOrder);
@@ -1561,45 +1960,19 @@ document.addEventListener('keydown', e => {
   }
 });
 
-/* 货号 #1's image or position changed in Step 2: rebuild the table thumb from it (as the viewer does) */
-async function orderMainChanged(r, d){
-  if (!r || !d || !d.crop) return;
-  try {
-    let img;
-    if (d.image) {
-      img = await loadImg(d.image.url);
-      const c = imgCache.get(r.id);
-      if (c) { if (c.length) c[0] = d.image; else c.push(d.image); }
-      r.imgCount = Math.max(1, imgCount(r));
-    } else {
-      const f = await openFrame(r);
-      if (!f) return;
-      img = f.img;
-    }
-    const W = img.naturalWidth, H = img.naturalHeight;
-    r.thumbCrop = CROP.clampCrop(Object.assign({}, d.crop), W, H);
-    r.thumb = makeThumb(img, r.thumbCrop);
-    saveRow(r);
-    render();
-    renderOrderHead();
-  } catch (e) {}
-}
 hubEmbed.listen((m, frame) => {
   if (frame !== s2Frame) return;
-  const r = byId(m.row), d = m.data || {};
+  const d = m.data || {}, r = byId(d.row || m.row);
   switch (m.type) {
     case 'ready':
       s2Ready = true;
-      showOrder();
+      sendLoad();
       break;
     case 'loaded':                                      // focus the form, so its paste / keys work at once
-      if (order && m.row === order.id) try { s2Frame.contentWindow.focus(); } catch (e) {}
+      if (order && order.view === 'form' && m.row === order.id) try { s2Frame.contentWindow.focus(); } catch (e) {}
       break;
     case 'key':
       if (order) orderKey(d.key);
-      break;
-    case 'main-changed':
-      orderMainChanged(r, d);
       break;
     case 'meta-changed': {                              // 品名 / 材质 edited in 订单信息 (the same values as the table's)
       if (!r) break;
@@ -1610,16 +1983,26 @@ hubEmbed.listen((m, frame) => {
       if (ch) { saveRow(r); render(); renderOrderHead(); }
       break;
     }
-    case 'delivery-changed':                            // the 上架时间 picker opens on 交货日期 + N days
-      if (r && (d.deliveryDate || '') !== (r.deliveryDate || '')) { r.deliveryDate = d.deliveryDate || ''; saveRow(r); }
-      break;
     case 'step2-generated':                             // 生成 completes 下单 (status only moves forward)
       if (!r) break;
       if (ROWS.statusRank(r.status) < ROWS.statusRank('已下单')) r.status = '已下单';
-      if (d.deliveryDate) r.deliveryDate = d.deliveryDate;
       saveRow(r);
       render();
       renderOrderHead();
+      ensureOrders(r).then(o => {
+        const f = o.forms.find(x => x.id === d.form);
+        if (f) { f.generatedAt = Date.now(); f.deliveryDate = d.deliveryDate || ''; saveOrders(r, o); }
+        updateDelivery(r, o);
+      }).catch(() => {});
+      break;
+    case 'import-failed':                               // 从 Excel 导入 failed: drop the empty form it created
+      if (!r) break;
+      ensureOrders(r).then(o => {
+        o.forms = o.forms.filter(x => x.id !== d.form);
+        saveOrders(r, o);
+        api.del(formPath(r, d.form)).catch(() => {});
+        if (order && order.id === r.id && order.view === 'form' && order.form && order.form.id === d.form) showOrder(false);
+      }).catch(() => {});
       break;
   }
 });

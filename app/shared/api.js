@@ -40,6 +40,7 @@ const api = {
     return api.req('PUT', '/api/data/' + encodePath(path), JSON.stringify(obj),
       { headers: { 'Content-Type': 'application/json' } });
   },
+  del(path) { return api.req('DELETE', '/api/data/' + encodePath(path)); },
   saveRow(row) { return api.put('rows/' + row.id + '/meta.json', row); },
   /* for pagehide: survives the page unloading (body must stay under 64 KB) */
   saveRowBeacon(row) {
