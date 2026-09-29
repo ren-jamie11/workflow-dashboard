@@ -168,6 +168,19 @@ table.prev img{width:34px;height:34px;object-fit:cover;border-radius:4px;display
 /* HUB: embedded in the hub's 下单 pop-up */
 .container{max-width:none;padding:1.25rem 1.5rem 2rem}
 body.loading .container{opacity:.45;pointer-events:none;transition:opacity .1s .15s}
+/* HUB: 工厂 type-to-filter dropdown (shared/combo.js), rules copied from shared/theme.css */
+input.combo{background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2364748b' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right .75rem center;padding-right:1.8rem;cursor:pointer;text-overflow:ellipsis}
+input.combo:focus{cursor:text}
+.cb-pop{position:fixed;z-index:150;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 12px 28px rgba(15,23,42,.18);
+  padding:.25rem;max-height:260px;overflow-y:auto;font-size:.86rem;user-select:none}
+.cb-opt{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.4rem .55rem;border-radius:6px;cursor:pointer;color:var(--dark);white-space:nowrap}
+.cb-opt.hi{background:#eef2ff;color:var(--primary)}
+.cb-opt.sel{font-weight:600}
+.cb-opt.add{color:var(--primary);font-weight:500}
+.cb-empty{padding:.45rem .55rem;color:#94a3b8}
+/* HUB: 税率 filled from the picked 工厂 flashes once */
+@keyframes taxFlash{from{background:#e0e7ff;border-color:var(--primary)}to{background:#fff}}
+.form-control.flash{animation:taxFlash 1.2s ease-out}
 </style>
 </head>
 <body>
@@ -188,8 +201,7 @@ body.loading .container{opacity:.45;pointer-events:none;transition:opacity .1s .
     <div class="params-body" style="padding:0;border-top:none">
       <div>
         <label class="form-label">工厂<span class="req">*</span></label>
-        <input type="text" id="ofFactory" class="form-control" list="dlFactory" placeholder="例 Huazhi">
-        <datalist id="dlFactory"></datalist>
+        <input type="text" id="ofFactory" class="form-control combo" data-combo="factory" placeholder="选择或输入工厂" autocomplete="off"><!-- HUB: global 工厂 list (设置 → 工厂) -->
       </div>
       <!-- HUB: 品名 / 材质 = the hub row's (synced both ways); 是否含真植物 is order-wide; 订单名称 / 下单数量 removed -->
       <div>
@@ -214,7 +226,7 @@ body.loading .container{opacity:.45;pointer-events:none;transition:opacity .1s .
       </div>
       <div>
         <label class="form-label">税率</label>
-        <input type="text" id="ofTax" class="form-control" list="dlTax" placeholder="专票1%">
+        <input type="text" id="ofTax" class="form-control" list="dlTax" placeholder="例 专票13%"><!-- HUB: filled from the 工厂 -->
         <datalist id="dlTax"><option value="专票1%"><option value="专票13%"><option value="专票6%"></datalist>
       </div>
       <div>
@@ -250,6 +262,8 @@ body.loading .container{opacity:.45;pointer-events:none;transition:opacity .1s .
 <script src="../shared/api.js"></script>
 <script src="../shared/embed.js"></script>
 <script src="../shared/crop.js"></script>
+<script src="../shared/pinyin.js"></script><!-- HUB: 工厂 dropdown -->
+<script src="../shared/combo.js"></script>
 <script>
 (function(){
 'use strict';
@@ -355,10 +369,10 @@ const COL_H_PX = Math.round(COL_W[8]*7)+5;  // 配件列 H
 
 /* ============ state ============ */
 const DEFAULTS = {
-  settings:{operator:'Jamie', store:'Arborus-US（店铺+国家）', skuPrefixes:['MUG_','XK_'], materials:[]},
+  settings:{operator:'Jamie', store:'Arborus-US（店铺+国家）', skuPrefixes:['MUG_','XK_'], materials:[], factories:[]},
   /* HUB: 交货日期 / SKU / 是否含真植物 are order-wide (every row); 订单名称 and the 下单数量 default are gone;
      品名 / 材质 are the hub row's (META.name / META.material), never stored here */
-  order:{factory:'',date:'',sku:'',plant:'不含',taxRate:'专票1%',freight:'含运费'},
+  order:{factory:'',date:'',sku:'',plant:'不含',taxRate:'',freight:'含运费'},   /* HUB: 税率 comes from the 工厂 */
   /* HUB: exactly one 货号 card; each row has its own 图片: v.img = an id in `images` ({url,w,h}, stored once), v.imgCrop */
   products:[],
   images:{},
@@ -551,7 +565,7 @@ function renderSettings(){
   sel.value = cur || '';
 }
 function renderOrder(){
-  $('ofFactory').value = S.order.factory;
+  if(document.activeElement !== $('ofFactory')) $('ofFactory').value = S.order.factory;
   const pn = $('ofPname');                                  /* HUB: 品名 / 材质 = the hub row's */
   if(document.activeElement !== pn) pn.value = META.name || '';
   pn.classList.toggle('missing', !(pn.value||'').trim());
@@ -564,8 +578,9 @@ function renderOrder(){
   $('ofDate').classList.toggle('missing', !(S.order.date||'').trim());
   $('ofSku').classList.toggle('missing', !(S.order.sku||'').trim());
   $('ofTax').value = S.order.taxRate || '';
+  const fac = findFactory(S.order.factory);                 /* HUB */
+  $('ofTax').placeholder = fac && !fac.taxRate ? '该工厂未设税率' : '例 专票13%';
   $('ofFreight').value = S.order.freight || '';
-  $('dlFactory').innerHTML = S.memory.factories.map(f=>'<option value="'+esc(f)+'">').join('');
   $('fnHint').textContent = '文件名：'+fileName();
   $('syncBtn').style.display = step1Rows.length ? '' : 'none';
 }
@@ -655,7 +670,7 @@ function buildRows(){
         T: fmtDate(S.order.date), U:S.order.sku, V:keep('V'),
         W:S.order.plant||'不含', X:keep('X'), Y:META.material||'',
         Z:keep('Z'), AA:keep('AA'), AB:keep('AB'),
-        AC: ps.AC!==undefined && ps.AC!==null ? ps.AC : (S.order.taxRate||'专票1%'),
+        AC: ps.AC!==undefined && ps.AC!==null ? ps.AC : (S.order.taxRate||''),   /* HUB: empty 税率 → blank cell */
         AD: ps.AD!==undefined && ps.AD!==null ? ps.AD : (S.order.freight||'含运费')
       });
     });
@@ -1121,8 +1136,30 @@ document.addEventListener('change', e=>{
 
 /* ============ 顶部字段 ============ */
 /* HUB: 运营 / 店铺 / SKU 前缀 inputs removed (hub ⚙ 设置 → 下单 and 类目) */
-$('ofFactory').addEventListener('input',e=>{ S.order.factory=e.target.value; save(); softRefresh(); });
-$('ofFactory').addEventListener('change',e=>{ remember('factories',e.target.value); save(); });
+/* HUB: 工厂 = a dropdown of the global list (hub 设置 → 工厂, most recently used first). Picking one fills its 税率;
+   '+ 添加「X」' adds a factory without 税率. The hub keeps the list: factory-used moves it to the top (adds it if new) */
+function findFactory(name){
+  const k = api.factoryKey(name);
+  return k ? (S.settings.factories||[]).find(f => api.factoryKey(f.name) === k) : null;
+}
+function pickFactory(name){
+  const f = findFactory(name);
+  S.order.factory = name;
+  S.order.taxRate = f ? (f.taxRate || '') : '';
+  embed.post('factory-used', {name, add: true});
+  save(); renderOrder(); softRefresh();
+  const t = $('ofTax'); t.classList.remove('flash'); void t.offsetWidth; t.classList.add('flash');
+}
+combo.bind($('ofFactory').parentNode, () => {
+  const names = (S.settings.factories||[]).map(f => f.name);
+  if(S.order.factory && !findFactory(S.order.factory)) names.push(S.order.factory);   // e.g. an old form's "Huazhi"
+  return {
+    value: S.order.factory, empty: null, options: names.map(n => ({value: n})),
+    onPick: pickFactory,
+    onCreate: name => { S.settings.factories.unshift({name, taxRate: ''}); },
+    onReject: t => toast('没有工厂「'+t+'」，选择「+ 添加」新增')
+  };
+});
 /* HUB: 品名 / 材质 are the hub row's: edited here, they update the main table (meta-changed); not stored in step2.json */
 function tellMeta(){ embed.post('meta-changed', {name: META.name || '', material: META.material || ''}); }
 $('ofPname').addEventListener('input', e=>{ e.target.classList.toggle('missing', !e.target.value.trim()); });
@@ -1319,7 +1356,7 @@ async function importWorkbook(file){
       date: parseImportDate(cellText(ws.getCell(r0,20))),
       sku:  String(cellText(ws.getCell(r0,21))||''),
       plant: w0.indexOf('含')===0 && w0.indexOf('不含')!==0 ? '含' : '不含',
-      taxRate: tax0===''?'专票1%':String(tax0),
+      taxRate: tax0===''?'':String(tax0),   /* HUB: a blank 税率 stays blank */
       freight: fre0===''?'含运费':String(fre0)
     },
     operator: oper,
@@ -1342,7 +1379,12 @@ async function runImport(file){
     S.order    = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.order)), res.order);
     /* HUB: 运营 / 店铺 stay the global settings; an unknown SKU 前缀 only shows in this form's dropdowns */
     applyDefaults();
-    remember('factories', S.order.factory);
+    /* HUB: an unknown 工厂 joins the global list with the file's 税率 (a known one keeps its default) */
+    if(S.order.factory.trim() && !findFactory(S.order.factory)){
+      const name = S.order.factory.trim();
+      S.settings.factories.unshift({name, taxRate: S.order.taxRate || ''});
+      embed.post('factory-used', {name, taxRate: S.order.taxRate || '', add: true, imported: true});
+    }
     S.products.forEach(p=>p.variants.forEach(v=>remember('colorNames', v.colorCode)));
     clearSel(); save(); render(); ensureNat();
     const st = res.stats;
@@ -1568,8 +1610,10 @@ $('genBtn').addEventListener('click',()=>{
 let SETTINGS = null;                        // S.settings from the hub's settings.json
 function applySettings(st){
   SETTINGS = {operator: st.step2.operator || 'Jamie', store: st.step2.store || 'Arborus-US（店铺+国家）',
-              skuPrefixes: st.categories.map(c => c+'_'), materials: (st.materials||[]).slice()};   /* HUB: 材质 list */
-  S.settings = Object.assign({}, SETTINGS, {skuPrefixes: SETTINGS.skuPrefixes.slice()});
+              skuPrefixes: st.categories.map(c => c+'_'), materials: (st.materials||[]).slice(),   /* HUB: 材质 list */
+              factories: JSON.parse(JSON.stringify(st.factories||[]))};   /* HUB: 工厂 list */
+  S.settings = Object.assign({}, SETTINGS, {skuPrefixes: SETTINGS.skuPrefixes.slice(),
+                                            factories: SETTINGS.factories.map(f => Object.assign({}, f))});
 }
 /* the row's defaults; they are shown but not written until the first edit */
 function applyDefaults(){

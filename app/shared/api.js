@@ -5,6 +5,9 @@
 const DEFAULT_SETTINGS = {
   categories: ['XK', 'MUG'],
   materials: ['树脂', '金属', '实木', '陶瓷', '塑料'],
+  /* 工厂 list for 下单计划, most recently used first; taxRate '' = unknown */
+  factories: [{ name: '博罗', taxRate: '专票13%' }, { name: '华智', taxRate: '专票1%' }, { name: '合兴', taxRate: '专票13%' },
+              { name: '莱伯特', taxRate: '专票13%' }, { name: '佰利源', taxRate: '' }],
   liveOffsetDays: 45,
   step1: { shippingPrice: 6, exchangeRate: 6.7, profitMargin: 50, storageFee: 0, isPeak: false },
   step2: { operator: 'Jamie', store: 'Arborus-US（店铺+国家）' },
@@ -73,10 +76,13 @@ const api = {
       step2: Object.assign(d.step2, s.step2),
       step3: Object.assign(d.step3, s.step3),
       categories: Array.isArray(s.categories) ? s.categories : d.categories,
-      materials: Array.isArray(s.materials) ? s.materials : d.materials
+      materials: Array.isArray(s.materials) ? s.materials : d.materials,
+      factories: Array.isArray(s.factories) ? s.factories : d.factories
     });
   },
   saveSettings(s) { return api.put('settings.json', s); },
+  /* 工厂 names match ignoring case and spaces (Huazhi = huazhi ) */
+  factoryKey(name) { return String(name == null ? '' : name).replace(/\s+/g, '').toLowerCase(); },
 
   DEFAULT_SETTINGS
 };

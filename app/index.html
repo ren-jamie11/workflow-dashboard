@@ -118,6 +118,12 @@ tr.xp-spacer td{padding:0;border:0}
 .set-sec + .set-sec{margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid #f1f5f9}
 .set-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem}
 .set-sec .form-label .note{font-weight:400;color:#94a3b8;margin-left:.35rem}
+/* 设置 → 工厂: one line per factory (name · 税率 · ×), most recently used first */
+.fac-head,.fac-line{display:grid;grid-template-columns:1fr 150px 32px;gap:.4rem;align-items:center}
+.fac-head{font-size:.75rem;color:var(--muted);font-weight:600;margin-bottom:.3rem}
+.fac-line + .fac-line{margin-top:.35rem}
+.fac-line .form-control{padding:.4rem .6rem;font-size:.9rem}
+#facAddRow{grid-template-columns:1fr 150px auto;margin-top:.8rem}
 #liveOffset{max-width:140px}
 
 /* image viewer */
@@ -298,6 +304,7 @@ table.pk .none{color:#cbd5e1}
       <button type="button" class="tab active" data-tab="general">通用</button>
       <button type="button" class="tab" data-tab="quote">报价</button>
       <button type="button" class="tab" data-tab="order">下单</button>
+      <button type="button" class="tab" data-tab="factory">工厂</button>
       <button type="button" class="tab" disabled title="后续阶段">上架</button>
     </div>
     <div class="modal-body hidden" data-body="order">
@@ -306,6 +313,17 @@ table.pk .none{color:#cbd5e1}
         <div><label class="form-label" for="s2Store">店铺 + 国家</label><input type="text" id="s2Store" class="form-control" data-p2="store" placeholder="Arborus-US（店铺+国家）"></div>
       </div>
       <div class="hint" style="margin-top:1rem">写入下单计划 Excel（运营列、店铺行和文件名），所有产品通用。SKU 前缀 = 类目（在「通用」中管理）。</div>
+    </div>
+    <div class="modal-body hidden" data-body="factory">
+      <div class="fac-head"><span>工厂</span><span>默认税率</span><span></span></div>
+      <div id="facList"></div>
+      <div class="fac-line" id="facAddRow">
+        <input type="text" id="facNew" class="form-control" maxlength="30" placeholder="新增工厂">
+        <input type="text" id="facNewTax" class="form-control" list="dlFacTax" placeholder="税率（可空）">
+        <button type="button" class="btn btn-ghost btn-sm" id="facAdd">添加</button>
+      </div>
+      <datalist id="dlFacTax"><option value="专票1%"><option value="专票6%"><option value="专票13%"></datalist>
+      <div class="hint" style="margin-top:1rem">下单计划中选择工厂时自动填入对应税率。改名或删除不会影响已有的下单计划。</div>
     </div>
     <div class="modal-body hidden" data-body="quote">
       <div class="set-grid">
@@ -2067,6 +2085,9 @@ hubEmbed.listen((m, frame) => {
         updateDelivery(r, o);
       }).catch(() => {});
       break;
+    case 'factory-used':                                // a 工厂 picked / added / imported in a 下单计划: to the top of the list
+      useFactory(d.name, d.taxRate, d.add, d.imported);
+      break;
     case 'import-failed':                               // 从 Excel 导入 failed: drop the empty form it created
       if (!r) break;
       ensureOrders(r).then(o => {
@@ -2130,6 +2151,11 @@ function renderSettings(){
     '<span class="tag">' + esc(m) + '<button type="button" data-i="' + i + '" title="删除材质">×</button></span>').join('') ||
     '<span class="hint" style="margin:0">暂无材质，请在下方添加。</span>';
   $('liveOffset').value = settings.liveOffsetDays;
+  $('facList').innerHTML = settings.factories.map((f, i) =>
+    '<div class="fac-line"><input type="text" class="form-control" maxlength="30" data-fi="' + i + '" data-ff="name" value="' + esc(f.name) + '">' +
+    '<input type="text" class="form-control" list="dlFacTax" data-fi="' + i + '" data-ff="taxRate" value="' + esc(f.taxRate || '') +
+    '" placeholder="未设税率"><button type="button" class="del-btn" data-fi="' + i + '" title="删除工厂">×</button></div>').join('') ||
+    '<span class="hint" style="margin:0">暂无工厂，请在下方添加。</span>';
   document.querySelectorAll('[data-p]').forEach(el => { el.value = settings.step1[el.dataset.p]; });
   document.querySelectorAll('[data-p2]').forEach(el => { el.value = settings.step2[el.dataset.p2]; });
   document.querySelectorAll('#peakToggle .toggle-btn').forEach(b =>
@@ -2216,6 +2242,60 @@ $('matList').addEventListener('click', e => {
   settings.materials.splice(+b.dataset.i, 1);
   if (ui.mat === m) ui.mat = '';
   saveSettings(); renderSettings();
+});
+/* 设置 → 工厂: settings.factories [{name, taxRate}], most recently used first; names match ignoring case and spaces.
+   The 下单计划 tool reads the list and posts factory-used; renaming / deleting never changes saved forms */
+const facIndex = name => settings.factories.findIndex(f => api.factoryKey(f.name) === api.factoryKey(name));
+function saveFactories(){
+  saveSettings().then(() => hubEmbed.broadcast('settings-changed'));   // the tool re-reads settings.json
+}
+function useFactory(name, taxRate, add, imported){
+  name = String(name || '').trim();
+  if (!name) return;
+  const i = facIndex(name);
+  if (i === 0) return;
+  if (i > 0) settings.factories.unshift(settings.factories.splice(i, 1)[0]);
+  else if (add) {
+    settings.factories.unshift({ name, taxRate: String(taxRate || '').trim() });
+    if (imported) toast('已新增工厂「' + name + '」');
+  } else return;
+  saveFactories();
+  if (!$('setModal').classList.contains('hidden')) renderSettings();
+}
+$('facAdd').addEventListener('click', () => {
+  const name = $('facNew').value.trim();
+  if (!name) return toast('请输入工厂名称', true);
+  if (facIndex(name) >= 0) return toast('该工厂已存在', true);
+  settings.factories.unshift({ name, taxRate: $('facNewTax').value.trim() });
+  $('facNew').value = ''; $('facNewTax').value = '';
+  saveFactories(); renderSettings();
+  $('facNew').focus();
+});
+['facNew', 'facNewTax'].forEach(id => $(id).addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); $('facAdd').click(); }
+}));
+$('facList').addEventListener('change', e => {
+  const el = e.target.closest('input[data-fi]'); if (!el) return;
+  const f = settings.factories[+el.dataset.fi]; if (!f) return;
+  const v = el.value.trim();
+  if (el.dataset.ff === 'name') {
+    if (!v) { el.value = f.name; return toast('工厂名称不能为空', true); }
+    const j = facIndex(v);
+    if (j >= 0 && j !== +el.dataset.fi) { el.value = f.name; return toast('工厂「' + settings.factories[j].name + '」已存在', true); }
+    f.name = v;
+  } else f.taxRate = v;
+  el.value = v;
+  saveFactories();
+});
+$('facList').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.matches('input[data-fi]')) { e.preventDefault(); e.target.blur(); }
+});
+$('facList').addEventListener('click', e => {
+  const b = e.target.closest('button[data-fi]'); if (!b) return;
+  const f = settings.factories[+b.dataset.fi];
+  if (!f || !confirm('删除工厂「' + f.name + '」？已有的下单计划不受影响')) return;
+  settings.factories.splice(+b.dataset.fi, 1);
+  saveFactories(); renderSettings();
 });
 $('liveOffset').addEventListener('change', e => {
   const n = Math.max(0, Math.round(+e.target.value || 0));

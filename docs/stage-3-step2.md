@@ -32,7 +32,7 @@ journey bar) was dropped in scoping on 2026-09-29.
 | C4 | A plain click on a Step 2 image opens the file picker (paste / drop still work) |
 | C5 | 色号 images are 60×60 squares with the same drag / Ctrl + wheel (`variants[j].colorCrop`); the Excel 色号 column gets the square |
 | D1 | Settings → 下单 = 运营 + 店铺+国家 (global) |
-| D2 | The suggestion lists (工厂 / 材质 / 品名 / 颜色) stay per product (`memory` inside `step2.json`) |
+| D2 | The suggestion lists (工厂 / 材质 / 品名 / 颜色) stay per product (`memory` inside `step2.json`) *(2026-09-29: 工厂 is a global list in `settings.factories`, F1–F7 in README)* |
 | D3 | After 生成 the pop-up stays open with the `已保存：…` toast |
 | D4 | ~~导入已有 Excel: the file's first image becomes the main image~~ | *(Changed 2026-09-29: see M16)*
 
@@ -100,6 +100,7 @@ One parent-ASIN group can be ordered in several Excels (e.g. XK_012-023: 4x6 + 5
   | `step2-generated {row, form, deliveryDate}` | status → at least 已下单; the entry gets `generatedAt` + `deliveryDate`; `meta.deliveryDate` = the earliest generated (M13) |
   | `import-failed {form}` | removes the entry (and file) created for 从 Excel 导入, back to the list |
   | `meta-changed {name, material}` | 品名 / 产品材质 edited in 订单信息 → `meta.name` (if not empty) / `meta.material` (if empty or in `settings.materials`), `saveRow`, re-render the table and header |
+  | `factory-used {name, taxRate?, add?, imported?}` | moves that 工厂 to the top of `settings.factories` (adds it when new and `add`), saves, `broadcast('settings-changed')`; `imported` → toast `已新增工厂「X」` |
   | `key`, `ready`, `loaded` | close / switch; send the pending `load-row`; focus the tool |
   Hub → tool: `load-row`, `unload`, `flush`, `form-renamed {form, name}` (the file-name hint follows), `settings-changed`.
   `main-changed` / `delivery-changed` were removed with M9 / M13.
@@ -122,7 +123,8 @@ One parent-ASIN group can be ordered in several Excels (e.g. XK_012-023: 4x6 + 5
   (`body.loading`), reads settings, `meta.json`, the form, `order-memory.json` and `step1.json`, rebuilds `S`, resets the
   selection / clipboard state, then renders. `loadSeq` drops a load that a newer one overtook. `embed.row` is reassigned.
   `flatten()` turns a legacy draft / an import into one card (each row: `imgOverride` or its card's image → `v.img`).
-- **Order fields (S1–S4):** `S.order = {factory, date, sku, plant, taxRate, freight}`. 品名 / 材质 are read from `META`
+- **Order fields (S1–S4):** `S.order = {factory, date, sku, plant, taxRate, freight}`. 工厂 is a `combo.js` dropdown of
+  `S.settings.factories` (`pickFactory` fills 税率); `taxRate` defaults to `''` and an empty one leaves the Excel cell blank. 品名 / 材质 are read from `META`
   and posted with `meta-changed`; `autoDesc`, the file name and the Excel 产品材质 column use them. `buildRows()` writes
   T/U/W from `S.order` and Y from `META.material` on every row; `latestDate()` = `S.order.date`.
 - **Defaults (`applyDefaults`)**: an empty order SKU = `<category>_`, an empty order date = today + 2 months,

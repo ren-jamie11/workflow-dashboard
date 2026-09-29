@@ -111,6 +111,7 @@ input.combo:disabled{background-color:#f8fafc;color:var(--dark);cursor:not-allow
 .cb-opt.hi{background:#eef2ff;color:var(--primary)}
 .cb-opt.sel{font-weight:600}
 .cb-opt.none{color:var(--muted)}
+.cb-opt.add{color:var(--primary);font-weight:500}
 .cb-opt .n{color:#94a3b8;font-size:.75rem;font-weight:400}
 .cb-empty{padding:.45rem .55rem;color:#94a3b8}
 

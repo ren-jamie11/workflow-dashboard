@@ -21,7 +21,7 @@ opens the browser. Close the console window to stop the server. Use Chrome or Ed
 启动.bat
 app/
   server.py            static files + JSON API (below)
-  index.html           Hub: main table, 报价 panel, 下单 pop-up, image viewer, Settings modal (tabs 通用 / 报价 / 下单 / 上架)
+  index.html           Hub: main table, 报价 panel, 下单 pop-up, image viewer, Settings modal (tabs 通用 / 报价 / 下单 / 工厂 / 上架)
   tools/step1..3.html  copies of the original tools, adapted for embedded mode   (stages 2–4)
   tools/vendor/        exceljs.min.js, moved out of the Step 2 original unchanged
   shared/
@@ -33,7 +33,7 @@ app/
     crop.js            square image positions (thumbCrop / crop): pan, zoom, render — hub and Step 2
     pricing.js         报价 price calculation (computeRow, moved unchanged from Step 1) — Step 1 and the 下单计划 picker
     datepicker.js      small popover calendar that can open on a given month
-    combo.js           type-to-filter dropdown on a text input (existing values only)
+    combo.js           type-to-filter dropdown on a text input (existing values only; optional '+ 添加「X」' for 工厂)
     pinyin.js          pinyin matching for combo.js (shi / shimu / sm → 实木), ~5 KB, no dictionary
 data/                  the saved data; back up this folder to back up everything
 售价计算 Price Calcs/    Step 1 outputs
@@ -56,6 +56,7 @@ browser.
 ### Data model (`data/`)
 ```
 settings.json         { categories:["XK","MUG"], materials:["树脂","金属","实木","陶瓷","塑料"], liveOffsetDays:45,
+                        factories:[{name, taxRate}]   (工厂 list, most recently used first; taxRate '' = unknown)
                         step1:{shippingPrice,exchangeRate,profitMargin,storageFee,isPeak},
                         step2:{operator,store}, step3:{targetDays:90, invTargetDays:180} }
 rows/<id>/meta.json   { id, name, category, material, sku, parentAsin, status, liveDate,
@@ -70,6 +71,7 @@ rows/<id>/orders/<fid>.json  one 下单计划 (Step 2 writes it): {order, produc
                       freight}: 交货日期 / SKU / 是否含真植物 are order-wide; 品名 / 材质 are never stored here (meta.json).
                       Created by the picker's 确认 (or 从 Excel 导入); changed only by edits. Independent of the row's images
 rows/<id>/order-memory.json { factories, materials, productNames, colorNames }  suggestion lists shared by the row's forms
+                      (`factories` is no longer used: 工厂 comes from settings.factories)
 rows/<id>/step2.json  legacy (one draft per row): copied once into the row's first form (`hub.legacy`), then only a backup
 rows/<id>/step3.json  { seasonality:[12 numbers] }
 sales.json            Step 3 store (sales/skus/inv/manual/lastSeen/snapshotDate), keyed by MSKU
@@ -163,6 +165,17 @@ Decisions are listed in [stage-3-step2.md](stage-3-step2.md). In short: a pop-up
 ← → through the table's visible rows; every Step 2 image is a 1:1 square, and the Excel gets exactly that square
 (12px margin); 运营 / 店铺 in Settings → 下单. Since 2026-09-29 (M1–M16) the pop-up opens the row's **list of 下单计划**;
 a new one is built in a picker (images × 报价 lines) as one 货号 card with an image on every row.
+
+### 工厂 / 税率 (scoping, 2026-09-29)
+| # | Decision |
+|---|---|
+| F1 | One global list `settings.factories [{name, taxRate}]`, seeded with 博罗 专票13% · 华智 专票1% · 合兴 专票13% · 莱伯特 专票13% · 佰利源 (none). 税率 is one string (`专票13%`, 对私 …); `''` = unknown. Names match ignoring case and spaces (`api.factoryKey`) |
+| F2 | 下单计划 工厂 = a `combo.js` dropdown (pinyin). Text with no exact match shows `+ 添加「X」` (click / Enter; Tab never adds) which adds X without 税率; other unknown text reverts with a toast |
+| F3 | Picking a 工厂 always replaces the form's 税率 (flash); no 税率 → empty, placeholder `该工厂未设税率`. A hand-typed 税率 is form-only |
+| F4 | Settings → **工厂**: name · 税率 · × per line, add line below, saves at once. Rename / delete (with confirm) change the list only, never saved forms |
+| F5 | Most recently used first: a pick, add or import moves the factory to the top (the tool posts `factory-used`; only the hub writes `settings.json`) |
+| F6 | 从 Excel 导入: an unknown 工厂 is added with the file's 税率 (toast `已新增工厂「X」`) |
+| F7 | New forms start with 工厂 and 税率 empty; an empty 税率 leaves the Excel 税率 cell blank (was `专票1%`). Saved forms keep their 工厂 / 税率 (e.g. "Huazhi") |
 
 **Out of scope for now:** Amazon upload templates, price preview in the collapsed row, bundling
 several rows into one Excel, Step 3 numbers in the main table.
