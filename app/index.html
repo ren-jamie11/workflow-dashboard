@@ -189,24 +189,29 @@ tr.xp-spacer td{padding:0;border:0}
 .s2-crumb{display:flex;align-items:center;gap:.7rem;min-width:0;max-width:45%;flex:none}
 .s2-crumb .menu-link{font-size:.82rem;text-decoration:none;white-space:nowrap}
 .s2-crumb .menu-link:hover{text-decoration:underline}
-.s2-fname{font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:text;
-  border-bottom:1px dashed transparent;min-width:0}
-.s2-fname:hover{border-bottom-color:#cbd5e1}
+.s2-fname{font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .s2-pane{flex:1;min-height:0;overflow-y:auto;padding:1.25rem 1.5rem 2rem}
 .s2-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.2rem 1.5rem 1.4rem;max-width:1100px;margin:0 auto}
 .s2-card.over{box-shadow:0 0 0 3px var(--primary),var(--shadow)}
 .s2-card-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding-bottom:.9rem;margin-bottom:1rem;border-bottom:1px solid var(--line)}
 .s2-card-head h2{font-size:1rem;margin:0}
 .s2-card-head .acts{display:flex;gap:.5rem}
-.ol-item{display:flex;align-items:center;gap:1rem;padding:.65rem .8rem;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:#fff}
-.ol-item + .ol-item{margin-top:.5rem}
-.ol-item:hover{border-color:var(--primary);background:#fafbff}
-.ol-name{flex:1;min-width:0;font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ol-name-in{padding:.3rem .5rem;font-size:.9rem;font-weight:600;max-width:420px}
-.ol-date{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
-.ol-st{font-size:.74rem;font-weight:500;border-radius:999px;padding:.1rem .6rem;white-space:nowrap;background:#f1f5f9;color:var(--muted)}
-.ol-st.on{background:var(--s1-bg);color:var(--s1-tx)}
-.ol-item .menu-link{white-space:nowrap}
+/* the files, as in Explorer: icon + wrapped name; the corner tick = 已提交 */
+.of-grid{display:flex;flex-wrap:wrap;gap:.5rem}
+.of-tile{width:132px;display:flex;flex-direction:column;align-items:center;gap:.45rem;padding:.7rem .45rem .6rem;border:1px solid transparent;
+  border-radius:8px;cursor:pointer;user-select:none}
+.of-tile:hover{background:#eef2ff;border-color:#c7d2fe}
+.of-icon{position:relative;width:48px;height:56px;flex:none}
+.of-icon svg{width:100%;height:100%;display:block}
+.of-name{font-size:.76rem;line-height:1.35;text-align:center;word-break:break-all;color:var(--dark);
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.of-tile.draft .of-name{color:var(--primary);font-weight:600}
+.of-tick{position:absolute;top:-6px;right:-10px;width:20px;height:20px;border-radius:50%;border:1.5px solid #cbd5e1;background:#fff;
+  color:transparent;font-size:.7rem;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}
+.of-tick:hover{border-color:#16a34a;color:#86efac}
+.of-tick.on{background:#16a34a;border-color:#16a34a;color:#fff}
+.of-tile.flash{animation:of-flash 2.4s ease-out}
+@keyframes of-flash{0%,35%{background:#e0e7ff;border-color:var(--primary)}100%{background:transparent;border-color:transparent}}
 .pk-sec + .pk-sec{margin-top:1.4rem}
 .pk-label{font-size:.88rem;font-weight:600;margin-bottom:.65rem}
 .pk-label .note{font-weight:400;color:var(--muted);margin-left:.5rem;font-size:.78rem}
@@ -404,8 +409,8 @@ table.pk .none{color:#cbd5e1}
         <div class="s2-meta" id="s2Meta"></div>
       </div>
       <div class="s2-crumb hidden" id="s2Crumb">
-        <button type="button" class="menu-link" id="s2ToList" title="返回这个产品的全部下单计划">‹ 全部下单计划</button>
-        <span class="s2-fname" id="s2FName" title="点击重命名"></span>
+        <button type="button" class="menu-link" id="s2ToList" title="返回这个产品的下单计划文件（草稿自动保存）">‹ 全部下单计划</button>
+        <span class="s2-fname">草稿</span>
       </div>
       <span class="s2-warn hidden" id="s2Warn" title="报价还没有保存；仍可先填写下单计划">报价未完成</span>
       <span class="s2-pos" id="s2Pos"></span>
@@ -413,13 +418,14 @@ table.pk .none{color:#cbd5e1}
       <button type="button" class="s2-btn" id="s2Next" title="下一个产品（→）">›</button>
       <button type="button" class="s2-btn close" id="s2Close" title="关闭（Esc）">×</button>
     </div>
-    <!-- the row's 下单计划 list -->
+    <!-- the row's 下单计划 files (下单计划/<product folder>/*.xlsx) and its draft -->
     <div class="s2-pane hidden" id="s2List">
       <div class="s2-card">
         <div class="s2-card-head">
           <h2>下单计划</h2>
           <div class="acts">
-            <button type="button" class="btn btn-ghost btn-sm" id="olImport" title="用已有的下单计划 Excel 新建一个下单计划">从 Excel 导入</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="olFolder" title="在文件管理器中打开这个产品的下单计划文件夹">打开文件夹</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="olImport" title="用已有的下单计划 Excel 填写一份新草稿">从 Excel 导入</button>
             <button type="button" class="btn btn-primary btn-sm" id="olNew">+ 新下单计划</button>
             <input type="file" id="olFile" accept=".xlsx" class="hidden">
           </div>
@@ -1072,9 +1078,7 @@ $('addBtn').addEventListener('click', () => {
 /* ============ images ============ */
 /* images.json {main, extra: up to 8 more, each with its own square position crop}: the row's images (the viewer, the 下单计划 picker). Each 下单计划 keeps its own copies.
    meta keeps imgCount and a THUMB_SIZE square thumb cut by thumbCrop
-   {x, y: fractions of the width / height, s: side as a fraction of the short edge}.
-   Before 下单计划 had several forms, the main image lived in step2.json products[0]: loadRowImages moves it once */
-const step2Path = r => 'rows/' + r.id + '/step2.json';
+   {x, y: fractions of the width / height, s: side as a fraction of the short edge} */
 const imagesPath = r => 'rows/' + r.id + '/images.json';
 
 function pickImage(cb, multiple){
@@ -1130,15 +1134,7 @@ async function loadRowImages(r){
   if (imgCache.has(r.id)) return imgCache.get(r.id);
   const im = await api.get(imagesPath(r)) || {};
   const extra = (Array.isArray(im.extra) ? im.extra : []).filter(x => x && x.url);
-  let main = im.main && im.main.url ? im.main : null;
-  if (!main && !imgCache.has(r.id)) {                  // older rows: the main image is still in step2.json
-    const s2 = await api.get(step2Path(r));
-    const p = s2 && Array.isArray(s2.products) ? s2.products[0] : null;
-    if (p && p.image) {
-      main = { url: p.image, w: (p.imgNat && p.imgNat.w) || 0, h: (p.imgNat && p.imgNat.h) || 0 };
-      await api.put(imagesPath(r), { main, extra });
-    }
-  }
+  const main = im.main && im.main.url ? im.main : null;
   if (imgCache.has(r.id)) return imgCache.get(r.id);    // another call finished first
   const list = main ? [main].concat(extra) : extra;
   imgCache.set(r.id, list);
@@ -1714,82 +1710,104 @@ document.addEventListener('keydown', e => {
 });
 
 /* ============ 下单 pop-up (Step 2) ============
-   A row has several 下单计划: rows/<id>/orders.json lists them ({forms:[{id, name, createdAt, generatedAt, deliveryDate}]}),
-   each form is rows/<id>/orders/<fid>.json. The pop-up has three views: the row's list, the picker for a new form
-   (selected images × ticked 报价 lines), and the form itself: one tools/step2.html page that stays loaded and is switched
-   with load-row {id, form, name} (ExcelJS makes it ~1 MB). Forms are independent of the row's images (never the table
-   thumb). ← → follow the table order as it was when the pop-up opened (a row that leaves the filter after 生成 keeps its
-   place) and always land on the next product's list */
+   A row's 下单计划 are its Excel files: 下单计划/<r.orderFolder>/*.xlsx. The folder name is fixed the first time it is needed
+   (renaming the product never breaks the link), and the files are edited, renamed and deleted in Excel / Explorer, never here.
+   The form only makes new files: each row has at most one draft, rows/<id>/orders/draft.json, which 生成 deletes.
+   rows/<id>/order-files.json {files:{<file name>:{submitted, deliveryDate}}} holds the 已提交 ticks: any ticked file = 已下单,
+   and meta.deliveryDate = the earliest 交货日期 among them (recorded when the file was generated).
+   The pop-up has three views: the row's files, the picker for a new draft (selected images × ticked 报价 lines), and the
+   form itself: one tools/step2.html page that stays loaded and is switched with load-row {id, form, folder}
+   (ExcelJS makes it ~1 MB). Forms are independent of the row's images (never the table thumb). ← → follow the table order
+   as it was when the pop-up opened and always land on the next product's list */
 const s2Frame = $('s2Frame');
-let order = null;           // {id, ids: the ← → order, view: 'list' | 'pick' | 'form', form: its orders.json entry, pick, file}
+let order = null;           // {id, ids: the ← → order, view: 'list' | 'pick' | 'form', form: 'draft' in the form view, pick, file, list}
 let s2Ready = false;        // the tool page has loaded and listens for load-row
-const ordersPath = r => 'rows/' + r.id + '/orders.json';
-const formPath = (r, fid) => 'rows/' + r.id + '/orders/' + fid + '.json';
-const memPath = r => 'rows/' + r.id + '/order-memory.json';
+const DRAFT = 'draft';
+const draftPath = r => 'rows/' + r.id + '/orders/' + DRAFT + '.json';
+const marksPath = r => 'rows/' + r.id + '/order-files.json';
 const newId = () => Math.random().toString(36).slice(2, 10);
-const dayOf = ms => { const d = new Date(ms || Date.now());
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
-/* a form's default name: its sizes (4x6 · 5x7), else 下单计划 N */
-function formName(sizes, n){
-  const u = [...new Set(sizes.map(s => String(s == null ? '' : s).trim()).filter(Boolean))];
-  if (!u.length) return '下单计划 ' + (n + 1);
-  return u.slice(0, 4).join(' · ') + (u.length > 4 ? ' 等 ' + u.length + ' 个尺寸' : '');
-}
+const stampOf = ms => { const d = new Date(ms);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' +
+    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
 
-/* the row's list, read once per row. A row without orders.json gets one now: its old step2.json draft (from before a
-   row could have several) becomes the first form, flattened by the tool when it opens (hub.legacy) */
-const ordersP = new Map();
-function ensureOrders(r){
-  if (!ordersP.has(r.id)) ordersP.set(r.id, loadOrders(r).catch(e => { ordersP.delete(r.id); throw e; }));
-  return ordersP.get(r.id);
+/* the row's folder under 下单计划/, named after the product the first time it is needed and never changed */
+function orderFolderOf(r){
+  if (r.orderFolder) return r.orderFolder;
+  const base = String(r.name || r.sku || r.id).trim().replace(/[\\/:*?"<>|\x00-\x1f]/g, '_')
+    .replace(/^[.\s]+|[.\s]+$/g, '').slice(0, 80) || r.id;
+  const taken = new Set(rows.filter(x => x !== r && x.orderFolder).map(x => x.orderFolder.toLowerCase()));
+  let name = base, n = 2;
+  while (taken.has(name.toLowerCase())) name = base + ' ' + n++;
+  r.orderFolder = name;
+  saveRow(r);
+  return name;
 }
-async function loadOrders(r){
-  const o = await api.get(ordersPath(r));
-  if (o && Array.isArray(o.forms)) return o;
-  const fresh = { forms: [] };
-  const s2 = await api.get(step2Path(r));
-  if (s2 && Array.isArray(s2.products)) {
-    await loadRowImages(r);                             // moves the main image into images.json first
-    const fid = newId(), draft = Object.assign({}, s2, { hub: { legacy: true } });
-    delete draft.memory;
-    await api.put(formPath(r, fid), draft);
-    if (s2.memory && !(await api.get(memPath(r)))) await api.put(memPath(r), s2.memory);
-    const sizes = [];
-    s2.products.forEach(p => (p.variants || []).forEach(v => sizes.push(v.size)));
-    const done = ROWS.statusRank(r.status) >= ROWS.statusRank('已下单');
-    fresh.forms.push({ id: fid, name: formName(sizes, 0), createdAt: r.createdAt || Date.now(),
-      generatedAt: done ? (r.createdAt || Date.now()) : null, deliveryDate: done ? (r.deliveryDate || '') : '' });
-  }
-  await api.put(ordersPath(r), fresh);
-  return fresh;
+/* {files: [{name, created, modified}] oldest first, draft: bool, marks: order-files.json} */
+async function loadOrderList(r){
+  const [res, m] = await Promise.all([api.orderFiles(orderFolderOf(r), r.id), api.get(marksPath(r))]);
+  return { files: res.files || [], draft: !!res.draft, marks: m && m.files ? m : { files: {} } };
 }
-const saveOrders = (r, o) => api.put(ordersPath(r), o).catch(() => {});
-/* meta.deliveryDate = the earliest 交货日期 among the generated forms (the 上架时间 picker opens on it + N days) */
-function updateDelivery(r, o){
-  const ds = o.forms.filter(f => f.generatedAt && f.deliveryDate).map(f => f.deliveryDate).sort();
-  if (ds.length && ds[0] !== (r.deliveryDate || '')) { r.deliveryDate = ds[0]; saveRow(r); }
+/* 已下单 = at least one 已提交 file in the folder; meta.deliveryDate = the earliest 交货日期 among them.
+   Unticking the last one goes back to 未下单 (已上架 never moves back) */
+function applySubmitted(r, l){
+  const on = l.files.map(f => l.marks.files[f.name]).filter(x => x && x.submitted);
+  const dd = on.map(x => x.deliveryDate).filter(Boolean).sort()[0] || '';
+  const status = on.length ? (ROWS.statusRank(r.status) < ROWS.statusRank('已下单') ? '已下单' : r.status)
+                           : (r.status === '已下单' ? '未下单' : r.status);
+  if (status === r.status && dd === (r.deliveryDate || '')) return;
+  moveRow(r, () => { r.status = status; r.deliveryDate = dd; });
+  renderOrderHead();
+}
+/* a re-read of the folder (window focus) must not land on top of a newer tick: it waits for the ticks being saved,
+   and one started before a tick is dropped */
+let listSeq = 0, marksSaving = Promise.resolve();
+async function toggleSubmitted(r, l, name){
+  const m = l.marks, e = m.files[name] || (m.files[name] = { submitted: false, deliveryDate: '' });
+  ++listSeq;
+  e.submitted = !e.submitted;
+  renderOrderList();
+  const save = api.put(marksPath(r), m);
+  marksSaving = save.catch(() => {});
+  try { await save; }
+  catch (err) { e.submitted = !e.submitted; renderOrderList(); return; }
+  applySubmitted(r, l);
 }
 
 function openOrder(r){
   if (viewer) closeViewer();
   const ids = tableOrder().map(x => x.id);
-  order = { id: r.id, ids: ids.includes(r.id) ? ids : [r.id], view: null, form: null, pick: null, file: null };
+  order = { id: r.id, ids: ids.includes(r.id) ? ids : [r.id], view: null, form: null, pick: null, file: null, list: null };
   $('s2Back').classList.remove('hidden');
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   if (!s2Frame.getAttribute('src')) s2Frame.src = 'tools/step2.html';   // loads in the background while the list shows
   showOrder(true);
 }
-/* the current product's list; with autoPick, a product without any 下单计划 goes straight to the picker */
-function showOrder(autoPick){
+/* the current product's files; with autoPick, a product without any file or draft goes straight to the picker.
+   flash = a file name to highlight (just generated) */
+function showOrder(autoPick, flash){
   const r = order && byId(order.id);
   if (!r) return;
   setView('list');
-  renderOrderList(null);
-  ensureOrders(r).then(o => {
-    if (!order || order.id !== r.id || order.view !== 'list') return;
-    if (autoPick && !o.forms.length) openPicker(r); else renderOrderList(o);
+  order.list = null;
+  renderOrderList();
+  const seq = ++listSeq;
+  marksSaving.then(() => loadOrderList(r)).then(l => {
+    if (seq !== listSeq || !order || order.id !== r.id || order.view !== 'list') return;
+    if (autoPick && !l.files.length && !l.draft) return openPicker(r);
+    order.list = l;
+    renderOrderList(flash);
   }).catch(() => {});
 }
+/* re-read the folder in place: the window regains focus (back from Excel / Explorer), or a clicked file was gone */
+function refreshOrderList(){
+  const r = order && order.view === 'list' && order.list && byId(order.id);
+  if (!r) return;
+  const seq = ++listSeq;
+  marksSaving.then(() => loadOrderList(r)).then(l => {
+    if (seq === listSeq && order && order.id === r.id && order.view === 'list') { order.list = l; renderOrderList(); }
+  }).catch(() => {});
+}
+window.addEventListener('focus', refreshOrderList);
 function setView(v){
   if (order.view === 'form' && v !== 'form') hubEmbed.send(s2Frame, 'unload');   // the tool saves and forgets the form
   order.view = v;
@@ -1830,118 +1848,92 @@ function renderOrderHead(){
   $('s2Pos').textContent = pos > -1 ? '产品 ' + (pos + 1) + ' / ' + ids.length + ' · 按 ← → 切换' : '';
   $('s2Prev').disabled = pos <= 0;
   $('s2Next').disabled = pos < 0 || pos >= ids.length - 1;
-  const f = order.view === 'form' ? order.form : null;
-  $('s2Crumb').classList.toggle('hidden', !f);
-  if (f && !$('s2FName').querySelector('input')) $('s2FName').textContent = f.name;
+  $('s2Crumb').classList.toggle('hidden', order.view !== 'form');
 }
 
-/* ---- the form view ---- */
-function openForm(r, f, file){
+/* ---- the form view (the row's draft) ---- */
+function openForm(r, file){
   setView('form');
-  order.form = f;
+  order.form = DRAFT;
   order.file = file || null;
   renderOrderHead();
   sendLoad();
 }
 function sendLoad(){
-  if (!s2Ready || !order || order.view !== 'form' || !order.form) return;
-  const d = { id: order.id, form: order.form.id, name: order.form.name };
-  if (order.file) d.file = order.file;                  // 从 Excel 导入: the tool reads it into the new form
+  const r = order && byId(order.id);
+  if (!s2Ready || !r || order.view !== 'form' || !order.form) return;
+  const d = { id: r.id, form: order.form, folder: orderFolderOf(r) };
+  if (order.file) d.file = order.file;                  // 从 Excel 导入: the tool reads it into the new draft
   order.file = null;
   hubEmbed.send(s2Frame, 'load-row', d);
 }
+/* a new draft replaces the row's old one: ask first */
+async function okToReplaceDraft(r){
+  let has = order && order.list ? order.list.draft : null;
+  if (has == null) {
+    try { has = (await api.orderFiles(orderFolderOf(r), r.id)).draft; } catch (e) { return false; }
+  }
+  return !has || confirm('已有草稿，将被替换？');
+}
 
-/* ---- the list ---- */
-function renderOrderList(o){
-  const el = $('olList');
-  if (!o) { el.innerHTML = '<div class="hint">加载中…</div>'; return; }
-  if (!o.forms.length) {
-    el.innerHTML = '<div class="empty-box"><b>还没有下单计划</b>点击「+ 新下单计划」，选择图片和报价行即可生成。</div>';
+/* ---- the files ---- */
+const XLSX_ICON = '<svg viewBox="0 0 48 56" aria-hidden="true"><path d="M8 2h22l14 14v36a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#fff" stroke="#cbd5e1" stroke-width="2"/>' +
+  '<path d="M30 2v12a2 2 0 0 0 2 2h12" fill="none" stroke="#cbd5e1" stroke-width="2"/><rect x="2" y="24" width="26" height="24" rx="3" fill="#107c41"/>' +
+  '<path d="M9 30l12 12M21 30L9 42" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>' +
+  '<path d="M32 26h8M32 32h8M32 38h8M32 44h8" stroke="#9ccfb1" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const DRAFT_ICON = '<svg viewBox="0 0 48 56" aria-hidden="true"><path d="M8 2h22l14 14v36a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#f8fafc" stroke="#a5b4fc" stroke-width="2" stroke-dasharray="4 3"/>' +
+  '<path d="M16 40l2-7 14-14 5 5-14 14z" fill="#e0e7ff" stroke="#4f46e5" stroke-width="2" stroke-linejoin="round"/></svg>';
+function renderOrderList(flash){
+  const el = $('olList'), l = order && order.list;
+  if (!l) { el.innerHTML = '<div class="hint">加载中…</div>'; return; }
+  if (!l.files.length && !l.draft) {
+    el.innerHTML = '<div class="empty-box"><b>还没有下单计划文件</b>点击「+ 新下单计划」选择图片和报价行，或「从 Excel 导入」已有文件；生成的 Excel 会出现在这里。</div>';
     return;
   }
-  el.innerHTML = o.forms.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(f =>
-    '<div class="ol-item" data-fid="' + esc(f.id) + '" title="打开">' +
-      '<span class="ol-name">' + esc(f.name) + '</span>' +
-      '<span class="ol-date">创建 ' + dayOf(f.createdAt) + '</span>' +
-      '<span class="ol-st' + (f.generatedAt ? ' on' : '') + '">' + (f.generatedAt ? '已生成' : '未生成') + '</span>' +
-      '<button type="button" class="menu-link" data-ol="rename">重命名</button>' +
-      '<button type="button" class="del-btn" data-ol="del" title="删除这个下单计划">×</button>' +
-    '</div>').join('');
-}
-/* edit a name in place: Enter / leaving the field saves, Esc cancels; done(newName) or done(null) */
-function renameInline(el, cur, done){
-  if (!el || el.querySelector('input')) return;
-  const inp = document.createElement('input');
-  inp.type = 'text'; inp.className = 'form-control ol-name-in'; inp.value = cur; inp.maxLength = 60;
-  el.textContent = '';
-  el.appendChild(inp);
-  inp.focus(); inp.select();
-  let over = false;
-  const finish = ok => {
-    if (over) return;
-    over = true;
-    const v = inp.value.trim();
-    el.textContent = cur;
-    done(ok && v && v !== cur ? v : null);
-  };
-  inp.addEventListener('keydown', e => {
-    e.stopPropagation();                                // ← → move the caret, Esc only cancels
-    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
-    else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
-  });
-  inp.addEventListener('blur', () => finish(true));
-  inp.addEventListener('click', e => e.stopPropagation());
-}
-async function renameForm(r, f, name){
-  if (!name) return;
-  const o = await ensureOrders(r);
-  f.name = name;
-  await saveOrders(r, o);
-  if (!order || order.id !== r.id) return;
-  if (order.form === f) hubEmbed.send(s2Frame, 'form-renamed', { form: f.id, name });   // the Excel file name follows
-  renderOrderHead();
-  if (order.view === 'list') renderOrderList(o);
-}
-async function deleteForm(r, f){
-  if (!confirm('删除下单计划「' + f.name + '」？已生成的 Excel 文件不会删除。')) return;
-  const o = await ensureOrders(r);
-  try { await api.del(formPath(r, f.id)); } catch (e) { return; }
-  o.forms = o.forms.filter(x => x !== f);
-  await saveOrders(r, o);
-  if (f.generatedAt) updateDelivery(r, o);
-  if (order && order.id === r.id && order.view === 'list') renderOrderList(o);
-  toast('已删除下单计划「' + f.name + '」');
+  el.innerHTML = '<div class="of-grid">' +
+    (l.draft ? '<div class="of-tile draft" data-of="draft" title="继续编辑草稿（生成 Excel 后草稿自动删除）">' +
+      '<span class="of-icon">' + DRAFT_ICON + '</span><span class="of-name">草稿 · 继续编辑</span></div>' : '') +
+    l.files.map((f, i) => {
+      const on = !!(l.marks.files[f.name] && l.marks.files[f.name].submitted);
+      return '<div class="of-tile' + (f.name === flash ? ' flash' : '') + '" data-of="file" data-i="' + i + '" title="' +
+          esc(f.name) + '&#10;修改于 ' + stampOf(f.modified) + '&#10;点击用 Excel 打开">' +
+        '<span class="of-icon">' + XLSX_ICON +
+          '<button type="button" class="of-tick' + (on ? ' on' : '') + '" data-of="tick" title="' +
+            (on ? '已提交（点击取消）' : '未提交（点击标记为已提交）') + '">✓</button></span>' +
+        '<span class="of-name">' + esc(f.name) + '</span></div>';
+    }).join('') + '</div>';
 }
 $('olList').addEventListener('click', async e => {
-  const item = e.target.closest('.ol-item'), r = order && byId(order.id);
-  if (!item || !r || e.target.closest('input')) return;
-  const o = await ensureOrders(r).catch(() => null);
-  const f = o && o.forms.find(x => x.id === item.dataset.fid);
+  const t = e.target.closest('[data-of]'), r = order && byId(order.id), l = order && order.list;
+  if (!t || !r || !l) return;
+  if (t.dataset.of === 'draft') return openForm(r);
+  const tile = t.closest('.of-tile'), f = tile && l.files[+tile.dataset.i];
   if (!f) return;
-  const act = e.target.closest('[data-ol]');
-  if (act && act.dataset.ol === 'del') return deleteForm(r, f);
-  if (act && act.dataset.ol === 'rename') return renameInline(item.querySelector('.ol-name'), f.name, v => renameForm(r, f, v));
-  openForm(r, f);
+  if (t.dataset.of === 'tick') return toggleSubmitted(r, l, f.name);
+  try {
+    if (!(await api.openOrderFile(orderFolderOf(r), f.name))) { toast('文件已不存在', true); refreshOrderList(); }
+  } catch (err) {}
 });
-$('olNew').addEventListener('click', () => { const r = order && byId(order.id); if (r) openPicker(r); });
-$('olImport').addEventListener('click', () => $('olFile').click());
+$('olFolder').addEventListener('click', () => {
+  const r = order && byId(order.id);
+  if (r) api.openOrderFile(orderFolderOf(r)).catch(() => {});
+});
+$('olNew').addEventListener('click', async () => {
+  const r = order && byId(order.id);
+  if (r && await okToReplaceDraft(r) && order && order.id === r.id) openPicker(r);
+});
+$('olImport').addEventListener('click', async () => {
+  const r = order && byId(order.id);
+  if (r && await okToReplaceDraft(r)) $('olFile').click();
+});
 $('olFile').addEventListener('change', async e => {
   const file = e.target.files && e.target.files[0], r = order && byId(order.id);
   e.target.value = '';
   if (!file || !r) return;
-  const o = await ensureOrders(r).catch(() => null);
-  if (!o || !order || order.id !== r.id) return;
-  const f = { id: newId(), name: file.name.replace(/\.xlsx$/i, '').trim() || formName([], o.forms.length),
-              createdAt: Date.now(), generatedAt: null, deliveryDate: '' };
-  o.forms.push(f);
-  await saveOrders(r, o);
-  if (order && order.id === r.id) openForm(r, f, file);
+  try { await api.del(draftPath(r)); } catch (err) { return; }   // the import starts a fresh draft
+  if (order && order.id === r.id) openForm(r, file);
 });
 $('s2ToList').addEventListener('click', () => showOrder(false));
-$('s2FName').addEventListener('click', () => {
-  const r = order && byId(order.id), f = order && order.form;
-  if (r && f) renameInline($('s2FName'), f.name, v => renameForm(r, f, v));
-});
 
 /* ---- the picker: images (the row's own, main first) × ticked 报价 lines ---- */
 function openPicker(r){
@@ -2038,13 +2030,12 @@ async function pickAdd(files){
   }
 }
 $('pkCancel').addEventListener('click', () => showOrder(false));
-/* 确认: one 货号 card; rows = each selected image (the row's image order) × each ticked line (报价 order) */
+/* 确认: the row's draft = one 货号 card; rows = each selected image (the row's image order) × each ticked line (报价 order) */
 $('pkOk').addEventListener('click', async () => {
   const pk = order && order.pick, r = pk && byId(pk.r.id);
   if (!pk || !r || !pk.sel.size || pickBusy) return;
   $('pkOk').disabled = true;
   try {
-    const o = await ensureOrders(r);
     const imgs = pk.list.filter(im => pk.sel.has(im)), lines = pk.lines.filter(l => pk.on.has(l));
     /* 图片 = the row's main image on every row (where the table thumb is); each selected image = the 色号 image of its rows */
     const main = pk.list[0], mainId = newId(), images = {}, variants = [];
@@ -2058,13 +2049,9 @@ $('pkOk').addEventListener('click', async () => {
         size: l ? s1Val(l.sku) : '', setQty: '', price: l ? s1Val(l.price) : '', boxSize: l ? s1Box(l) : '', qty: '',
         img: mainId, imgCrop: copy(cropOf(main)), accImg: null, gRaw: '', pass: {} }));
     });
-    const f = { id: newId(), name: formName(lines.map(l => l.sku), o.forms.length),
-                createdAt: Date.now(), generatedAt: null, deliveryDate: '' };
-    await api.put(formPath(r, f.id), { order: {}, images, hub: {},
+    await api.put(draftPath(r), { order: {}, images, hub: {},          // replaces the old draft (asked at + 新下单计划)
       products: [{ id: newId(), code: '', image: null, imgNat: null, crop: null, variants }] });
-    o.forms.push(f);
-    await saveOrders(r, o);
-    if (order && order.id === r.id && order.pick === pk) openForm(r, f);
+    if (order && order.id === r.id && order.pick === pk) openForm(r);
   } catch (e) {
     renderPickSum();
   }
@@ -2115,27 +2102,23 @@ hubEmbed.listen((m, frame) => {
       if (ch) { saveRow(r); render(); renderOrderHead(); }
       break;
     }
-    case 'step2-generated':                             // 生成 completes 下单 (status only moves forward)
-      if (!r) break;
-      moveRow(r, () => { if (ROWS.statusRank(r.status) < ROWS.statusRank('已下单')) r.status = '已下单'; });
-      renderOrderHead();
-      ensureOrders(r).then(o => {
-        const f = o.forms.find(x => x.id === d.form);
-        if (f) { f.generatedAt = Date.now(); f.deliveryDate = d.deliveryDate || ''; saveOrders(r, o); }
-        updateDelivery(r, o);
-      }).catch(() => {});
+    case 'step2-generated':                             // a new Excel in the row's folder (the tool has deleted the draft)
+      if (!r || !d.file) break;
+      api.get(marksPath(r)).then(m => {                 // 未提交 until ticked; its 交货日期 counts once it is
+        m = m && m.files ? m : { files: {} };
+        m.files[d.file] = { submitted: false, deliveryDate: d.deliveryDate || '' };
+        return api.put(marksPath(r), m);
+      }).catch(() => {}).then(() => {
+        if (order && order.id === r.id && order.view === 'form') showOrder(false, d.file);
+      });
       break;
     case 'factory-used':                                // a 工厂 picked / added / imported in a 下单计划: added at the end if new
       useFactory(d.name, d.taxRate, d.add, d.imported);
       break;
-    case 'import-failed':                               // 从 Excel 导入 failed: drop the empty form it created
+    case 'import-failed':                               // 从 Excel 导入 failed: drop the empty draft it started
       if (!r) break;
-      ensureOrders(r).then(o => {
-        o.forms = o.forms.filter(x => x.id !== d.form);
-        saveOrders(r, o);
-        api.del(formPath(r, d.form)).catch(() => {});
-        if (order && order.id === r.id && order.view === 'form' && order.form && order.form.id === d.form) showOrder(false);
-      }).catch(() => {});
+      api.del(draftPath(r)).catch(() => {});
+      if (order && order.id === r.id && order.view === 'form') showOrder(false);
       break;
   }
 });
@@ -2377,29 +2360,6 @@ $('liveOffset').addEventListener('change', e => {
   saveSettings();
 });
 
-/* once (2026-09-29): a row without 工厂 takes the 工厂 of its most recent 下单计划 ('Huazhi' = 华智). 类目 / 材质 unchanged */
-async function fillRowFactories(){
-  const ALIAS = { huazhi: '华智' };
-  const factoryOf = d => (d && d.order && String(d.order.factory || '').trim()) || '';
-  try {
-    for (const r of rows.filter(x => !x.factory && !drafts.has(x.id))) {
-      let name = '';
-      const o = await api.get('rows/' + r.id + '/orders.json');
-      if (o && Array.isArray(o.forms)) {
-        for (const f of o.forms.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)))
-          if ((name = factoryOf(await api.get(formPath(r, f.id))))) break;
-      } else name = factoryOf(await api.get('rows/' + r.id + '/step2.json'));   // not yet split into forms
-      if (!name) continue;
-      const i = facIndex(ALIAS[api.factoryKey(name)] || name);
-      r.factory = i >= 0 ? settings.factories[i].name : name;
-      saveRow(r);
-    }
-  } catch (e) { return; }                                   // offline: try again next time
-  settings.rowFactoriesFilled = true;
-  saveSettings();
-  render();
-}
-
 /* ============ start ============ */
 (async function init(){
   try {
@@ -2411,7 +2371,6 @@ async function fillRowFactories(){
     return;
   }
   render();
-  if (!settings.rowFactoriesFilled) fillRowFactories();
   /* positions broken by an earlier bug (a value saved as null): keep the valid parts, re-centre the rest */
   rows.filter(r => r.thumbCrop && !['x', 'y', 's'].every(k => Number.isFinite(r.thumbCrop[k]))).forEach(r =>
     openFrame(r).then(f => {

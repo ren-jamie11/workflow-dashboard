@@ -54,9 +54,9 @@ Shared values are entered once in 订单信息; the rows keep only what differs 
 One parent-ASIN group can be ordered in several Excels (e.g. XK_012-023: 4x6 + 5x7 now, 8x10 later).
 | # | Decision |
 |---|---|
-| M1 | 下单 opens the row's **list**: one line per form = name · 创建日期 · 已生成 / 未生成; click = open, 重命名 (inline), × 删除. Buttons `+ 新下单计划` and `从 Excel 导入` |
+| M1 | ~~下单 opens the row's **list**: one line per form = name · 创建日期 · 已生成 / 未生成; click = open, 重命名 (inline), × 删除. Buttons `+ 新下单计划` and `从 Excel 导入`~~ *(Superseded 2026-09-29 by X1–X7)* |
 | M2 | A row with no 下单计划 goes straight to the picker; 取消 there shows the (empty) list |
-| M3 | Name = the ticked 报价 sizes (`4x6 · 5x7`, at most 4, else `下单计划 N`), editable in the list or by clicking it in the header. Excel = `日期_运营_品名_<表单名>_下单计划.xlsx` |
+| M3 | ~~Name = the ticked 报价 sizes (`4x6 · 5x7`, at most 4, else `下单计划 N`), editable in the list or by clicking it in the header. Excel = `日期_运营_品名_<表单名>_下单计划.xlsx`~~ *(Superseded 2026-09-29 by X1–X7)* |
 | M4 | Picker images = the row's images (main + ≤ 8 extras, tiles at their own square position) + a '+' tile; paste / drop also add. A new image joins the row's images (9-image limit, as in the viewer) and starts selected |
 | M5 | The main image is preselected; selected tiles get a thick border and ✓. ≥ 1 image, else 确认 is disabled (`请至少选择一张图片`). Rows follow the row's image order |
 | M6 | 报价 lines: ☑ · 尺寸 / 规格 · 工厂价 · 内盒尺寸 · 建议售价 (display only, `shared/pricing.js`); all ticked, header ☑ toggles all; empty lines are skipped. The 报价 column 商品名 / SKU is renamed **尺寸 / 规格** |
@@ -66,16 +66,31 @@ One parent-ASIN group can be ordered in several Excels (e.g. XK_012-023: 4x6 + 5
 | M10 | Excel layout unchanged: every row gets its own 图片 and 色号 image; the thick group border is drawn where either image changes |
 | M11 | After creation rows are added with + 添加一行 only (copies the row above's image, position and 下单数量); ⧉ copies a row |
 | M12 | 从报价更新: rows whose 尺寸 equals a 报价 line get its 单价 / 内盒尺寸 (撤销 as before); lines are never added, unlabelled lines are skipped |
-| M13 | First 生成 of any form → status ≥ 已下单. `meta.deliveryDate` = the earliest 交货日期 among generated forms, recomputed on 生成 and when a generated form is deleted (no longer live while typing) |
+| M13 | ~~First 生成 of any form → status ≥ 已下单. `meta.deliveryDate` = the earliest 交货日期 among generated forms, recomputed on 生成 and when a generated form is deleted (no longer live while typing)~~ *(Superseded 2026-09-29 by X1–X7)* |
 | M14 | ← → always switch product and show its list (its picker if it has none), also from inside a form. In a form the header shows `‹ 全部下单计划` + the form name. The 下单 pill is unchanged |
-| M15 | Every existing `step2.json` becomes the row's first form (flattened to one card: each row keeps its old 货号 image; the old 货号 #1 image starts at `thumbCrop`), 已生成 when the status is ≥ 已下单. `step2.json` stays on disk as a backup |
-| M16 | 从 Excel 导入 creates a new form named after the file (every 货号 of the file goes into the one card; the first 产品货号 is kept) and never touches the row's images; a failed import removes the new entry. 删除 asks `删除下单计划「…」？已生成的 Excel 文件不会删除`; status is not rolled back |
+| M15 | ~~Every existing `step2.json` becomes the row's first form (flattened to one card: each row keeps its old 货号 image; the old 货号 #1 image starts at `thumbCrop`), 已生成 when the status is ≥ 已下单. `step2.json` stays on disk as a backup~~ *(Superseded 2026-09-29 by X1–X7)* |
+| M16 | ~~从 Excel 导入 creates a new form named after the file (every 货号 of the file goes into the one card; the first 产品货号 is kept) and never touches the row's images; a failed import removes the new entry. 删除 asks `删除下单计划「…」？已生成的 Excel 文件不会删除`; status is not rolled back~~ *(Superseded 2026-09-29 by X1–X7)* |
+
+## Files, not forms (scoping 2026-09-29)
+The Excel file is the only record of a 下单计划: users edit, rename and delete it in Excel / Explorer, so a saved form could
+only go stale. This supersedes **M1, M3, M13, M15, M16** and the storage notes below (marked).
+
+| # | Decision |
+|---|---|
+| X1 | Files go to `下单计划/<product folder>/` (project root). The folder is named after the product the first time it is needed and saved as `meta.orderFolder`; renaming the product never renames it (a clash with another row adds " 2"). `下单计划 Order Forms/` is left as examples and no longer used |
+| X2 | 下单 opens the row's **files**, Explorer style: an Excel icon + the wrapped file name, oldest first (creation time), `.xlsx` only (no `~$` lock files); date modified in the tooltip. Click = open in Excel (`/api/open`). The panel is view-only: no rename / delete. `打开文件夹` opens the product folder. The list re-reads the folder when the pop-up opens and when the window regains focus; a file that is gone when clicked → toast `文件已不存在` + re-read |
+| X3 | One draft per row, `rows/<id>/orders/draft.json`, shown as the first tile `草稿 · 继续编辑`. `+ 新下单计划` / `从 Excel 导入` with a draft ask `已有草稿，将被替换？`. A successful 生成 deletes the draft and returns to the files with the new tile highlighted |
+| X4 | No form name: Excel = `日期_运营_品名_<尺寸>_下单计划.xlsx`, `<尺寸>` = the form's sizes when 生成 is clicked (at most 4; omitted when none). A taken name gets ` (1)`; nothing is overwritten. 从 Excel 导入 always writes a new file (the source is never touched) |
+| X5 | Each file has a small corner tick **已提交** (grey ○ / green ✓), stored by file name in `rows/<id>/order-files.json {files:{<name>:{submitted, deliveryDate}}}`; a new file starts unticked; a file renamed in Explorer loses its tick |
+| X6 | Status follows the ticks (only when a tick changes): any ticked file → 已下单; none and the status is 已下单 → 未下单; 已上架 is never touched. 生成 no longer changes the status. `meta.deliveryDate` = the earliest 交货日期 (recorded at 生成) among ticked files, '' when none |
+| X7 | Clean slate: every row's `orders.json`, `orders/` and `step2.json` were moved to `data/_backup-orders-2026-09-29/`. The one-time 工厂 fill (F12) was removed |
 
 ## Hub: the pop-up (`index.html`, section `下单 pop-up`)
 - `#s2Back` (the `.iv-back` backdrop) > `.s2`: the header, then one of three views: `#s2List` (the row's list),
   `#s2Pick` (the picker) or `<iframe id="s2Frame">` (the form). `order.view` = `list | pick | form`; the list and the
   picker are drawn by the hub, so they show without waiting for the tool.
-- **Storage:** `rows/<id>/orders.json {forms:[{id, name, createdAt, generatedAt, deliveryDate}]}` (only the hub writes it),
+- *(Superseded by X1–X7: the files are the record; the only form is `rows/<id>/orders/draft.json`.)*
+  **Storage (before X):** `rows/<id>/orders.json {forms:[{id, name, createdAt, generatedAt, deliveryDate}]}` (only the hub writes it),
   each form `rows/<id>/orders/<fid>.json` (only the tool writes it after creation), the row's images `images.json {main, extra}`.
   `ensureOrders(r)` reads the list once per row (a promise per row, so fast ← → can't migrate twice); a row without
   `orders.json` gets one, and its old `step2.json` (if any) is copied to `orders/<fid>.json` with `hub.legacy` (M15) and its

@@ -9,7 +9,7 @@ Read this file first, then only the stage doc you are working on.
 |---|---|---|
 | 1 | [stage-1-hub.md](stage-1-hub.md) | Product tracker: add/filter/delete rows; data saved to `data/` |
 | 2 | [stage-2-step1.md](stage-2-step1.md) | Expand a row to price it (Step 1) and confirm the price |
-| 3 | [stage-3-step2.md](stage-3-step2.md) | 下单 pop-up over the hub (← → between products); several 下单计划 per row, each built from chosen images × 报价 lines; Excel written to `下单计划 Order Forms/` |
+| 3 | [stage-3-step2.md](stage-3-step2.md) | 下单 pop-up over the hub (← → between products); the pop-up shows the row's Excel files in `下单计划/<product folder>/` (click = open in Excel); the form only makes new files, from chosen images × 报价 lines |
 | 4 | [stage-4-step3.md](stage-4-step3.md) | Step 3 inventory per row; uploads set 已上架 automatically and fill 父ASIN |
 
 ## Launch
@@ -37,7 +37,8 @@ app/
     pinyin.js          pinyin matching for combo.js (shi / shimu / sm → 实木), ~5 KB, no dictionary
 data/                  the saved data; back up this folder to back up everything
 售价计算 Price Calcs/    Step 1 outputs
-下单计划 Order Forms/    Step 2 outputs
+下单计划/<product>/      Step 2 outputs: one folder per product (meta.orderFolder); the files are the record
+下单计划 Order Forms/    examples from before 2026-09-29; no longer used
 Step 1/2/3 - *.html    ORIGINALS: never edit; they are the reference implementation
 ```
 
@@ -47,33 +48,39 @@ Step 1/2/3 - *.html    ORIGINALS: never edit; they are the reference implementat
 | GET | `/api/rows` | all `data/rows/*/meta.json`, combined into one array |
 | GET / PUT | `/api/data/<path>` | read or write any JSON under `data/` (write = temp file + rename); a missing file returns `null` |
 | DELETE | `/api/rows/<id>` | delete the `data/rows/<id>/` folder |
-| DELETE | `/api/data/<path>` | delete one JSON file under `data/` (a 下单计划 form) |
-| POST | `/api/output?dir=<d>&name=<f>` | write the raw body to one of the two output folders (whitelist); if the name is taken, add ` (1)` |
+| DELETE | `/api/data/<path>` | delete one JSON file under `data/` (a 下单计划 draft) |
+| POST | `/api/output?dir=<d>&name=<f>[&sub=<folder>]` | write the raw body to one of the two output folders (whitelist: `售价计算 Price Calcs`, `下单计划`), optionally into one subfolder (a product's); if the name is taken, add ` (1)` |
+| GET | `/api/orderfiles?folder=<f>&row=<id>` | `{files:[{name, created, modified}], draft}`: the `.xlsx` files in `下单计划/<f>/` (no `~$` lock files), oldest first by creation time; `draft` = `rows/<id>/orders/draft.json` exists |
+| POST | `/api/open?folder=<f>[&name=<n>]` | open `下单计划/<f>/<n>` in its Windows app (`os.startfile`), or the folder in Explorer when there is no name (created first); a missing file returns 404 |
 
-Binds to `127.0.0.1` only and rejects `..` in paths. If the port is already in use, it just opens the
+Binds to `127.0.0.1` only and rejects `..` in paths; folder / file names for `下单计划` must be single plain names. If the port is already in use, it just opens the
 browser.
 
 ### Data model (`data/`)
 ```
 settings.json         { categories:["XK","MUG"], materials:["树脂","金属","实木","陶瓷","塑料"], liveOffsetDays:45,
                         factories:[{name, taxRate, category, material}]   (工厂 list in a fixed order, new ones at the end; '' = not set),
-                        rowFactoriesFilled   (the one-time 工厂 fill of existing rows has run)
+                        rowFactoriesFilled   (the one-time 工厂 fill of existing rows ran; no longer used)
                         step1:{shippingPrice,exchangeRate,profitMargin,storageFee,isPeak},
                         step2:{operator,store}, step3:{targetDays:90, invTargetDays:180} }
 rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, status, liveDate,
-                        step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt }
+                        step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt, orderFolder }
+                      orderFolder = the product's folder in 下单计划/, named after the product the first time it is
+                      needed and never renamed (a clash with another row adds " 2")
 rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
 rows/<id>/images.json { main:{url,w,h}, extra:[{url,w,h,crop}] }  the row's images: main + up to 8 more (image viewer,
-                      下单计划 picker). Rows from before 2026-09-29 kept `main` in step2.json; it moves here on first read
-rows/<id>/orders.json { forms:[{id, name, createdAt, generatedAt|null, deliveryDate}] }  the row's 下单计划 list (hub writes it)
-rows/<id>/orders/<fid>.json  one 下单计划 (Step 2 writes it): {order, products:[ONE 货号 card], images:{<imgId>:{url,w,h}}, hub}.
+                      下单计划 picker)
+rows/<id>/order-files.json { files:{<file name>:{submitted, deliveryDate}} }  the 已提交 ticks of the row's Excel files (hub
+                      writes it); deliveryDate = the form's 交货日期 when that file was generated. Keyed by name: a file
+                      renamed in Explorer loses its tick
+rows/<id>/orders/draft.json  the row's one draft 下单计划 (Step 2 writes it; 生成 deletes it): {order, products:[ONE 货号 card],
+                      images:{<imgId>:{url,w,h}}, hub}.
                       Each row: variants[j].img = an id in `images` (each picture stored once) + its own square position
                       variants[j].imgCrop; 色号 variants[j].colorImage / colorCrop. order = {factory, date, sku, plant, taxRate,
                       freight}: 交货日期 / SKU / 是否含真植物 are order-wide; 品名 / 材质 are never stored here (meta.json).
                       Created by the picker's 确认 (or 从 Excel 导入); changed only by edits. Independent of the row's images
 rows/<id>/order-memory.json { factories, materials, productNames, colorNames }  suggestion lists shared by the row's forms
                       (`factories` is no longer used: 工厂 comes from settings.factories)
-rows/<id>/step2.json  legacy (one draft per row): copied once into the row's first form (`hub.legacy`), then only a backup
 rows/<id>/step3.json  { seasonality:[12 numbers] }
 sales.json            Step 3 store (sales/skus/inv/manual/lastSeen/snapshotDate), keyed by MSKU
 ```
@@ -84,13 +91,17 @@ width / height; negative when zoomed out past the image)`, s` (its side as a fra
 never modified, so any earlier position can always be restored.
 Rows saved before this have a ~160px thumb and no `thumbCrop`; they upgrade the first time the viewer
 opens them. `imgCount` = main + extras (1–9; missing → `thumb ? 1 : 0`). The hub table reads **only**
-`meta.json`; `images.json` (several MB) is read only when the image viewer or the 下单计划 picker opens, `orders.json`
-when the 下单 pop-up opens.
+`meta.json`; `images.json` (several MB) is read only when the image viewer or the 下单计划 picker opens, the
+`下单计划/` folder listing and `order-files.json` when the 下单 pop-up opens.
+
+Before 2026-09-29 each 下单计划 was a saved form (`orders.json` + `orders/<fid>.json`, and the older `step2.json`). They
+were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel files are now the only record.
 
 ### Status and journey rules
-- Status order: `未下单 < 已下单 < 已上架`. It changes automatically and only moves
-  forward: 生成 of any 下单计划 → 已下单, first sales in the row's SKU range → 已上架. The dropdown can always
-  override it. (生产中 was removed on 2026-09-29; a stored 生产中 loads as 已下单.)
+- Status order: `未下单 < 已下单 < 已上架`. It changes automatically: ticking a 下单计划 file 已提交 → 已下单
+  (生成 alone does not), unticking the last one → back to 未下单 (the one step back; 已上架 is never changed by
+  ticks), first sales in the row's SKU range → 已上架. `deliveryDate` = the earliest 交货日期 among the ticked files
+  ('' when none). The dropdown can always override the status. (生产中 was removed on 2026-09-29; a stored 生产中 loads as 已下单.)
 - Journey steps are **报价 — 下单 — 上架**. A step is:
   - **done**: 报价 when `step1Confirmed` (set by 保存 in the 报价 panel); 下单 when status ≥ 已下单; 上架 when status = 已上架
   - **next**: the first step that isn't done
@@ -133,8 +144,8 @@ when the 下单 pop-up opens.
 | E2 | Main table shows no Step 3 numbers |
 | E3 | Seasonality curve per **row** (starts flat, presets available); target days global in Settings |
 | F1 | `启动.bat` + Python server; all data saved as files |
-| F2 | Step 1 保存 → `售价计算 Price Calcs/<品名>_<SKU>_售价.json`; Step 2 生成 → `下单计划 Order Forms/` (no dialog) |
-| F3 | Files load back per row (Step 1 导入 JSON; 下单计划 list → 从 Excel 导入 creates a new form) |
+| F2 | Step 1 保存 → `售价计算 Price Calcs/<品名>_<SKU>_售价.json`; Step 2 生成 → `下单计划/<product folder>/` (no dialog) *(Changed 2026-09-29: was one shared `下单计划 Order Forms/`)* |
+| F3 | Files load back per row (Step 1 导入 JSON; 下单计划 → 从 Excel 导入 fills a new draft, and 生成 always writes a new file) |
 | F4 | Migrate only Step 3 history (old backup JSON → Settings → 上架) |
 | G1 | Search + 状态 / 类目 chips, at most one per group (click the active chip again to clear it) + a 材质 dropdown; categories always grouped; no column sorting. *(Changed 2026-09-29: within a group rows sort by stage 待报价 → 报价✓ → 已下单 → 已上架 (within a stage, 报价 skipped first), then 上架时间 earliest first (blank last), then newest first (`createdAt`))* |
 | G2 | Hub UI in Chinese |
@@ -185,7 +196,7 @@ a new one is built in a picker (images × 报价 lines) as one 货号 card with 
 | F9 | Each factory has optional 类目 · 材质 · 税率 (Settings → 工厂). Picking a factory (table or form) always overwrites the row's 材质 and 类目, except that a row with a SKU keeps its SKU-prefix 类目 (silently); fields left `—` change nothing |
 | F10 | Row ↔ 下单计划 synced both ways: a row with a 工厂 shows it in all its forms (a form saved with another one takes it and that factory's 税率, in memory until the next edit); picking one in a form sets the row's 工厂 / 类目 / 材质 (`meta-changed`). A row without 工厂 leaves its forms' own. 从 Excel 导入: the row's 工厂 wins; an empty row takes the file's |
 | F11 | Renaming a factory renames it in every row using it; deleting leaves the rows' text. Deleting a 类目 / 材质 clears it from the factories |
-| F12 | One-time fill: each row without 工厂 takes it from its most recent 下单计划 (or old `step2.json`), 'Huazhi' → 华智; 类目 / 材质 unchanged |
+| F12 | ~~One-time fill: each row without 工厂 takes it from its most recent 下单计划 (or old `step2.json`), 'Huazhi' → 华智; 类目 / 材质 unchanged~~ *(Ran once; removed 2026-09-29 with the saved forms)* |
 
 **Out of scope for now:** Amazon upload templates, price preview in the collapsed row, bundling
 several rows into one Excel, Step 3 numbers in the main table.

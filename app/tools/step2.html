@@ -245,7 +245,7 @@ input.combo:focus{cursor:text}
   <div class="card">
     <div id="alertBox"></div>
     <div class="actions" style="margin-top:0">
-      <button type="button" class="btn btn-primary" id="genBtn">生成 Excel</button><!-- HUB: written to 下单计划 Order Forms -->
+      <button type="button" class="btn btn-primary" id="genBtn">生成 Excel</button><!-- HUB: written to 下单计划/<product folder> -->
       <button type="button" class="btn btn-danger" id="clearBtn">清空全部</button>
     </div>
     <div class="hint" id="fnHint"></div>
@@ -379,12 +379,13 @@ const DEFAULTS = {
 let S = JSON.parse(JSON.stringify(DEFAULTS));
 const uid = ()=> Math.random().toString(36).slice(2,10);
 
-/* ============ HUB: 自动保存到 data/rows/<id>/orders/<form>.json ============
-   A row has several 下单计划 (the hub's list: rows/<id>/orders.json); this page edits one at a time. Only user actions call
+/* ============ HUB: 自动保存到 data/rows/<id>/orders/draft.json ============
+   The Excel files in 下单计划/<product folder>/ are the record; this page only makes new ones. A row has at most one draft
+   (FORM = 'draft'), deleted once its Excel is generated. Only user actions call
    save(): the defaults filled in when a form opens are not written, so opening one without editing it changes nothing on disk.
    The suggestion lists (memory) are shared by the row's forms: rows/<id>/order-memory.json.
    settings are global (hub ⚙ 设置 → 下单), never saved here */
-let ROW = null, FORM = null, FNAME = '', META = {}, loading = false, saveTimer = null, pendingPath = null, pendingRow = null;
+let ROW = null, FORM = null, FOLDER = '', META = {}, loading = false, saveTimer = null, pendingPath = null, pendingRow = null;
 let memSent = '';                           // order-memory.json as last read / written
 function stateFor(){
   const images = {};                        // only the images some row still uses
@@ -450,10 +451,16 @@ function autoDesc(p,v){
   return parts.map(x=>(x||'').trim()).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
 }
 function descOf(p,v){ return autoDesc(p,v); }   /* HUB: always automatic (the column is hidden, no hand edits) */
-/* HUB: Excel file name = 日期_运营_品名_<表单名>_下单计划.xlsx */
+/* HUB: the sizes in the form (4x6 · 5x7, at most 4), as the hub's picker names them; '' when there are none */
+function planName(){
+  const u = [];
+  S.products.forEach(p => p.variants.forEach(v => { const x = String(v.size==null?'':v.size).trim(); if(x && !u.includes(x)) u.push(x); }));
+  return u.slice(0, 4).join(' · ') + (u.length > 4 ? ' 等 '+u.length+' 个尺寸' : '');
+}
+/* HUB: Excel file name = 日期_运营_品名_<尺寸>_下单计划.xlsx */
 function fileName(){
   const clean = s => String(s||'').trim().replace(/[\\/:*?"<>|]/g,'_');
-  const nm = clean(META.name||S.order.factory||'订单'), form = clean(FNAME);
+  const nm = clean(META.name||S.order.factory||'订单'), form = clean(planName());
   return todayParts()+'_'+(S.settings.operator||'Jamie')+'_'+nm+(form ? '_'+form : '')+'_下单计划.xlsx';
 }
 
@@ -1014,18 +1021,18 @@ function pickImage(cb){
 }
 /* HUB: a row's 图片 (this form only; the row's own images in the hub are untouched) */
 function setRowImg(pi,vi,file){
-  const form = FORM, v = S.products[pi] && S.products[pi].variants[vi];
+  const seq = loadSeq, v = S.products[pi] && S.products[pi].variants[vi];
   loadImageFile(file, d=>{
-    if(form !== FORM || !v) return;   /* HUB: switched to another form meanwhile */
+    if(seq !== loadSeq || !v) return;   /* HUB: switched to another form meanwhile */
     v.img = addImage(d);
     v.imgCrop = CROP.centerCrop(d.w, d.h);   /* HUB: a new image starts as the centred square */
     save(); render();
   });
 }
 function setColorImg(pi,vi,file){
-  const form = FORM, v = S.products[pi] && S.products[pi].variants[vi];
+  const seq = loadSeq, v = S.products[pi] && S.products[pi].variants[vi];
   loadImageFile(file, d=>{
-    if(form !== FORM || !v) return;   /* HUB */
+    if(seq !== loadSeq || !v) return;   /* HUB */
     v.colorImage = d.url; v.colorNat = {w:d.w, h:d.h};
     v.colorCrop = CROP.centerCrop(d.w, d.h);   /* HUB */
     save(); render();
@@ -1379,10 +1386,10 @@ async function importWorkbook(file){
 /* HUB: 从 Excel 导入 (the hub's 下单计划 list) creates a new form and sends the file with load-row. Every 货号 of the file
    goes into the one card (the first 产品货号 is kept); the row's main image in the hub is never changed */
 async function runImport(file){
-  const form = FORM;
+  const seq = loadSeq, form = FORM;
   try{
     const res = await importWorkbook(file);
-    if(form !== FORM) return;               /* HUB: switched to another form meanwhile */
+    if(seq !== loadSeq) return;               /* HUB: switched to another form meanwhile */
     if(!res.products.length) throw new Error('没有读到任何货号');
     const codes = [...new Set(res.products.map(p => normCode(p.code)).filter(Boolean))];
     S.images = {};
@@ -1407,9 +1414,9 @@ async function runImport(file){
           + (st.skipped ? '（跳过 '+st.skipped+' 张位置异常的图片）' : ''));
   }catch(err){
     console.error(err);
-    if(form !== FORM) return;
+    if(seq !== loadSeq) return;
     toast('导入失败：'+(err && err.message ? err.message : err));
-    embed.post('import-failed', {form});    /* HUB: the hub removes the empty form it created */
+    embed.post('import-failed', {form});    /* HUB: the hub drops the empty draft it started */
   }
 }
 
@@ -1458,28 +1465,6 @@ function fitBox(w, h, boxW, boxH){
   const k = Math.min(boxW/w, boxH/h);
   return {w: Math.max(1,Math.round(w*k)), h: Math.max(1,Math.round(h*k))};
 }
-function copyText(t){
-  try{
-    if(navigator.clipboard && window.isSecureContext){ navigator.clipboard.writeText(t); return true; }
-  }catch(e){}
-  try{
-    const ta = document.createElement('textarea');
-    ta.value = t;
-    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
-    document.body.appendChild(ta);
-    ta.focus(); ta.select(); ta.setSelectionRange(0, t.length);
-    const ok = document.execCommand('copy');
-    ta.remove();
-    return ok;
-  }catch(e){ return false; }
-}
-function savedToast(name){
-  showToast('已保存：'+name, {label:'复制文件名', fn:()=>{
-    toast(copyText(name)
-      ? '文件名已复制 — 粘贴到文件管理器的搜索框即可找到'
-      : '复制失败，请手动选取上方文件名');
-  }}, 9000);
-}
 const b64 = d => d.split(',')[1];
 function applyStyle(cell, sp, topThick){
   cell.font = {name:sp.f, size:sp.s, bold:!!sp.b};
@@ -1497,7 +1482,7 @@ async function generate(){
   if(!rows.length) return toast('还没有可导出的内容');
   const miss = validate();
   if(miss.length && !confirm('还有 '+miss.length+' 项必填未完成。仍然生成？')) return;   /* HUB: 生成 */
-  const row = ROW, form = FORM, delivery = latestDate();   /* HUB */
+  const row = ROW, form = FORM, seq = loadSeq, delivery = latestDate();   /* HUB */
 
   const wb = new ExcelJS.Workbook();
   wb.creator = S.settings.operator||'Jamie';
@@ -1607,12 +1592,18 @@ async function generate(){
   /* 下载 */
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  const fname = fileName();   /* HUB: 日期_运营_品名_下单计划.xlsx */
+  const fname = fileName();   /* HUB: 日期_运营_品名_<尺寸>_下单计划.xlsx */
+  const folder = FOLDER || META.orderFolder;
+  if(!folder) throw new Error('产品文件夹未知，请从产品总览打开');
 
-  /* HUB: straight into 下单计划 Order Forms (no dialog); the hub then sets 已下单 and the 交货日期 */
-  const saved = await api.output('下单计划 Order Forms', fname, blob);
-  savedToast(saved);
-  embed.post('step2-generated', {row, form, deliveryDate: delivery});   /* HUB: that form is 已生成 */
+  /* HUB: straight into 下单计划/<product folder> (no dialog); the draft has served its purpose */
+  const saved = await api.output('下单计划', fname, blob, folder);
+  if(seq === loadSeq && ROW === row){
+    clearTimeout(saveTimer); saveTimer = null; pendingPath = null;   // nothing may write the draft again
+    FORM = null;
+  }
+  await api.del('rows/'+row+'/orders/'+form+'.json').catch(()=>{});
+  embed.post('step2-generated', {row, file: saved, deliveryDate: delivery});   /* HUB: back to the list, the file shows */
 }
 $('genBtn').addEventListener('click',()=>{
   const b = $('genBtn'); b.disabled=true; b.textContent='生成中…';
@@ -1651,15 +1642,15 @@ function foldOldDraft(saved){
   delete S.order.orderName; delete S.order.qty;   // no longer used
 }
 let loadSeq = 0;
-/* HUB: load-row {id, form, name, file?}: one 下单计划 of a row (rows/<id>/orders/<form>.json) */
-async function loadRow(id, form, name, file){
+/* HUB: load-row {id, form, folder, file?}: the row's draft (rows/<id>/orders/draft.json); folder = its 下单计划 subfolder */
+async function loadRow(id, form, folder, file){
   const seq = ++loadSeq;
   if(wz) wheelEnd();
   pan = null;
   await saveNow();                          // the previous form's pending edits
   loading = true;
   document.body.classList.add('loading');
-  ROW = id; FORM = form || null; FNAME = name || ''; embed.row = id;
+  ROW = id; FORM = form || null; FOLDER = folder || ''; embed.row = id;
   let st, meta, saved, mem, s1;
   try{
     [st, meta, saved, mem, s1] = await Promise.all([api.settings(), api.get('rows/'+id+'/meta.json'),
@@ -1696,13 +1687,13 @@ async function loadRow(id, form, name, file){
   embed.post('loaded', {form: FORM});
   if(file) runImport(file);                 /* HUB: 从 Excel 导入 */
 }
-embed.on('load-row', d => loadRow(d.id, d.form, d.name, d.file));
+embed.on('load-row', d => loadRow(d.id, d.form, d.folder, d.file));
 embed.on('flush', () => {
   if(wz) wheelEnd();
   if(document.activeElement === $('ofPname')) $('ofPname').blur();   /* HUB: commit a 品名 being typed (change → hub) */
   saveNow();
 });
-/* HUB: the hub went back to the list: save, then forget the form (a deleted form must not be written again) */
+/* HUB: the hub went back to the list: save, then forget the form (a replaced draft must not be written again) */
 embed.on('unload', () => {
   if(wz) wheelEnd();
   if(document.activeElement && document.activeElement.blur) document.activeElement.blur();   // commits a field being typed
@@ -1710,12 +1701,11 @@ embed.on('unload', () => {
   saveNow();                                // takes the pending path and S now
   FORM = null;
 });
-embed.on('form-renamed', d => { if(d.form === FORM){ FNAME = d.name || ''; if(!loading) renderOrder(); } });
 embed.on('settings-changed', async () => {
   try{ applySettings(await api.settings()); }catch(e){ return; }
   if(ROW && !loading) render();
 });
-if(embed.row) loadRow(embed.row, new URLSearchParams(location.search).get('form'));   // opened directly as tools/step2.html?row=<id>&form=<fid>
+if(embed.row) loadRow(embed.row, new URLSearchParams(location.search).get('form') || 'draft');   // opened directly as tools/step2.html?row=<id>
 embed.post('ready');
 })();
 </script>

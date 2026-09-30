@@ -55,11 +55,31 @@ const api = {
     } catch (e) {}
   },
   delRow(id) { return api.req('DELETE', '/api/rows/' + encodeURIComponent(id)); },
-  /* write a file into 售价计算 Price Calcs / 下单计划 Order Forms; resolves to the final file name */
-  async output(dir, name, blob) {
-    const q = '?dir=' + encodeURIComponent(dir) + '&name=' + encodeURIComponent(name);
+  /* write a file into 售价计算 Price Calcs / 下单计划 (sub: the product's folder in it); resolves to the final file name */
+  async output(dir, name, blob, sub) {
+    const q = '?dir=' + encodeURIComponent(dir) + '&name=' + encodeURIComponent(name) +
+      (sub ? '&sub=' + encodeURIComponent(sub) : '');
     const r = await api.req('POST', '/api/output' + q, blob);
     return r.name;
+  },
+  /* a product's 下单计划/<folder>/*.xlsx (oldest first) → {files:[{name, created, modified}], draft} */
+  orderFiles(folder, rowId) {
+    return api.req('GET', '/api/orderfiles?folder=' + encodeURIComponent(folder) + '&row=' + encodeURIComponent(rowId));
+  },
+  /* open one file in Excel, or the folder in Explorer (no name); resolves to false if the file is gone */
+  async openOrderFile(folder, name) {
+    const q = '?folder=' + encodeURIComponent(folder) + (name ? '&name=' + encodeURIComponent(name) : '');
+    let res;
+    try { res = await fetch('/api/open' + q, { method: 'POST' }); }
+    catch (e) { return api.req('POST', '/api/open' + q); }      // offline: the usual error
+    if (res.status === 404) return false;
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const err = new Error((data && data.error) || ('HTTP ' + res.status));
+      api.onError(err);
+      throw err;
+    }
+    return true;
   },
 
   /* settings.json merged over the defaults; created on first run */
