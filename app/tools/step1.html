@@ -381,8 +381,8 @@ body{background:transparent}
   });
 
   /* 设置 → 报价 修改后实时重算 */
-  embed.on('settings-changed', async () => {
-    try { P = (await api.settings()).step1; calcAll(); markDirty(); } catch (e) {}
+  embed.on('settings-changed', async d => {
+    try { P = (d && d.step1) || (await api.settings()).step1; calcAll(); markDirty(); } catch (e) {}
   });
 
   (async function init(){

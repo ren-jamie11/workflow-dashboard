@@ -16,6 +16,7 @@ import os
 import re
 import shutil
 import sys
+import time
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -60,11 +61,22 @@ def data_path(rel):
     return p if base in p.parents else None
 
 
+def retry(fn, tries=5, wait=0.02):
+    """Windows locks a file while another request reads or replaces it; wait briefly and try again."""
+    for i in range(tries):
+        try:
+            return fn()
+        except PermissionError:
+            if i == tries - 1:
+                raise
+            time.sleep(wait)
+
+
 def write_atomic(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + '.tmp')
     tmp.write_bytes(data)
-    os.replace(tmp, path)
+    retry(lambda: os.replace(tmp, path))
 
 
 def unique_name(folder, name):
@@ -122,7 +134,11 @@ class Handler(SimpleHTTPRequestHandler):
             p = data_path(path[len('/api/data/'):])
             if not p:
                 return self.fail(400, 'bad path')
-            return self.send_json(None, raw=p.read_bytes() if p.is_file() else b'null')
+            try:
+                raw = retry(p.read_bytes) if p.is_file() else b'null'
+            except PermissionError:
+                return self.fail(503, 'busy')
+            return self.send_json(None, raw=raw)
         if path.startswith('/api/'):
             return self.fail(404, 'unknown endpoint')
         return super().do_GET()

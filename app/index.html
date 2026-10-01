@@ -536,7 +536,7 @@ function visibleRows(){ return ROWS.filterRows(rows, ui, justAdded); }
 /* a row keeps its progress (sort key) while its 报价 panel is open; it moves once the panel has closed */
 const held = {};                  // row id → progress frozen when its panel opened
 const progressOf = r => r.id in held ? held[r.id] : ROWS.progress(r);
-function releaseHold(id){
+function releaseProgress(id){
   setTimeout(() => {                                    // after the closing / switching code has settled
     if (!(id in held) || id === expandedId) return;
     const before = around(id);
@@ -878,7 +878,7 @@ function endClosing(){
     xpFrame.classList.remove('ready');
   }
   placePanel();
-  releaseHold(id);
+  releaseProgress(id);
 }
 /* send the spacers and the panel to their target heights; CSS animates the change.
    fromZero: the panel's spacer is new (just opened, or shown again after a filter), so the panel grows from 0 too */
@@ -2215,7 +2215,8 @@ document.querySelector('.tabs').addEventListener('click', e => {
 /* 设置 → 报价: global, live — every open 报价 panel recalculates */
 function saveStep1(){
   saveSettings();
-  hubEmbed.broadcast('settings-changed');
+  hubEmbed.broadcast('settings-changed', settings);       // sent with the message: the panel never reads a half-written file
+  if (panelId) toast('售价已按新参数更新');
 }
 document.querySelectorAll('[data-p]').forEach(el => el.addEventListener('change', () => {
   const v = parseFloat(el.value);
@@ -2240,7 +2241,7 @@ document.querySelectorAll('[data-p2]').forEach(el => el.addEventListener('change
   const k = el.dataset.p2;
   settings.step2[k] = el.value.trim() || api.DEFAULT_SETTINGS.step2[k];
   el.value = settings.step2[k];
-  saveSettings().then(() => hubEmbed.broadcast('settings-changed'));   // the tool re-reads settings.json
+  saveSettings().then(() => hubEmbed.broadcast('settings-changed', settings));   // the tool re-reads settings.json
 }));
 $('gearBtn').addEventListener('click', () => openSettings());
 $('setClose').addEventListener('click', closeSettings);
