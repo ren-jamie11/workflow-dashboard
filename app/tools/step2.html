@@ -719,9 +719,7 @@ function syncFromStep1(){
 function renderAlert(){
   const miss = validate();
   $('alertBox').innerHTML = miss.length
-    ? '<div class="alert alert-warn"><b>还有 '+miss.length+' 项未填</b>（可以先下载，稍后补齐）：<ul>'+
-      miss.slice(0,12).map(m=>'<li>'+esc(m)+'</li>').join('')+
-      (miss.length>12?'<li>…另有 '+(miss.length-12)+' 项</li>':'')+'</ul></div>'
+    ? ''                                    /* HUB: no 未填 list — the yellow fields mark what's missing */
     : '<div class="alert alert-ok">全部必填项已完成，可以生成 Excel。</div>';
 }
 function render(){ renderSettings(); renderOrder(); renderProducts(); renderPreview(); renderAlert(); applySel(); }
