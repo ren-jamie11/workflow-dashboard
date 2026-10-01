@@ -320,7 +320,7 @@ body{background:transparent}
   const saveBtn = document.getElementById('saveBtn');
   function markDirty(){ saveBtn.textContent = '保存'; saveBtn.title = ''; }
 
-  /* 保存 → 售价计算 Price Calcs/<品名>_<SKU>_售价.json */
+  /* 保存 → 售价计算 Price Calcs/<品名, else 类目_工厂>_<SKU>_售价.json */
   saveBtn.addEventListener('click', async () => {
     const b = saveBtn;
     if (!hasContent()) return note('表格为空');
@@ -330,7 +330,8 @@ body{background:transparent}
       await saveNow();
       const meta = (await api.get('rows/' + ROW_ID + '/meta.json')) || {};
       const clean = s => String(s || '').trim().replace(/[\/:*?"<>|]/g, '_');
-      const fname = [clean(meta.name) || '未命名', clean(meta.sku)].filter(Boolean).join('_') + '_售价.json';
+      const label = clean(meta.name) || [clean(meta.category), clean(meta.factory)].filter(Boolean).join('_');
+      const fname = [label || '未命名', clean(meta.sku)].filter(Boolean).join('_') + '_售价.json';
       const body = { name: meta.name || '', sku: meta.sku || '', savedAt: Date.now(), params: getParams(), rows: readRows() };
       const saved = await api.output('售价计算 Price Calcs', fname,
         new Blob([JSON.stringify(body, null, 2)], { type: 'application/json' }));

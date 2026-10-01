@@ -200,9 +200,9 @@ input.combo:focus{cursor:text}
         <label class="form-label">工厂<span class="req">*</span></label>
         <input type="text" id="ofFactory" class="form-control combo" data-combo="factory" placeholder="选择或输入工厂" autocomplete="off"><!-- HUB: global 工厂 list (设置 → 工厂) -->
       </div>
-      <!-- HUB: 品名 / 材质 = the hub row's (synced both ways); 是否含真植物 is order-wide; 订单名称 / 下单数量 removed -->
+      <!-- HUB: 品名 / 材质 = the hub row's (synced both ways; 品名 is optional and only edited here); 是否含真植物 is order-wide; 订单名称 / 下单数量 removed -->
       <div>
-        <label class="form-label">品名<span class="req">*</span></label>
+        <label class="form-label">品名</label>
         <input type="text" id="ofPname" class="form-control" placeholder="例 狗狗金属相框">
       </div>
       <div>
@@ -452,17 +452,11 @@ function autoDesc(p,v){
   return parts.map(x=>(x||'').trim()).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
 }
 function descOf(p,v){ return autoDesc(p,v); }   /* HUB: always automatic (the column is hidden, no hand edits) */
-/* HUB: the sizes in the form (4x6 · 5x7, at most 4), as the hub's picker names them; '' when there are none */
-function planName(){
-  const u = [];
-  S.products.forEach(p => p.variants.forEach(v => { const x = String(v.size==null?'':v.size).trim(); if(x && !u.includes(x)) u.push(x); }));
-  return u.slice(0, 4).join(' · ') + (u.length > 4 ? ' 等 '+u.length+' 个尺寸' : '');
-}
-/* HUB: Excel file name = 日期_运营_品名_<尺寸>_下单计划.xlsx */
+/* HUB: Excel file name = 日期_工厂[_品名]_下单计划_运营.xlsx (品名 is optional) */
 function fileName(){
   const clean = s => String(s||'').trim().replace(/[\\/:*?"<>|]/g,'_');
-  const nm = clean(META.name||S.order.factory||'订单'), form = clean(planName());
-  return todayParts()+'_'+(S.settings.operator||'Jamie')+'_'+nm+(form ? '_'+form : '')+'_下单计划.xlsx';
+  const parts = [todayParts(), clean(S.order.factory)||'订单', clean(META.name), '下单计划', clean(S.settings.operator||'Jamie')];
+  return parts.filter(Boolean).join('_')+'.xlsx';
 }
 
 /* 图片：完整保留画面，只在超大时等比缩小 → {url,w,h} */
@@ -542,7 +536,6 @@ function ensureNat(){
 function validate(){
   const miss = [];
   if(!S.order.factory.trim()) miss.push('工厂');
-  if(!(META.name||'').trim()) miss.push('品名');           /* HUB: order-wide fields, checked once */
   if(!(S.order.date||'').trim()) miss.push('交货日期');
   if(!(S.order.sku||'').trim()) miss.push('SKU 前缀');
   /* HUB: one 货号 card; the 图片 is per row */
@@ -573,7 +566,6 @@ function renderOrder(){
   if(document.activeElement !== $('ofFactory')) $('ofFactory').value = S.order.factory;
   const pn = $('ofPname');                                  /* HUB: 品名 / 材质 = the hub row's */
   if(document.activeElement !== pn) pn.value = META.name || '';
-  pn.classList.toggle('missing', !(pn.value||'').trim());
   const mat = META.material || '', mats = (S.settings.materials||[]).slice();
   if(mat && !mats.includes(mat)) mats.unshift(mat);
   $('ofMat').innerHTML = '<option value="">—</option>'+mats.map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join('');
@@ -1173,13 +1165,13 @@ combo.bind($('ofFactory').parentNode, () => {
     onReject: t => toast('没有工厂「'+t+'」，选择「+ 添加」新增')
   };
 });
-/* HUB: 品名 / 材质 are the hub row's: edited here, they update the main table (meta-changed); not stored in step2.json */
+/* HUB: 品名 / 材质 are the hub row's: edited here, they update the hub (meta-changed); not stored in step2.json.
+   品名 is optional: '' clears it */
 function tellMeta(){ embed.post('meta-changed', {name: META.name || '', material: META.material || '',
                                                   factory: META.factory || '', category: META.category || ''}); }   /* HUB: + 工厂 / 类目 */
-$('ofPname').addEventListener('input', e=>{ e.target.classList.toggle('missing', !e.target.value.trim()); });
 $('ofPname').addEventListener('change', e=>{
   const v = e.target.value.trim();
-  if(!v){ e.target.value = META.name || ''; e.target.classList.toggle('missing', !e.target.value); return toast('品名不能为空'); }
+  e.target.value = v;
   if(v === (META.name||'')) return;
   META.name = v; tellMeta(); softRefresh();
 });
@@ -1593,7 +1585,7 @@ async function generate(){
   /* 下载 */
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  const fname = fileName();   /* HUB: 日期_运营_品名_<尺寸>_下单计划.xlsx */
+  const fname = fileName();   /* HUB: 日期_工厂[_品名]_下单计划_运营.xlsx */
   const folder = FOLDER || META.orderFolder;
   if(!folder) throw new Error('产品文件夹未知，请从产品总览打开');
 

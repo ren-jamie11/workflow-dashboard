@@ -49,7 +49,7 @@ select.cell-in:disabled{background:#f8fafc;color:var(--dark);opacity:1;cursor:no
 .sub-asin{display:block;font-size:.7rem;color:#94a3b8;margin:.15rem 0 0 .15rem;font-variant-numeric:tabular-nums}
 
 /* image */
-.thumb{width:96px;height:96px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;position:relative;
+.thumb{width:110px;height:110px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;position:relative;
   display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
 .thumb span{font-size:.75rem;color:#94a3b8}
 .thumb:hover,.thumb.over,.thumb:focus-visible{border-color:var(--primary);background:#eef2ff;outline:none}
@@ -274,7 +274,7 @@ table.pk .none{color:#cbd5e1}
     <div class="filters">
       <div class="fgroup">
         <label class="form-label" for="search">搜索</label>
-        <input type="text" id="search" class="form-control" placeholder="品名 / SKU / 父ASIN">
+        <input type="text" id="search" class="form-control" placeholder="品名 / 工厂 / SKU / 父ASIN">
       </div>
       <div class="fgroup">
         <span class="form-label">状态</span>
@@ -297,10 +297,10 @@ table.pk .none{color:#cbd5e1}
   <div class="card table-card">
     <table class="hub">
       <colgroup>
-        <col style="width:112px"><col><col style="width:112px"><col style="width:104px"><col style="width:96px"><col style="width:170px">
-        <col style="width:112px"><col style="width:132px"><col style="width:236px"><col style="width:44px">
+        <!-- 图片 · 工厂 类目 材质 SKU 状态 上架时间 (share the rest evenly) · 流程 · × -->
+        <col style="width:142px"><col><col><col><col><col><col><col style="width:250px"><col style="width:48px">
       </colgroup>
-      <thead id="thead"><tr><th>图片</th><th>品名</th><th>工厂</th><th>类目</th><th>材质</th><th>SKU</th><th>状态</th><th>上架时间</th><th>流程</th><th></th></tr></thead>
+      <thead id="thead"><tr><th>图片</th><th>工厂</th><th>类目</th><th>材质</th><th>SKU</th><th>状态</th><th>上架时间</th><th>流程</th><th></th></tr></thead>
       <tbody id="tbody"></tbody>
     </table>
     <div id="emptyBox" class="empty-box hidden"></div>
@@ -519,6 +519,8 @@ const draftImg = new Map();       // draft id → full image, written to images.
 const collapsedCats = new Set();  // collapsed category groups ('' = 未分类); this session only
 const showCat = c => collapsedCats.delete(c || '');   // an edited / new row must not vanish into a collapsed group
 const imgCount = r => r.imgCount != null ? r.imgCount : (r.thumb ? 1 : 0);
+/* how a product is named in messages and headers: its 品名 (set in 下单计划), else 类目 · 工厂 */
+const rowLabel = r => r.name || [r.category, r.factory].filter(Boolean).join(' · ') || '未命名';
 
 /* ============ toast ============ */
 let toastTimer = null;
@@ -557,7 +559,7 @@ function commitDraft(r){
   draftImg.delete(r.id);
   api.saveRow(r)
     .then(() => updateMainImage(r, full))
-    .then(() => toast('已保存「' + (r.name || r.category) + '」'))
+    .then(() => toast('已保存「' + rowLabel(r) + '」'))
     .catch(() => {});
 }
 function saveSettings(){ return api.saveSettings(settings).catch(() => {}); }
@@ -656,13 +658,13 @@ function renderBody(){
   const cur = {};
   $('tbody').querySelectorAll('.xp-gap').forEach(g => { cur[g.dataset.id] = g.offsetHeight; });
   const spacer = id => id in gapT
-    ? '<tr class="xp-spacer" data-id="' + esc(id) + '"><td colspan="10"><div class="xp-gap" data-id="' + esc(id) +
+    ? '<tr class="xp-spacer" data-id="' + esc(id) + '"><td colspan="9"><div class="xp-gap" data-id="' + esc(id) +
       '" style="height:' + (cur[id] || 0) + 'px"></div></td></tr>'
     : '';
   $('tbody').innerHTML = groups.map(g => {
     const shut = collapsedCats.has(g.cat);
     return '<tr class="grp' + (g.cat ? '' : ' none') + (shut ? ' collapsed' : '') + '" data-cat="' + esc(g.cat) +
-      '" title="' + (shut ? '点击展开' : '点击收起') + '"><td colspan="10"><span class="caret"></span>' + esc(g.label) +
+      '" title="' + (shut ? '点击展开' : '点击收起') + '"><td colspan="9"><span class="caret"></span>' + esc(g.label) +
       '<span class="n">' + g.rows.length + ' 个</span></td></tr>' +
       (shut ? '' : g.rows.map(r => rowHtml(r) + spacer(r.id)).join(''));
   }).join('');
@@ -709,9 +711,8 @@ function rowHtml(r){
                  (imgCount(r) > 1 && !draft ? '<button type="button" class="clear" data-act="imgclr" data-id="' + id + '" title="删除主图（下一张成为主图）">×</button>' : '')
                : '<span>+ 图片</span>') +
     '</div></td>' +
-    '<td><input class="cell-in" data-id="' + id + '" data-f="name" value="' + esc(r.name) + '" placeholder="品名">' +
+    '<td>' + comboCell(r, 'factory') +
       (draft ? '<span class="draft-tag">未保存 · 请添加' + missing.join('和') + '</span>' : '') + '</td>' +
-    '<td>' + comboCell(r, 'factory') + '</td>' +
     '<td>' + comboCell(r, 'category', r.sku ? ' disabled title="由 SKU 前缀决定"' : '') + '</td>' +
     '<td>' + comboCell(r, 'material') + '</td>' +
     '<td><input class="cell-in mono" data-id="' + id + '" data-f="sku" value="' + esc(r.sku) + '" placeholder="XK_012-023" spellcheck="false">' +
@@ -731,10 +732,6 @@ $('tbody').addEventListener('change', e => {
   const el = e.target, r = byId(el.dataset.id);
   if (!r) return;
   switch (el.dataset.f) {
-    case 'name':
-      r.name = el.value.trim();
-      saveRow(r); renderSoon();
-      break;
     case 'status':
       moveRow(r, () => { r.status = el.value; });
       break;
@@ -773,7 +770,7 @@ function commitSku(r, el){
   el.value = r.sku;
   saveRow(r);
   renderSoon();
-  if (clash) toast('注意：与「' + (clash.name || '未命名') + '」(' + clash.sku + ') 的 SKU 范围重叠', true);
+  if (clash) toast('注意：与「' + rowLabel(clash) + '」(' + clash.sku + ') 的 SKU 范围重叠', true);
 }
 
 $('tbody').addEventListener('keydown', e => {
@@ -782,7 +779,7 @@ $('tbody').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
   if (e.key === 'Escape') {
     const r = byId(el.dataset.id);
-    if (r) { el.value = el.dataset.f === 'sku' ? r.sku : r.name; el.classList.remove('bad'); el.blur(); }
+    if (r && el.dataset.f === 'sku') { el.value = r.sku; el.classList.remove('bad'); el.blur(); }
   }
 });
 
@@ -794,7 +791,7 @@ document.addEventListener('click', e => {
     case 'img': if (r && !skipThumbClick) thumbClick(r); break;
     case 'imgclr':
       e.stopPropagation();
-      if (r && confirm('删除「' + (r.name || '未命名') + '」的主图？下一张图片将成为主图。')) deleteMainImage(r);
+      if (r && confirm('删除「' + rowLabel(r) + '」的主图？下一张图片将成为主图。')) deleteMainImage(r);
       break;
     case 'date': if (r) openDate(r, t); break;
     case 'step': if (r) stepClick(r, t.dataset.step); break;
@@ -1086,7 +1083,7 @@ async function deleteRow(r){
     rows = rows.filter(x => x !== r);
     return render();
   }
-  if (!confirm('确定永久删除「' + (r.name || '未命名') + '」及其全部数据？\n（已保存到 售价计算 / 下单计划 文件夹的文件不会被删除）')) return;
+  if (!confirm('确定永久删除「' + rowLabel(r) + '」及其全部数据？\n（已保存到 售价计算 / 下单计划 文件夹的文件不会被删除）')) return;
   clearTimeout(saveTimers[r.id]);
   delete saveTimers[r.id];
   try { await api.delRow(r.id); } catch (e) { return; }
@@ -1094,7 +1091,7 @@ async function deleteRow(r){
   rows = rows.filter(x => x !== r);
   justAdded.delete(r.id);
   render();
-  toast('已删除「' + (r.name || '未命名') + '」');
+  toast('已删除「' + rowLabel(r) + '」');
 }
 
 $('addBtn').addEventListener('click', () => {
@@ -1104,7 +1101,7 @@ $('addBtn').addEventListener('click', () => {
   justAdded.add(r.id);
   drafts.add(r.id);                 // saved once it has an image and 类目 (commitDraft)
   render();
-  const el = $('tbody').querySelector('[data-id="' + r.id + '"][data-f="name"]');
+  const el = $('tbody').querySelector('[data-id="' + r.id + '"][data-f="img"]');
   if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus(); }
 });
 
@@ -1365,7 +1362,7 @@ $('tbody').addEventListener('pointerdown', e => {
   const r = byId(t.dataset.id);
   if (!r) return;
   if (wz) wheelEnd(true);                               // save a zoom still in progress so the drag starts from it
-  const g = tg = { r, el: t, size: t.clientWidth || 96, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, moved: false, f: null };
+  const g = tg = { r, el: t, size: t.clientWidth || 110, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, moved: false, f: null };
   t.setPointerCapture(e.pointerId);
   openFrame(r).then(f => {
     if (tg !== g || !f) return;
@@ -1414,7 +1411,7 @@ $('tbody').addEventListener('wheel', e => {
       wheelFlush();
     }).catch(() => { if (wz === z) wz = null; });
   }
-  const b = t.getBoundingClientRect(), size = t.clientWidth || 96;
+  const b = t.getBoundingClientRect(), size = t.clientWidth || 110;
   wz.q.push([wheelFactor(e), (e.clientX - b.left - t.clientLeft) / size, (e.clientY - b.top - t.clientTop) / size]);
   wheelFlush();
   clearTimeout(wz.timer);
@@ -1500,7 +1497,7 @@ function renderViewer(){
   const list = viewer.list, cur = list && list[viewer.idx];
   const order = viewerOrder(), pos = order.indexOf(r);
   const ids = [r.sku, r.parentAsin].filter(Boolean).map(esc).join(' · ');
-  $('ivTitle').textContent = r.name || '未命名';
+  $('ivTitle').textContent = rowLabel(r);
   $('ivMeta').innerHTML = ids + (pos > -1 ? (ids ? '<br>' : '') + '产品 ' + (pos + 1) + ' / ' + order.length : '');
   $('ivCount').textContent = !list ? '加载中…' : list.length ? '图片 ' + (viewer.idx + 1) + ' / ' + list.length : '没有找到原图';
   $('ivPrev').disabled = !list || viewer.idx <= 0;
@@ -1766,7 +1763,7 @@ const stampOf = ms => { const d = new Date(ms);
 /* the row's folder under 下单计划/, named after the product the first time it is needed and never changed */
 function orderFolderOf(r){
   if (r.orderFolder) return r.orderFolder;
-  const base = String(r.name || r.sku || r.id).trim().replace(/[\\/:*?"<>|\x00-\x1f]/g, '_')
+  const base = String(r.name || [r.category, r.factory].filter(Boolean).join('_') || r.sku || r.id).trim().replace(/[\\/:*?"<>|\x00-\x1f]/g, '_')
     .replace(/^[.\s]+|[.\s]+$/g, '').slice(0, 80) || r.id;
   const taken = new Set(rows.filter(x => x !== r && x.orderFolder).map(x => x.orderFolder.toLowerCase()));
   let name = base, n = 2;
@@ -1880,7 +1877,7 @@ function renderOrderHead(){
   const r = order && byId(order.id);
   if (!r) return;
   if (r.thumb) $('s2Thumb').src = r.thumb; else $('s2Thumb').removeAttribute('src');
-  $('s2Title').innerHTML = '<span class="step-tag">' + (order.view === 'form' ? '下单计划 · 草稿' : '下单计划') + '</span>' + esc(r.name || '未命名');
+  $('s2Title').innerHTML = '<span class="step-tag">' + (order.view === 'form' ? '下单计划 · 草稿' : '下单计划') + '</span>' + esc(rowLabel(r));
   $('s2Meta').textContent = [r.sku, r.parentAsin, r.material].filter(Boolean).join(' · ') || '未填写 SKU';
   $('s2Warn').classList.toggle('hidden', !!r.step1Confirmed);
   $('s2ToList').title = order.view === 'list' ? '返回表格' : order.view === 'form' ? '返回全部下单计划（草稿自动保存）' : '返回全部下单计划';
@@ -2244,11 +2241,11 @@ hubEmbed.listen((m, frame) => {
     case 'key':
       if (order) orderKey(d.key);
       break;
-    case 'meta-changed': {                              // 品名 / 材质 edited in 订单信息 (the same values as the table's)
+    case 'meta-changed': {                              // 品名 (only edited here; '' clears it) / 材质 edited in 订单信息
       if (!r) break;
       const name = String(d.name || '').trim(), mat = String(d.material || '');
       let ch = false;
-      if (name && name !== r.name) { r.name = name; ch = true; }
+      if (name !== (r.name || '')) { r.name = name; ch = true; }
       if (mat !== (r.material || '') && (!mat || settings.materials.includes(mat))) { r.material = mat; ch = true; }
       if (d.factory != null && String(d.factory) !== (r.factory || '')) { r.factory = String(d.factory); ch = true; }   // 工厂 is synced too
       if (d.category && d.category !== r.category && !r.sku && settings.categories.includes(d.category)) {

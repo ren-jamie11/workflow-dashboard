@@ -24,13 +24,13 @@ product-group rows, and everything persists to `data/`.
 | `app/index.html` | the hub page |
 
 ## Main table (index.html)
-Columns: **图片 · 品名 · 类目 · 材质 · SKU (父ASIN sub-line) · 状态 · 上架时间 · 流程 · ×**
+Columns: **图片 · 工厂 · 类目 · 材质 · SKU (父ASIN sub-line) · 状态 · 上架时间 · 流程 · ×** *(Changed 2026-10-01: 品名 column removed)*
 - **图片:** a 48×64 box. Click, paste (Ctrl+V while hovering) or drop an image. Store a ~160px `thumb`
   in meta. Also keep the full image (longest side ≤ 1400px, JPEG 0.85, the same as Step 2's
   `loadImageData`) in `step2.json` → `products[0].image`, creating a minimal `step2.json`
   (`{products:[{id,code:'',productName:<品名>,material:'',plant:'不含',image,imgNat,frame,variants:[]}]}`)
   if it doesn't exist.
-- **品名:** optional, inline text input. *(Changed 2026-09-29: 类目 is the required field instead)*
+- ~~**品名:** optional, inline text input.~~ *(Changed 2026-09-29: 类目 is the required field instead)* *(Removed 2026-10-01: users know products by image. `meta.name` is kept, set only in 下单计划 订单信息. Messages and headers show it, else `类目 · 工厂`; the search still matches it)*
 - **类目:** a type-to-filter dropdown (`shared/combo.js`) over `settings.categories`. It is set automatically
   from the SKU prefix and locked (disabled) once a SKU is set.
 - **材质:** (added 2026-09-29) an optional type-to-filter dropdown over `settings.materials`, `—` = none. A value
@@ -58,7 +58,7 @@ Columns: **图片 · 品名 · 类目 · 材质 · SKU (父ASIN sub-line) · 状
 - **×:** `confirm('确定永久删除「品名」及其全部数据？')` → `api.delRow`. Output files in
   Price Calcs / Order Forms are **not** deleted.
 
-**Toolbar:** `+ 新建产品` (adds an empty row with 状态 未下单 and focuses 品名) · status chips
+**Toolbar:** `+ 新建产品` (adds an empty row with 状态 未下单 and focuses its 图片 box, so Ctrl+V pastes an image) *(2026-10-01: was focuses 品名)* · status chips
 (未下单 / 已下单 / 已上架) · category chips · 材质 dropdown (type to filter; 全部 + each 材质 with its count;
 highlighted while set) · search (品名/SKU/父ASIN) · ⚙ at the top right.
 Each chip group allows at most one active chip; clicking the active chip again clears that filter.

@@ -40,7 +40,7 @@ journey bar) was dropped in scoping on 2026-09-29.
 Shared values are entered once in 订单信息; the rows keep only what differs per SKU. The Excel layout is unchanged.
 | # | Decision |
 |---|---|
-| S1 | 订单信息 shows **品名** and **产品材质** = the hub row's `meta.name` / `meta.material`, editable in either place and synced (not stored in `step2.json`). An emptied 品名 reverts with `品名不能为空` |
+| S1 | 订单信息 shows **品名** and **产品材质** = the hub row's `meta.name` / `meta.material`, editable in either place and synced (not stored in `step2.json`). ~~An emptied 品名 reverts with `品名不能为空`~~ *(Changed 2026-10-01: 品名 is optional and only edited here, since the hub table no longer has it; emptying it clears `meta.name`)* |
 | S2 | 订单名称 removed; file name = `日期_运营_品名_<表单名>_下单计划.xlsx` *(表单名 added 2026-09-29, M3)* |
 | S3 | The order-level 下单数量 default is removed; a new row starts with the row above's 下单数量 |
 | S4 | 订单信息 order: 工厂 · 品名 · 产品材质 · 是否含真植物 · 交货日期 · SKU 前缀 · 税率 · 运费. 交货日期 / SKU / 是否含真植物 apply to every row |
@@ -80,7 +80,7 @@ only go stale. This supersedes **M1, M3, M13, M15, M16** and the storage notes b
 | X1 | Files go to `下单计划/<product folder>/` (project root). The folder is named after the product the first time it is needed and saved as `meta.orderFolder`; renaming the product never renames it (a clash with another row adds " 2"). `下单计划 Order Forms/` is left as examples and no longer used |
 | X2 | 下单 opens the row's **files**, Explorer style: an Excel icon + the wrapped file name, oldest first (creation time), `.xlsx` only (no `~$` lock files); date modified in the tooltip. Click = open in Excel (`/api/open`). The panel is view-only: no rename / delete. `打开文件夹` opens the product folder. The list re-reads the folder when the pop-up opens and when the window regains focus; a file that is gone when clicked → toast `文件已不存在` + re-read |
 | X3 | One draft per row, `rows/<id>/orders/draft.json`, shown as the first tile `草稿 · 继续编辑`. `+ 新下单计划` / `从 Excel 导入` with a draft ask `已有草稿，将被替换？`. A successful 生成 deletes the draft and returns to the files with the new tile highlighted |
-| X4 | No form name: Excel = `日期_运营_品名_<尺寸>_下单计划.xlsx`, `<尺寸>` = the form's sizes when 生成 is clicked (at most 4; omitted when none). A taken name gets ` (1)`; nothing is overwritten. 从 Excel 导入 always writes a new file (the source is never touched) |
+| X4 | No form name: Excel = ~~`日期_运营_品名_<尺寸>_下单计划.xlsx`, `<尺寸>` = the form's sizes when 生成 is clicked (at most 4; omitted when none)~~ *(Changed 2026-10-01: `日期_工厂[_品名]_下单计划_运营.xlsx`, 品名 omitted when empty)*. A taken name gets ` (1)`; nothing is overwritten. 从 Excel 导入 always writes a new file (the source is never touched) |
 | X5 | Each file has a small corner tick **已提交** (grey ○ / green ✓), stored by file name in `rows/<id>/order-files.json {files:{<name>:{submitted, deliveryDate}}}`; a new file starts unticked; a file renamed in Explorer loses its tick |
 | X6 | Status follows the ticks (only when a tick changes): any ticked file → 已下单; none and the status is 已下单 → 未下单; 已上架 is never touched. 生成 no longer changes the status. `meta.deliveryDate` = the earliest 交货日期 (recorded at 生成) among ticked files, '' when none |
 | X7 | Clean slate: every row's `orders.json`, `orders/` and `step2.json` were moved to `data/_backup-orders-2026-09-29/`. The one-time 工厂 fill (F12) was removed |

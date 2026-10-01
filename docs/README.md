@@ -125,7 +125,7 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
 | # | Decision |
 |---|---|
 | A1 | Column **SKU** (`XK_012-023`); real 父ASIN auto-filled from Step 3 uploads, shown as a grey sub-line |
-| A2 | ~~Required **品名** column~~ *(Changed 2026-09-29: 品名 is optional; **类目** is required — a new row saves once it has an image and a 类目, and a saved row's 类目 can't be cleared)* |
+| A2 | ~~Required **品名** column~~ *(Changed 2026-09-29: 品名 is optional; **类目** is required — a new row saves once it has an image and a 类目, and a saved row's 类目 can't be cleared)* *(Changed 2026-10-01: the 品名 column is removed; 品名 is set only in 下单计划 订单信息)* |
 | A3 | Lenient SKU input (`xk-012-023`, single `XK_406`), normalized; overlap = warning only; unknown prefix → "添加新类目？" or cancel |
 | A4 | ~~One shared image: row image = Step 2 first 货号 image~~ *(Changed 2026-09-29: the row's images live in `images.json`; each 下单计划 copies the images it uses — M-series in [stage-3-step2.md](stage-3-step2.md))* |
 | B1 | Status changes automatically (forward only) with manual override (see rules above) |
@@ -144,7 +144,7 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
 | E2 | Main table shows no Step 3 numbers |
 | E3 | Seasonality curve per **row** (starts flat, presets available); target days global in Settings |
 | F1 | `启动.bat` + Python server; all data saved as files |
-| F2 | Step 1 保存 → `售价计算 Price Calcs/<品名>_<SKU>_售价.json`; Step 2 生成 → `下单计划/<product folder>/` (no dialog) *(Changed 2026-09-29: was one shared `下单计划 Order Forms/`)* |
+| F2 | Step 1 保存 → `售价计算 Price Calcs/<品名>_<SKU>_售价.json`; Step 2 生成 → `下单计划/<product folder>/` (no dialog) *(Changed 2026-09-29: was one shared `下单计划 Order Forms/`)* *(2026-10-01: without a 品名 the 售价 file and a new product folder are named `<类目>_<工厂>`)* |
 | F3 | Files load back per row (Step 1 导入 JSON; 下单计划 → 从 Excel 导入 fills a new draft, and 生成 always writes a new file) |
 | F4 | Migrate only Step 3 history (old backup JSON → Settings → 上架) |
 | G1 | Search + 状态 / 类目 chips, at most one per group (click the active chip again to clear it) + a 材质 dropdown; categories always grouped; no column sorting. *(Changed 2026-09-29: within a group rows sort by stage 待报价 → 报价✓ → 已下单 → 已上架 (within a stage, 报价 skipped first), then 上架时间 earliest first (blank last), then newest first (`createdAt`))* |
@@ -170,7 +170,7 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
 |---|---|
 | I1 | Row thumb is a 96×96 square, filled (cover/crop); stored thumb is a 320 square |
 | I2 | Clicking a thumb with an image opens the **image viewer**; without one it opens the file picker. Hover ×, paste and drop on the row thumb still work (× deletes the main image, paste/drop replace it) |
-| I3 | Viewer: big square frame with < > (images of this row), side panel with 品名/SKU, `产品 x / y`, `图片 n / N`, thumbnail grid (3 across) + one "+" tile. ← → move through the table's visible rows that have an image. Everything stops at the ends. × / Esc / backdrop close. *(2026-09-29: the "按 ← → 切换" and 主图方框 hints were removed)* |
+| I3 | Viewer: big square frame with < > (images of this row), side panel with 品名/SKU, `产品 x / y`, `图片 n / N`, thumbnail grid (3 across) + one "+" tile. ← → move through the table's visible rows that have an image. Everything stops at the ends. × / Esc / backdrop close. *(2026-09-29: the "按 ← → 切换" and 主图方框 hints were removed)* *(2026-10-01: the title is the 品名, else `类目 · 工厂`)* |
 | I4 | Up to 9 images per row (main + 8 extras in `images.json`). Add with "+" (multi-select), paste or drop in the viewer. Per-image delete; deleting the main image promotes the next one (keeping its position). **设为主图** (shown on any other image) swaps that image with the 主图; each keeps its own position *(2026-09-29)* |
 | I5 | Every row must have an image: the last one can't be deleted, only replaced. Replace the 主图 by clicking its tile while it is already selected (the first click selects it), or by pasting / dropping an image onto the 主图 tile; paste / drop anywhere else adds an image. 替换主图 was removed *(2026-09-29)* |
 | I6 | New rows are **drafts** (shown, not saved) until they have an image **and** 类目 *(was 品名 until 2026-09-29)*; a draft is lost on reload |
@@ -192,7 +192,7 @@ a new one is built in a picker (images × 报价 lines) as one 货号 card with 
 | F5 | ~~Most recently used first~~ *(Changed 2026-09-29)* Every 工厂 dropdown uses the Settings order, which never changes by use; new factories (Settings, `+ 添加`, import) go at the end. The tool posts `factory-used` for a new one; only the hub writes `settings.json` |
 | F6 | 从 Excel 导入: an unknown 工厂 is added with the file's 税率 (toast `已新增工厂「X」`) |
 | F7 | New forms start with 工厂 and 税率 empty; an empty 税率 leaves the Excel 税率 cell blank (was `专票1%`). Saved forms keep their 工厂 / 税率 (e.g. "Huazhi") *(a row's 工厂 now overrides them, F10)* |
-| F8 | Main table column **工厂** between 品名 and 类目 (`meta.factory`), optional (`—`), also for new products; the same dropdown with `+ 添加「X」`. The search box matches it |
+| F8 | Main table column **工厂** between 品名 and 类目 (`meta.factory`), optional (`—`), also for new products; the same dropdown with `+ 添加「X」`. The search box matches it *(2026-10-01: 品名 removed, so 工厂 follows 图片 and takes the spare width)* |
 | F9 | Each factory has optional 类目 · 材质 · 税率 (Settings → 工厂). Picking a factory (table or form) always overwrites the row's 材质 and 类目, except that a row with a SKU keeps its SKU-prefix 类目 (silently); fields left `—` change nothing |
 | F10 | Row ↔ 下单计划 synced both ways: a row with a 工厂 shows it in all its forms (a form saved with another one takes it and that factory's 税率, in memory until the next edit); picking one in a form sets the row's 工厂 / 类目 / 材质 (`meta-changed`). A row without 工厂 leaves its forms' own. 从 Excel 导入: the row's 工厂 wins; an empty row takes the file's |
 | F11 | Renaming a factory renames it in every row using it; deleting leaves the rows' text. Deleting a 类目 / 材质 clears it from the factories |
