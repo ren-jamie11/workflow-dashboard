@@ -217,13 +217,16 @@ tr.xp-spacer td{padding:0;border:0}
 .pk-label .note{font-weight:400;color:var(--muted);margin-left:.5rem;font-size:.78rem}
 .pk-grid{display:flex;flex-wrap:wrap;gap:.75rem}
 .pk-tile{position:relative;width:128px;height:128px;border:2px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;background:#fff;padding:0;flex:none}
-.pk-tile img{width:100%;height:100%;object-fit:cover;display:block;opacity:.6;transition:opacity .12s}
+.pk-tile img{width:100%;height:100%;object-fit:cover;display:block}
 .pk-tile:hover{border-color:#a5b4fc}
-.pk-tile.on img{opacity:1}
+.pk-tile[data-pk="img"]{cursor:grab}
 .pk-tile .tag{position:absolute;left:4px;bottom:4px;font-size:.66rem;line-height:1.4;background:rgba(15,23,42,.72);color:#fff;border-radius:3px;padding:0 .3rem}
-.pk-tile .chk{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;
-  font-size:.78rem;display:none;align-items:center;justify-content:center}
-.pk-tile.on .chk{display:flex}
+/* duplicating an image (double-click + hold + drag): the source dims, the target is outlined, a small copy follows the cursor */
+.pk-tile.pk-src{filter:brightness(.7)}
+.pk-tile.pk-target{border-color:#20c997;box-shadow:0 0 0 3px rgba(32,201,151,.25)}
+.pk-ghost{position:fixed;width:64px;height:64px;object-fit:cover;border-radius:8px;pointer-events:none;z-index:1000;
+  transform:translate(-50%,-50%);opacity:.85;box-shadow:0 4px 14px rgba(15,23,42,.3)}
+body.pk-dragging,body.pk-dragging *{cursor:grabbing !important;user-select:none}
 .pk-tile.add{border:2px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;font-size:1.8rem;font-family:inherit}
 .pk-tile.add:hover{border-color:var(--primary);color:var(--primary);background:#eef2ff}
 /* a 色号 slot: the image tile (optional) + its name */
@@ -447,7 +450,7 @@ table.pk .none{color:#cbd5e1}
       <div class="s2-card" id="pkCard">
         <div class="s2-card-head"><h2>新下单计划</h2></div>
         <div class="pk-sec">
-          <div class="pk-label">选择产品色号<span class="note">每个色号 = 图片和/或色号名，各生成一组行（图片列统一为主图） · 点击 + 添加空色号（最多 9 个） · 可粘贴或拖入图片（加入产品图片）</span></div>
+          <div class="pk-label">选择产品色号<span class="note">每个色号 = 图片和/或色号名，各生成一组行（图片列统一为主图） · 点击 + 添加空色号（最多 9 个） · 双击按住图片拖到另一个色号可复制 · 可粘贴或拖入图片（加入产品图片）</span></div>
           <div class="pk-grid" id="pkGrid"></div>
         </div>
         <div class="pk-sec">
@@ -1945,8 +1948,9 @@ $('olFile').addEventListener('change', async e => {
 $('s2ToList').addEventListener('click', () => showOrder(false));
 
 /* ---- the picker: 色号 slots × ticked 报价 lines ----
-   A slot = one 产品色号: an image (the row's own, main first, or one uploaded into the slot) and / or a name (this draft only).
-   '+' adds an empty slot (at most IMG_LIMIT slots); a selected slot with neither image nor name is skipped */
+   A slot = one 产品色号: an image (the row's own, main first, uploaded into the slot or duplicated from another slot) and / or
+   a name (this draft only). Every slot counts; × removes it (the image stays with the product). '+' adds an empty slot
+   (at most IMG_LIMIT slots); a slot with neither image nor name is skipped */
 function openPicker(r){
   setView('pick');
   renderPicker();
@@ -1954,14 +1958,13 @@ function openPicker(r){
     if (!order || order.id !== r.id || order.view !== 'pick') return;
     const lines = (s1 && Array.isArray(s1.rows) ? s1.rows : [])
       .filter(x => ['sku', 'price', 'l', 'w', 'h'].some(k => String(x[k] == null ? '' : x[k]).trim()));
-    const slots = list.map(im => ({ im, name: '', isNew: false }));
-    order.pick = { r, list, slots, sel: new Set(slots.slice(0, 1)), lines, on: new Set(lines) };   // main image + every line
+    order.pick = { r, list, slots: list.map((im, i) => ({ im, name: '', main: !i })), lines, on: new Set(lines) };   // every image + every line
     renderPicker();
   }).catch(() => {});
 }
-const newSlot = () => ({ im: null, name: '', isNew: true });
+const newSlot = () => ({ im: null, name: '' });
 const slotFilled = s => !!(s.im || s.name.trim());
-const pickedSlots = pk => pk.slots.filter(s => pk.sel.has(s) && slotFilled(s));
+const pickedSlots = pk => pk.slots.filter(slotFilled);
 const slotOf = el => { const pk = order && order.pick, s = el && el.closest && el.closest('.pk-slot');
   return pk && s ? pk.slots[+s.dataset.s] || null : null; };
 function renderPicker(){ renderPickGrid(); renderPickLines(); renderPickSum(); }
@@ -1969,17 +1972,18 @@ function renderPickGrid(){
   const pk = order && order.pick;
   if (!pk) { $('pkGrid').innerHTML = '<div class="hint">加载中…</div>'; return; }
   $('pkGrid').innerHTML = pk.slots.map((s, i) => {
-    const on = pk.sel.has(s) ? ' on' : '', im = s.im, main = !!im && im === pk.list[0];
+    const im = s.im, main = !!im && im === pk.list[0];
     const tile = im
-      ? '<button type="button" class="pk-tile' + on + '" data-pk="img" title="' + (main ? '主图' : '色号图片') + '（点击选择 / 取消）">' +
+      ? '<button type="button" class="pk-tile" data-pk="img" title="' + (main ? '主图' : '色号图片') +
+          '（双击并按住，拖到另一个色号上即可复制这张图片）">' +
           (main && pk.r.thumb ? '<img src="' + pk.r.thumb + '" alt="" draggable="false">'
                               : '<img src="' + im.url + '" alt="" draggable="false"' + (main ? '' : tileStyle(im)) + '>') +
-          (main ? '<span class="tag">主图</span>' : '') + '<span class="chk">✓</span></button>'
-      : '<button type="button" class="pk-tile empty' + on + '" data-pk="up" title="点击上传图片（也可悬停后按 Ctrl+V 粘贴，或拖入）；没有图片时只填色号名即可">' +
-          '<span class="ph">图</span>点击上传图片<span class="chk">✓</span></button>';
+          (main && s.main ? '<span class="tag">主图</span>' : '') + '</button>'   // the tag stays on the original slot, not on copies
+      : '<button type="button" class="pk-tile empty" data-pk="up" title="点击上传图片（也可悬停后按 Ctrl+V 粘贴，或拖入）；没有图片时只填色号名即可">' +
+          '<span class="ph">图</span>点击上传图片</button>';
     return '<div class="pk-slot" data-s="' + i + '">' + tile +
       '<input class="pk-name" value="' + esc(s.name) + '" placeholder="色号 / 颜色名">' +
-      (s.isNew ? '<button type="button" class="del" data-pk="del" title="移除这个色号">×</button>' : '') + '</div>';
+      '<button type="button" class="del" data-pk="del" title="移除这个色号（图片仍保留在产品图片中）">×</button></div>';
   }).join('') +
     (pk.slots.length < IMG_LIMIT ? '<button type="button" class="pk-tile add" data-pk="add" title="添加一个空色号（最多 ' +
       IMG_LIMIT + ' 个）">+</button>' : '');
@@ -2008,7 +2012,7 @@ function renderPickSum(){
   const pk = order && order.pick;
   const ni = pk ? pickedSlots(pk).length : 0, nl = pk ? pk.on.size : 0;
   $('pkOk').disabled = !ni;
-  $('pkSum').textContent = !pk ? '' : !ni ? '请至少选择或填写一个色号'
+  $('pkSum').textContent = !pk ? '' : !ni ? '请至少添加一个色号（图片或色号名）'
     : '将生成 ' + (ni * Math.max(1, nl)) + ' 行（' + ni + ' 个色号 × ' + (nl ? nl + ' 个尺寸' : '1 个空行') + '）';
 }
 $('pkGrid').addEventListener('click', e => {
@@ -2022,26 +2026,60 @@ $('pkGrid').addEventListener('click', e => {
   }
   const s = slotOf(t);
   if (!s) return;
-  if (t.dataset.pk === 'del') {                         // the slot only: an image uploaded into it stays with the product
+  if (t.dataset.pk === 'del') {                         // the slot only: its image stays with the product
     pk.slots.splice(pk.slots.indexOf(s), 1);
-    pk.sel.delete(s);
     renderPickGrid(); renderPickSum();
     return;
   }
-  if (t.dataset.pk === 'up') return pickImage(f => pickAdd([f], s));
-  if (pk.sel.has(s)) pk.sel.delete(s); else pk.sel.add(s);
-  t.classList.toggle('on', pk.sel.has(s));
-  renderPickSum();
+  if (t.dataset.pk === 'up') pickImage(f => pickAdd([f], s));   // a single click on an image does nothing
 });
-/* typing a name selects the slot (in place: a re-render would drop the focus); clearing it unselects an image-less slot */
+/* a name only updates the count (no re-render: it would drop the focus) */
 $('pkGrid').addEventListener('input', e => {
-  const pk = order && order.pick, s = e.target.classList.contains('pk-name') && slotOf(e.target);
-  if (!pk || !s) return;
+  const s = e.target.classList.contains('pk-name') && slotOf(e.target);
+  if (!s) return;
   s.name = e.target.value;
-  if (s.name.trim()) pk.sel.add(s); else if (!s.im) pk.sel.delete(s);
-  e.target.closest('.pk-slot').querySelector('.pk-tile').classList.toggle('on', pk.sel.has(s));
   renderPickSum();
 });
+/* double-click + hold an image and drag it onto another slot: that slot gets a copy (same image and position; its name is
+   kept). As in the collage app: the second press within 300 ms starts the drag, the source dims, the target is outlined */
+let pkDrag = null, pkLastDown = { s: null, t: 0 };   // pkDrag: {src, target, ghost}
+$('pkGrid').addEventListener('mousedown', e => {
+  const t = e.button === 0 && e.target.closest('.pk-tile[data-pk="img"]'), s = t && slotOf(t);
+  if (!s) return;
+  const now = Date.now(), dbl = pkLastDown.s === s && now - pkLastDown.t < 300;
+  pkLastDown = dbl ? { s: null, t: 0 } : { s, t: now };
+  if (!dbl) return;
+  e.preventDefault();
+  const ghost = document.createElement('img');
+  ghost.className = 'pk-ghost';
+  ghost.src = t.querySelector('img').src;
+  document.body.appendChild(ghost);
+  pkDrag = { src: s, target: null, ghost };
+  t.classList.add('pk-src');
+  document.body.classList.add('pk-dragging');
+  pkDragMove(e);
+});
+function pkDragMove(e){
+  if (!pkDrag) return;
+  pkDrag.ghost.style.left = e.clientX + 'px';
+  pkDrag.ghost.style.top = e.clientY + 'px';
+  const el = document.elementFromPoint(e.clientX, e.clientY), s = slotOf(el && el.closest('#pkGrid .pk-slot'));
+  pkDrag.target = s && s !== pkDrag.src ? s : null;
+  document.querySelectorAll('#pkGrid .pk-tile.pk-target').forEach(x => x.classList.remove('pk-target'));
+  if (pkDrag.target) $('pkGrid').querySelector('.pk-slot[data-s="' + order.pick.slots.indexOf(pkDrag.target) + '"] .pk-tile').classList.add('pk-target');
+}
+function pkDragEnd(drop){
+  if (!pkDrag) return;
+  const { src, target, ghost } = pkDrag, pk = order && order.pick;
+  pkDrag = null;
+  ghost.remove();
+  document.body.classList.remove('pk-dragging');
+  if (drop && target && pk && pk.slots.includes(src) && pk.slots.includes(target)) target.im = src.im;
+  if (pk) { renderPickGrid(); renderPickSum(); }
+}
+window.addEventListener('mousemove', pkDragMove);
+window.addEventListener('mouseup', () => pkDragEnd(true));
+window.addEventListener('blur', () => pkDragEnd(false));
 $('pkLines').addEventListener('click', e => {
   const pk = order && order.pick;
   if (!pk) return;
@@ -2055,7 +2093,7 @@ $('pkLines').addEventListener('click', e => {
   }
   renderPickLines(); renderPickSum();
 });
-/* uploaded / pasted / dropped images join the row's images (as in the viewer) and fill slots, which start selected:
+/* uploaded / pasted / dropped images join the row's images (as in the viewer) and fill slots:
    the target slot (clicked, hovered or dropped on) if it has no image, then the other image-less slots, then new slots */
 let pickBusy = false;
 async function pickAdd(files, target){
@@ -2079,7 +2117,7 @@ async function pickAdd(files, target){
         pk.slots.push(s = newSlot());
       }
       s.im = im;
-      pk.sel.add(s);
+      if (im === pk.list[0]) s.main = true;            // the row had no image: this one became the main image
     });
     if (imgs.length > room) toast('最多 ' + IMG_LIMIT + ' 个色号，其余 ' + (imgs.length - room) + ' 张图片未添加', true);
     if (order && order.pick === pk) { renderPickGrid(); renderPickSum(); renderOrderHead(); }
