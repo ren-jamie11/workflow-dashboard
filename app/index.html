@@ -168,17 +168,16 @@ tr.xp-spacer td{padding:0;border:0}
 .iv-frame.dragging{cursor:grabbing}
 .iv-frame img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-user-drag:none}
 
-/* 下单 pop-up (Step 2): a compact header over the tool; ← → switch products, × / Esc / backdrop close */
+/* 下单 pop-up (Step 2): a compact header over the tool; ‹ (top left) goes back a view, × / Esc / backdrop close */
 .s2{background:#f1f5f9;border-radius:var(--radius);box-shadow:0 20px 40px rgba(15,23,42,.3);width:100%;height:100%;max-width:1700px;
-  display:flex;flex-direction:column;overflow:hidden}
-.s2-head{display:flex;align-items:center;gap:.8rem;padding:.6rem .8rem .6rem 1rem;background:#fff;border-bottom:1px solid var(--line);flex:none}
+  display:flex;flex-direction:column;overflow:hidden;position:relative}
+.s2-head{display:flex;align-items:center;gap:.8rem;padding:.6rem .8rem .6rem .8rem;background:#fff;border-bottom:1px solid var(--line);flex:none}
 .s2-thumb{width:40px;height:40px;border-radius:6px;border:1px solid var(--line);object-fit:cover;display:block;flex:none;background:#f8fafc}
 .s2-name{display:flex;flex-direction:column;min-width:0;flex:1}
 .s2-title{font-weight:600;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .s2-title .step-tag{font-size:.72rem;font-weight:500;color:var(--muted);margin-right:.45rem}
 .s2-meta{font-size:.76rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .s2-warn{font-size:.72rem;font-weight:500;color:var(--warn-text);background:var(--warn-bg);border:1px solid #fcd34d;border-radius:999px;padding:.1rem .55rem;white-space:nowrap;flex:none}
-.s2-pos{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
 .s2-btn{width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--dark);font-size:1.25rem;line-height:1;
   cursor:pointer;font-family:inherit;flex:none}
 .s2-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
@@ -186,10 +185,12 @@ tr.xp-spacer td{padding:0;border:0}
 .s2-btn.close{margin-left:.35rem;font-size:1.15rem}
 #s2Frame{flex:1;min-height:0;width:100%;border:0;display:block;background:#f1f5f9}
 /* the row's 下单计划 list and the picker for a new one (drawn by the hub; the form itself is the tool page) */
-.s2-crumb{display:flex;align-items:center;gap:.7rem;min-width:0;max-width:45%;flex:none}
-.s2-crumb .menu-link{font-size:.82rem;text-decoration:none;white-space:nowrap}
-.s2-crumb .menu-link:hover{text-decoration:underline}
-.s2-fname{font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+/* 保存草稿？ asked when ‹ leaves an unconfirmed 新下单计划 */
+.s2-ask{position:absolute;inset:0;background:rgba(15,23,42,.35);display:flex;align-items:center;justify-content:center;z-index:5}
+.s2-ask-box{background:#fff;border-radius:var(--radius);box-shadow:0 20px 40px rgba(15,23,42,.3);padding:1.3rem 1.5rem 1.1rem;width:min(400px,92%)}
+.s2-ask-box h3{margin:0 0 .4rem;font-size:1rem}
+.s2-ask-box p{margin:0 0 1.1rem;font-size:.85rem;color:var(--muted)}
+.s2-ask-acts{display:flex;gap:.6rem;justify-content:flex-end}
 .s2-pane{flex:1;min-height:0;overflow-y:auto;padding:1.25rem 1.5rem 2rem}
 .s2-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.2rem 1.5rem 1.4rem;max-width:1100px;margin:0 auto}
 .s2-card.over{box-shadow:0 0 0 3px var(--primary),var(--shadow)}
@@ -411,24 +412,29 @@ table.pk .none{color:#cbd5e1}
   </div>
 </div>
 
-<!-- 下单计划 (Step 2): one tool page, loaded once and switched between products -->
+<!-- 下单计划 (Step 2): one tool page, loaded once and reused for every product -->
 <div class="iv-back hidden" id="s2Back">
   <div class="s2" role="dialog" aria-modal="true" aria-labelledby="s2Title">
     <div class="s2-head">
+      <button type="button" class="s2-btn" id="s2ToList">‹</button>
       <img class="s2-thumb" id="s2Thumb" alt="">
       <div class="s2-name">
         <div class="s2-title" id="s2Title"></div>
         <div class="s2-meta" id="s2Meta"></div>
       </div>
-      <div class="s2-crumb hidden" id="s2Crumb">
-        <button type="button" class="menu-link" id="s2ToList" title="返回这个产品的下单计划文件（草稿自动保存）">‹ 全部下单计划</button>
-        <span class="s2-fname">草稿</span>
-      </div>
       <span class="s2-warn hidden" id="s2Warn" title="报价还没有保存；仍可先填写下单计划">报价未完成</span>
-      <span class="s2-pos" id="s2Pos"></span>
-      <button type="button" class="s2-btn" id="s2Prev" title="上一个产品（←）">‹</button>
-      <button type="button" class="s2-btn" id="s2Next" title="下一个产品（→）">›</button>
       <button type="button" class="s2-btn close" id="s2Close" title="关闭（Esc）">×</button>
+    </div>
+    <div class="s2-ask hidden" id="s2Ask">
+      <div class="s2-ask-box" role="alertdialog" aria-modal="true" aria-labelledby="s2AskTitle">
+        <h3 id="s2AskTitle">保存为草稿？</h3>
+        <p>新下单计划还没有确认。保存后可在下单计划列表中从「草稿」继续编辑。</p>
+        <div class="s2-ask-acts">
+          <button type="button" class="btn btn-ghost btn-sm" id="s2AskStay">取消</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="s2AskDrop">不保存</button>
+          <button type="button" class="btn btn-primary btn-sm" id="s2AskSave">保存草稿</button>
+        </div>
+      </div>
     </div>
     <!-- the row's 下单计划 files (下单计划/<product folder>/*.xlsx) and its draft -->
     <div class="s2-pane hidden" id="s2List">
@@ -789,7 +795,7 @@ function stepClick(r, step){
   if (step === 'order') {
     if (drafts.has(r.id)) return toast('请先选择类目并添加图片', true);
     const s = ROWS.journey(r).find(x => x.key === 'order');
-    if (s && s.state === 'locked' && !confirm('前一步未完成，仍要打开？')) return;   // soft lock (the pop-up's ← → don't ask)
+    if (s && s.state === 'locked' && !confirm('前一步未完成，仍要打开？')) return;   // soft lock
     return openOrder(r);
   }
   toast(STEP_STAGE[step]);
@@ -1729,10 +1735,10 @@ document.addEventListener('keydown', e => {
    and meta.deliveryDate = the earliest 交货日期 among them (recorded when the file was generated).
    The pop-up has three views: the row's files, the picker for a new draft (selected images × ticked 报价 lines), and the
    form itself: one tools/step2.html page that stays loaded and is switched with load-row {id, form, folder}
-   (ExcelJS makes it ~1 MB). Forms are independent of the row's images (never the table thumb). ← → follow the table order
-   as it was when the pop-up opened and always land on the next product's list */
+   (ExcelJS makes it ~1 MB). Forms are independent of the row's images (never the table thumb).
+   ‹ (top left) goes back: form / picker → the list → the table */
 const s2Frame = $('s2Frame');
-let order = null;           // {id, ids: the ← → order, view: 'list' | 'pick' | 'form', form: 'draft' in the form view, pick, file, list}
+let order = null;           // {id, view: 'list' | 'pick' | 'form', form: 'draft' in the form view, pick, file, list}
 let s2Ready = false;        // the tool page has loaded and listens for load-row
 const DRAFT = 'draft';
 const draftPath = r => 'rows/' + r.id + '/orders/' + DRAFT + '.json';
@@ -1787,8 +1793,7 @@ async function toggleSubmitted(r, l, name){
 
 function openOrder(r){
   if (viewer) closeViewer();
-  const ids = tableOrder().map(x => x.id);
-  order = { id: r.id, ids: ids.includes(r.id) ? ids : [r.id], view: null, form: null, pick: null, file: null, list: null };
+  order = { id: r.id, view: null, form: null, pick: null, file: null, list: null };
   $('s2Back').classList.remove('hidden');
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   if (!s2Frame.getAttribute('src')) s2Frame.src = 'tools/step2.html';   // loads in the background while the list shows
@@ -1829,38 +1834,27 @@ function setView(v){
   $('s2Pick').classList.toggle('hidden', v !== 'pick');
   s2Frame.classList.toggle('hidden', v !== 'form');
   $('pkCard').classList.remove('over');
+  $('s2Ask').classList.add('hidden');
   renderOrderHead();
 }
 function closeOrder(){
   if (!order) return;
   const id = order.id;
+  $('s2Ask').classList.add('hidden');
   if (order.view === 'form') hubEmbed.send(s2Frame, 'unload');
   order = null;
   $('s2Back').classList.add('hidden');
   const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
   if (tr) tr.scrollIntoView({ block: 'nearest' });
 }
-function orderIds(){ return order ? order.ids.filter(id => byId(id) && !drafts.has(id)) : []; }
-function orderStep(d){
-  if (!order) return;
-  const ids = orderIds(), i = ids.indexOf(order.id);
-  const n = i > -1 ? ids[i + d] : null;
-  if (!n) return;                                       // stops at the ends
-  order.id = n;
-  showOrder(true);
-}
 function renderOrderHead(){
   const r = order && byId(order.id);
   if (!r) return;
-  const ids = orderIds(), pos = ids.indexOf(r.id);
   if (r.thumb) $('s2Thumb').src = r.thumb; else $('s2Thumb').removeAttribute('src');
-  $('s2Title').innerHTML = '<span class="step-tag">下单计划</span>' + esc(r.name || '未命名');
+  $('s2Title').innerHTML = '<span class="step-tag">' + (order.view === 'form' ? '下单计划 · 草稿' : '下单计划') + '</span>' + esc(r.name || '未命名');
   $('s2Meta').textContent = [r.sku, r.parentAsin, r.material].filter(Boolean).join(' · ') || '未填写 SKU';
   $('s2Warn').classList.toggle('hidden', !!r.step1Confirmed);
-  $('s2Pos').textContent = pos > -1 ? '产品 ' + (pos + 1) + ' / ' + ids.length + ' · 按 ← → 切换' : '';
-  $('s2Prev').disabled = pos <= 0;
-  $('s2Next').disabled = pos < 0 || pos >= ids.length - 1;
-  $('s2Crumb').classList.toggle('hidden', order.view !== 'form');
+  $('s2ToList').title = order.view === 'list' ? '返回表格' : order.view === 'form' ? '返回全部下单计划（草稿自动保存）' : '返回全部下单计划';
 }
 
 /* ---- the form view (the row's draft) ---- */
@@ -1945,7 +1939,25 @@ $('olFile').addEventListener('change', async e => {
   try { await api.del(draftPath(r)); } catch (err) { return; }   // the import starts a fresh draft
   if (order && order.id === r.id) openForm(r, file);
 });
-$('s2ToList').addEventListener('click', () => showOrder(false));
+/* ‹ : the list closes the pop-up; the form saves on its own; a picker with any 色号 asks 保存草稿 / 不保存 / 取消 */
+function orderBack(){
+  if (!order) return;
+  if (order.view === 'list') return closeOrder();
+  const pk = order.view === 'pick' && order.pick;
+  if (pk && pickedSlots(pk).length) return $('s2Ask').classList.remove('hidden');
+  showOrder(false);
+}
+$('s2ToList').addEventListener('click', orderBack);
+$('s2AskStay').addEventListener('click', () => $('s2Ask').classList.add('hidden'));
+$('s2AskDrop').addEventListener('click', () => showOrder(false));
+$('s2AskSave').addEventListener('click', async () => {
+  const pk = order && order.pick;
+  if (!pk || pickBusy) return;
+  $('s2AskSave').disabled = true;
+  try { if (await savePick(pk) && order && order.pick === pk) showOrder(false); }
+  finally { $('s2AskSave').disabled = false; }
+});
+$('s2Ask').addEventListener('mousedown', e => { if (e.target === $('s2Ask')) $('s2Ask').classList.add('hidden'); });
 
 /* ---- the picker: 色号 slots × ticked 报价 lines ----
    A slot = one 产品色号: an image (the row's own, main first, uploaded into the slot or duplicated from another slot) and / or
@@ -2129,12 +2141,11 @@ async function pickAdd(files, target){
   }
 }
 $('pkCancel').addEventListener('click', () => showOrder(false));
-/* 确认: the row's draft = one 货号 card; rows = each filled selected slot (slot order) × each ticked line (报价 order) */
-$('pkOk').addEventListener('click', async () => {
-  const pk = order && order.pick, r = pk && byId(pk.r.id);
-  const slots = pk ? pickedSlots(pk) : [];
-  if (!pk || !r || !slots.length || pickBusy) return;
-  $('pkOk').disabled = true;
+/* 确认 (opens the form) / 保存草稿 (back to the list): the row's draft = one 货号 card;
+   rows = each filled selected slot (slot order) × each ticked line (报价 order). Resolves true once written */
+async function savePick(pk){
+  const r = byId(pk.r.id), slots = pickedSlots(pk);
+  if (!r || !slots.length) return false;
   try {
     const lines = pk.lines.filter(l => pk.on.has(l));
     /* 图片 = the row's main image on every row (where the table thumb is); each slot = the 色号 image and / or name of its rows */
@@ -2152,27 +2163,31 @@ $('pkOk').addEventListener('click', async () => {
     });
     await api.put(draftPath(r), { order: {}, images, hub: {},          // replaces the old draft (asked at + 新下单计划)
       products: [{ id: newId(), code: '', image: null, imgNat: null, crop: null, variants }] });
-    if (order && order.id === r.id && order.pick === pk) openForm(r);
+    return true;
   } catch (e) {
-    renderPickSum();
+    return false;
   }
+}
+$('pkOk').addEventListener('click', async () => {
+  const pk = order && order.pick;
+  if (!pk || pickBusy) return;
+  $('pkOk').disabled = true;
+  if (await savePick(pk) && order && order.id === pk.r.id && order.pick === pk) openForm(byId(pk.r.id));
+  else renderPickSum();
 });
 
-$('s2Prev').addEventListener('click', () => orderStep(-1));
-$('s2Next').addEventListener('click', () => orderStep(1));
 $('s2Close').addEventListener('click', closeOrder);
 $('s2Back').addEventListener('mousedown', e => { if (e.target === $('s2Back')) closeOrder(); });
-/* keys pressed in the hub itself (the tool forwards its own as 'key' messages) */
+/* Esc in the hub itself closes the pop-up (the tool forwards its own as 'key' messages) */
 function orderKey(key){
   if (key === 'Escape') closeOrder();
-  else if (key === 'ArrowLeft') orderStep(-1);
-  else if (key === 'ArrowRight') orderStep(1);
 }
 document.addEventListener('keydown', e => {
   if (!order || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'Escape' || ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !typing())) {
+  if (e.key === 'Escape') {
     e.preventDefault();
-    orderKey(e.key);
+    if (!$('s2Ask').classList.contains('hidden')) $('s2Ask').classList.add('hidden');   // Esc on 保存草稿？ = 取消
+    else orderKey(e.key);
   }
 });
 

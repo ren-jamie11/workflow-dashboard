@@ -944,11 +944,8 @@ document.addEventListener('keydown', e=>{
   if((e.key==='ArrowUp' || e.key==='ArrowDown') && !inField() && sel.ids.size){
     e.preventDefault(); moveSelected(e.key==='ArrowUp' ? -1 : 1);
   }
-  /* HUB: the pop-up's keys — Esc closes it, ← → switch products (not while typing in a field) */
-  if(e.key==='Escape'){ e.preventDefault(); embed.post('key', {key:'Escape'}); return; }
-  if((e.key==='ArrowLeft' || e.key==='ArrowRight') && !inField() && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey){
-    e.preventDefault(); embed.post('key', {key:e.key});
-  }
+  /* HUB: the pop-up's keys — Esc closes it */
+  if(e.key==='Escape'){ e.preventDefault(); embed.post('key', {key:'Escape'}); }
 });
 
 /* ============ HUB: 方形图片 — 按住拖动调整位置，Ctrl + 滚轮缩放（与总览表格的缩略图相同） ============ */
