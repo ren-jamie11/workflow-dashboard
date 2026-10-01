@@ -219,7 +219,6 @@ tr.xp-spacer td{padding:0;border:0}
 .pk-tile{position:relative;width:128px;height:128px;border:2px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;background:#fff;padding:0;flex:none}
 .pk-tile img{width:100%;height:100%;object-fit:cover;display:block;opacity:.6;transition:opacity .12s}
 .pk-tile:hover{border-color:#a5b4fc}
-.pk-tile.on{border:3px solid var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.15)}
 .pk-tile.on img{opacity:1}
 .pk-tile .tag{position:absolute;left:4px;bottom:4px;font-size:.66rem;line-height:1.4;background:rgba(15,23,42,.72);color:#fff;border-radius:3px;padding:0 .3rem}
 .pk-tile .chk{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;
@@ -227,6 +226,16 @@ tr.xp-spacer td{padding:0;border:0}
 .pk-tile.on .chk{display:flex}
 .pk-tile.add{border:2px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;font-size:1.8rem;font-family:inherit}
 .pk-tile.add:hover{border-color:var(--primary);color:var(--primary);background:#eef2ff}
+/* a 色号 slot: the image tile (optional) + its name */
+.pk-slot{position:relative;display:flex;flex-direction:column;gap:.4rem;width:128px;flex:none}
+.pk-slot .pk-name{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:6px;padding:.3rem .45rem;font:inherit;font-size:.8rem}
+.pk-slot .pk-name:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(79,70,229,.15)}
+.pk-tile.empty{border-style:dashed;background:#f8fafc;color:#94a3b8;font-size:.76rem;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2rem}
+.pk-tile.empty .ph{font-size:1.4rem;line-height:1}
+.pk-tile.empty:hover{color:var(--primary);background:#eef2ff}
+.pk-slot .del{position:absolute;top:-7px;left:-7px;width:20px;height:20px;border-radius:50%;border:1px solid var(--line);background:#fff;color:#64748b;
+  font-size:.8rem;line-height:1;cursor:pointer;padding:0;z-index:1;display:flex;align-items:center;justify-content:center}
+.pk-slot .del:hover{color:#dc2626;border-color:#fca5a5}
 table.pk{width:100%;border-collapse:collapse;font-size:.88rem}
 table.pk th{background:#f8fafc;color:var(--muted);font-weight:600;font-size:.78rem;text-align:left;padding:.5rem .6rem;border-bottom:2px solid var(--line);white-space:nowrap}
 table.pk td{padding:.5rem .6rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums}
@@ -438,11 +447,11 @@ table.pk .none{color:#cbd5e1}
       <div class="s2-card" id="pkCard">
         <div class="s2-card-head"><h2>新下单计划</h2></div>
         <div class="pk-sec">
-          <div class="pk-label">选择色号图片<span class="note">每张图片 = 一组行的产品色号图片（图片列统一为主图） · 可粘贴或拖入新图片（加入产品图片）</span></div>
+          <div class="pk-label">选择产品色号<span class="note">每个色号 = 图片和/或色号名，各生成一组行（图片列统一为主图） · 点击 + 添加空色号（最多 9 个） · 可粘贴或拖入图片（加入产品图片）</span></div>
           <div class="pk-grid" id="pkGrid"></div>
         </div>
         <div class="pk-sec">
-          <div class="pk-label">选择报价行<span class="note">每张选中的色号图片下各生成一行</span></div>
+          <div class="pk-label">选择报价行<span class="note">每个选中的色号下各生成一行</span></div>
           <div id="pkLines"></div>
         </div>
         <div class="pk-foot">
@@ -1223,7 +1232,7 @@ document.addEventListener('paste', e => {
     return;
   }
   if (order) {                                          // the 下单 pop-up: only its picker takes images
-    if (order.view === 'pick' && files.length) { e.preventDefault(); pickAdd(files); }
+    if (order.view === 'pick' && files.length) { e.preventDefault(); pickAdd(files, slotOf(document.querySelector('#pkGrid .pk-slot:hover'))); }
     return;
   }
   const a = document.activeElement;
@@ -1264,7 +1273,7 @@ document.addEventListener('drop', e => {
   if (order) {                                          // the 下单 pop-up: the picker adds the dropped images
     $('pkCard').classList.remove('over');
     const files = [...(e.dataTransfer.files || [])];
-    if (order.view === 'pick' && files.length) pickAdd(files);
+    if (order.view === 'pick' && files.length) pickAdd(files, slotOf(e.target));
     return;
   }
   const t = e.target.closest && e.target.closest('.thumb');
@@ -1935,7 +1944,9 @@ $('olFile').addEventListener('change', async e => {
 });
 $('s2ToList').addEventListener('click', () => showOrder(false));
 
-/* ---- the picker: images (the row's own, main first) × ticked 报价 lines ---- */
+/* ---- the picker: 色号 slots × ticked 报价 lines ----
+   A slot = one 产品色号: an image (the row's own, main first, or one uploaded into the slot) and / or a name (this draft only).
+   '+' adds an empty slot (at most IMG_LIMIT slots); a selected slot with neither image nor name is skipped */
 function openPicker(r){
   setView('pick');
   renderPicker();
@@ -1943,22 +1954,35 @@ function openPicker(r){
     if (!order || order.id !== r.id || order.view !== 'pick') return;
     const lines = (s1 && Array.isArray(s1.rows) ? s1.rows : [])
       .filter(x => ['sku', 'price', 'l', 'w', 'h'].some(k => String(x[k] == null ? '' : x[k]).trim()));
-    order.pick = { r, list, sel: new Set(list.slice(0, 1)), lines, on: new Set(lines) };   // main image + every line
+    const slots = list.map(im => ({ im, name: '', isNew: false }));
+    order.pick = { r, list, slots, sel: new Set(slots.slice(0, 1)), lines, on: new Set(lines) };   // main image + every line
     renderPicker();
   }).catch(() => {});
 }
+const newSlot = () => ({ im: null, name: '', isNew: true });
+const slotFilled = s => !!(s.im || s.name.trim());
+const pickedSlots = pk => pk.slots.filter(s => pk.sel.has(s) && slotFilled(s));
+const slotOf = el => { const pk = order && order.pick, s = el && el.closest && el.closest('.pk-slot');
+  return pk && s ? pk.slots[+s.dataset.s] || null : null; };
 function renderPicker(){ renderPickGrid(); renderPickLines(); renderPickSum(); }
 function renderPickGrid(){
   const pk = order && order.pick;
   if (!pk) { $('pkGrid').innerHTML = '<div class="hint">加载中…</div>'; return; }
-  $('pkGrid').innerHTML = pk.list.map((im, i) =>
-    '<button type="button" class="pk-tile' + (pk.sel.has(im) ? ' on' : '') + '" data-pk="img" data-i="' + i + '" title="' +
-      (i ? '图片 ' + (i + 1) : '主图') + '（点击选择 / 取消）">' +
-      (i || !pk.r.thumb ? '<img src="' + im.url + '" alt="" draggable="false"' + (i ? tileStyle(im) : '') + '>'
-                        : '<img src="' + pk.r.thumb + '" alt="" draggable="false">') +
-      (i ? '' : '<span class="tag">主图</span>') + '<span class="chk">✓</span></button>').join('') +
-    (pk.list.length < IMG_LIMIT ? '<button type="button" class="pk-tile add" data-pk="add" title="添加图片（可多选，也可粘贴或拖入；最多 ' +
-      IMG_LIMIT + ' 张）">+</button>' : '');
+  $('pkGrid').innerHTML = pk.slots.map((s, i) => {
+    const on = pk.sel.has(s) ? ' on' : '', im = s.im, main = !!im && im === pk.list[0];
+    const tile = im
+      ? '<button type="button" class="pk-tile' + on + '" data-pk="img" title="' + (main ? '主图' : '色号图片') + '（点击选择 / 取消）">' +
+          (main && pk.r.thumb ? '<img src="' + pk.r.thumb + '" alt="" draggable="false">'
+                              : '<img src="' + im.url + '" alt="" draggable="false"' + (main ? '' : tileStyle(im)) + '>') +
+          (main ? '<span class="tag">主图</span>' : '') + '<span class="chk">✓</span></button>'
+      : '<button type="button" class="pk-tile empty' + on + '" data-pk="up" title="点击上传图片（也可悬停后按 Ctrl+V 粘贴，或拖入）；没有图片时只填色号名即可">' +
+          '<span class="ph">图</span>点击上传图片<span class="chk">✓</span></button>';
+    return '<div class="pk-slot" data-s="' + i + '">' + tile +
+      '<input class="pk-name" value="' + esc(s.name) + '" placeholder="色号 / 颜色名">' +
+      (s.isNew ? '<button type="button" class="del" data-pk="del" title="移除这个色号">×</button>' : '') + '</div>';
+  }).join('') +
+    (pk.slots.length < IMG_LIMIT ? '<button type="button" class="pk-tile add" data-pk="add" title="添加一个空色号（最多 ' +
+      IMG_LIMIT + ' 个）">+</button>' : '');
 }
 const s1Val = x => String(x == null ? '' : x).trim();
 const s1Box = l => [l.l, l.w, l.h].every(x => s1Val(x)) ? l.l + 'x' + l.w + 'x' + l.h + 'cm' : '';
@@ -1982,19 +2006,40 @@ function renderPickLines(){
 }
 function renderPickSum(){
   const pk = order && order.pick;
-  const ni = pk ? pk.sel.size : 0, nl = pk ? pk.on.size : 0;
+  const ni = pk ? pickedSlots(pk).length : 0, nl = pk ? pk.on.size : 0;
   $('pkOk').disabled = !ni;
-  $('pkSum').textContent = !pk ? '' : !ni ? '请至少选择一张图片'
-    : '将生成 ' + (ni * Math.max(1, nl)) + ' 行（' + ni + ' 张图片 × ' + (nl ? nl + ' 个尺寸' : '1 个空行') + '）';
+  $('pkSum').textContent = !pk ? '' : !ni ? '请至少选择或填写一个色号'
+    : '将生成 ' + (ni * Math.max(1, nl)) + ' 行（' + ni + ' 个色号 × ' + (nl ? nl + ' 个尺寸' : '1 个空行') + '）';
 }
 $('pkGrid').addEventListener('click', e => {
   const t = e.target.closest('[data-pk]'), pk = order && order.pick;
   if (!t || !pk) return;
-  if (t.dataset.pk === 'add') return pickImage(files => pickAdd(files), true);
-  const im = pk.list[+t.dataset.i];
-  if (!im) return;
-  if (pk.sel.has(im)) pk.sel.delete(im); else pk.sel.add(im);
-  t.classList.toggle('on', pk.sel.has(im));
+  if (t.dataset.pk === 'add') {
+    if (pk.slots.length >= IMG_LIMIT) return;
+    pk.slots.push(newSlot());
+    renderPickGrid(); renderPickSum();
+    return;
+  }
+  const s = slotOf(t);
+  if (!s) return;
+  if (t.dataset.pk === 'del') {                         // the slot only: an image uploaded into it stays with the product
+    pk.slots.splice(pk.slots.indexOf(s), 1);
+    pk.sel.delete(s);
+    renderPickGrid(); renderPickSum();
+    return;
+  }
+  if (t.dataset.pk === 'up') return pickImage(f => pickAdd([f], s));
+  if (pk.sel.has(s)) pk.sel.delete(s); else pk.sel.add(s);
+  t.classList.toggle('on', pk.sel.has(s));
+  renderPickSum();
+});
+/* typing a name selects the slot (in place: a re-render would drop the focus); clearing it unselects an image-less slot */
+$('pkGrid').addEventListener('input', e => {
+  const pk = order && order.pick, s = e.target.classList.contains('pk-name') && slotOf(e.target);
+  if (!pk || !s) return;
+  s.name = e.target.value;
+  if (s.name.trim()) pk.sel.add(s); else if (!s.im) pk.sel.delete(s);
+  e.target.closest('.pk-slot').querySelector('.pk-tile').classList.toggle('on', pk.sel.has(s));
   renderPickSum();
 });
 $('pkLines').addEventListener('click', e => {
@@ -2010,17 +2055,33 @@ $('pkLines').addEventListener('click', e => {
   }
   renderPickLines(); renderPickSum();
 });
-/* pasted / dropped / '+' images join the row's images (as in the viewer) and start selected */
+/* uploaded / pasted / dropped images join the row's images (as in the viewer) and fill slots, which start selected:
+   the target slot (clicked, hovered or dropped on) if it has no image, then the other image-less slots, then new slots */
 let pickBusy = false;
-async function pickAdd(files){
+async function pickAdd(files, target){
   const pk = order && order.view === 'pick' && order.pick, r = pk && byId(pk.r.id);
   if (!pk || !r) return;
   if (pickBusy) return toast('正在处理上一张图片…');
+  const imgs = files.filter(f => f && /^image\//.test(f.type));
+  if (!imgs.length) return toast('请选择图片文件', true);
+  const free = pk.slots.filter(s => !s.im && s !== target);
+  const dest = target && !target.im ? [target].concat(free) : free;
+  const room = dest.length + IMG_LIMIT - pk.slots.length;
+  if (room <= 0) return toast('最多 ' + IMG_LIMIT + ' 个色号', true);
   pickBusy = true;
   const before = pk.list.length;
   try {
-    const n = await addRowImages(r, pk.list, files);
-    pk.list.slice(before, before + n).forEach(im => pk.sel.add(im));
+    const n = await addRowImages(r, pk.list, imgs.slice(0, room));
+    pk.list.slice(before, before + n).forEach((im, k) => {
+      let s = dest[k];
+      if (!s || !pk.slots.includes(s)) {                // removed while the image was being read
+        if (pk.slots.length >= IMG_LIMIT) return;
+        pk.slots.push(s = newSlot());
+      }
+      s.im = im;
+      pk.sel.add(s);
+    });
+    if (imgs.length > room) toast('最多 ' + IMG_LIMIT + ' 个色号，其余 ' + (imgs.length - room) + ' 张图片未添加', true);
     if (order && order.pick === pk) { renderPickGrid(); renderPickSum(); renderOrderHead(); }
   } catch (e) {
     imgCache.delete(r.id);
@@ -2030,24 +2091,26 @@ async function pickAdd(files){
   }
 }
 $('pkCancel').addEventListener('click', () => showOrder(false));
-/* 确认: the row's draft = one 货号 card; rows = each selected image (the row's image order) × each ticked line (报价 order) */
+/* 确认: the row's draft = one 货号 card; rows = each filled selected slot (slot order) × each ticked line (报价 order) */
 $('pkOk').addEventListener('click', async () => {
   const pk = order && order.pick, r = pk && byId(pk.r.id);
-  if (!pk || !r || !pk.sel.size || pickBusy) return;
+  const slots = pk ? pickedSlots(pk) : [];
+  if (!pk || !r || !slots.length || pickBusy) return;
   $('pkOk').disabled = true;
   try {
-    const imgs = pk.list.filter(im => pk.sel.has(im)), lines = pk.lines.filter(l => pk.on.has(l));
-    /* 图片 = the row's main image on every row (where the table thumb is); each selected image = the 色号 image of its rows */
-    const main = pk.list[0], mainId = newId(), images = {}, variants = [];
-    images[mainId] = { url: main.url, w: main.w || 0, h: main.h || 0 };
+    const lines = pk.lines.filter(l => pk.on.has(l));
+    /* 图片 = the row's main image on every row (where the table thumb is); each slot = the 色号 image and / or name of its rows */
+    const main = pk.list[0] || null, mainId = main ? newId() : null, images = {}, variants = [];
+    if (main) images[mainId] = { url: main.url, w: main.w || 0, h: main.h || 0 };
     const cropOf = im => im === main ? r.thumbCrop || (im.w && im.h ? centerCrop(im.w, im.h) : null)
                                      : im.w && im.h ? CROP.cropOf(im.crop, im.w, im.h) : im.crop || null;
     const copy = c => c ? Object.assign({}, c) : null;
-    imgs.forEach(im => {
+    slots.forEach(({ im, name }) => {
       (lines.length ? lines : [null]).forEach(l => variants.push({
-        id: newId(), colorCode: '', colorImage: im.url, colorNat: im.w && im.h ? { w: im.w, h: im.h } : null, colorCrop: copy(cropOf(im)),
+        id: newId(), colorCode: name.trim(), colorImage: im ? im.url : null,
+        colorNat: im && im.w && im.h ? { w: im.w, h: im.h } : null, colorCrop: im ? copy(cropOf(im)) : null,
         size: l ? s1Val(l.sku) : '', setQty: '', price: l ? s1Val(l.price) : '', boxSize: l ? s1Box(l) : '', qty: '',
-        img: mainId, imgCrop: copy(cropOf(main)), accImg: null, gRaw: '', pass: {} }));
+        img: mainId, imgCrop: main ? copy(cropOf(main)) : null, accImg: null, gRaw: '', pass: {} }));
     });
     await api.put(draftPath(r), { order: {}, images, hub: {},          // replaces the old draft (asked at + 新下单计划)
       products: [{ id: newId(), code: '', image: null, imgNat: null, crop: null, variants }] });

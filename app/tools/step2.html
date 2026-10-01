@@ -353,6 +353,7 @@ const IMG_BOX = 266 - 2*IMG_PAD;            /* HUB: C 列方形图片 = 242（�
 const ROW_PAD = 2*IMG_PAD;                  /* HUB: 图片上下留白（原 42） */
 const MIN_ROW_PX = 175;                     // 无图片时的最小行高（= 模板原始 131.25pt）
 const SWATCH_BOX_W = 140;                   // E 列色号图最大宽度
+const E_TEXT_PX = 40;                       /* HUB: 色号图下方的色号名（Calibri 20 一行）所需高度 */
 const ACC_BOX_W = 100;                      // H 列配件图最大宽度
 const IMG_STORE_MAX = 1400;                 // 存储时最长边上限（保留完整画面）
 const UI_BOX = 200;                         /* HUB: 货号图片方框（CSS px） */
@@ -655,14 +656,15 @@ function buildRows(){
       const keep = k => ps[k]!==undefined && ps[k]!==null ? ps[k] : '';
       const rs = rowSlot(v);                 /* HUB: every row has its own 图片 */
       out.push({
-        groupStart: vi===0 || v.img !== p.variants[vi-1].img || v.colorImage !== p.variants[vi-1].colorImage,   /* HUB: rows of one 图片 + 色号 image = one group */
+        groupStart: vi===0 || v.img !== p.variants[vi-1].img || v.colorImage !== p.variants[vi-1].colorImage
+                    || v.colorCode !== p.variants[vi-1].colorCode,   /* HUB: rows of one 图片 + 色号 (image and / or name) = one group */
         crop: rs ? rs.crop : null,            /* HUB: 方形取景 */
         image: rs ? rs.url : null,
         colorImage: v.colorImage,
         colorCrop: v.colorCrop || null,       /* HUB */
         accImg: v.accImg || null,             // 配件图片（导入时保留）
         A:S.settings.operator||'Jamie', B:S.order.factory, D:p.code,
-        E: v.colorImage ? '' : v.colorCode,   // 有色号图片时不再写入文字
+        E: v.colorCode,                       /* HUB: 色号名 is written even under a 色号 image */
         F: v.size,
         G: v.gRaw ? v.gRaw : (price ? (price+'元'+(setq?'\n套'+setq:'')) : ''),
         H:keep('H'), I:keep('I'), J:keep('J'), K:keep('K'),
@@ -1531,6 +1533,7 @@ async function generate(){
     put(17,r.Q); put(18,r.R); put(19,r.S); put(20,r.T); put(21,r.U); put(22,r.V);
     put(23,r.W); put(24,r.X); put(25,r.Y);
     put(26,r.Z); put(27,r.AA); put(28,r.AB); put(29,r.AC); put(30,r.AD);
+    if(r.colorImage && r.E) row.getCell(5).alignment = {vertical:'bottom', horizontal:'center', wrapText:true};   /* HUB: 色号名 under its image */
     rowPlan.push({rn, r});
   });
 
@@ -1545,10 +1548,13 @@ async function generate(){
       maxH = Math.max(maxH, d.h);
     }
     const sw = r.colorImage ? await squareForExport(r.colorImage, r.colorCrop) : null;   /* HUB: square */
+    let swNeed = 0;                          /* HUB: image + 色号名: the image at the top, the name at the bottom */
     if(sw){
+      const top = !!r.E;
       const d = fitBox(sw.w, sw.h, SWATCH_BOX_W, IMG_BOX);
-      imgs.push({data:sw.url, col:4, colPx:COL_E_PX, w:d.w, h:d.h, rn:pl.rn});
+      imgs.push({data:sw.url, col:4, colPx:COL_E_PX, w:d.w, h:d.h, rn:pl.rn, top});
       maxH = Math.max(maxH, d.h);
+      if(top) swNeed = d.h + ROW_PAD + E_TEXT_PX;
     }
     const ac = r.accImg ? await cropForExport(r.accImg, null, false) : null;   /* HUB: whole image */
     if(ac){
@@ -1556,7 +1562,7 @@ async function generate(){
       imgs.push({data:ac.url, col:7, colPx:COL_H_PX, w:d.w, h:d.h, rn:pl.rn});
       maxH = Math.max(maxH, d.h);
     }
-    pl.px = Math.max(MIN_ROW_PX, maxH + ROW_PAD);
+    pl.px = Math.max(MIN_ROW_PX, maxH + ROW_PAD, swNeed);
     ws.getRow(pl.rn).height = pl.px*72/96;
   }
   const rowPx = {};
@@ -1567,7 +1573,7 @@ async function generate(){
     const id = wb.addImage({base64:b64(im.data), extension:'jpeg'});
     ws.addImage(id,{
       tl:{ nativeCol: im.col, nativeColOff: Math.round((im.colPx-im.w)/2*EMU),
-           nativeRow: im.rn-1, nativeRowOff: Math.round(((rowPx[im.rn]||MIN_ROW_PX)-im.h)/2*EMU) },
+           nativeRow: im.rn-1, nativeRowOff: Math.round((im.top ? IMG_PAD : ((rowPx[im.rn]||MIN_ROW_PX)-im.h)/2)*EMU) },
       ext:{width:im.w, height:im.h},
       editAs:'oneCell'
     });
