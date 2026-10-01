@@ -164,8 +164,13 @@ class Handler(SimpleHTTPRequestHandler):
             p = data_path(path[len('/api/data/'):])
             if not p:
                 return self.fail(400, 'bad path')
-            if p.is_file():
-                p.unlink()
+            try:
+                if p.is_file():
+                    retry(p.unlink)
+            except FileNotFoundError:
+                pass
+            except PermissionError:
+                return self.fail(503, 'busy')
             return self.send_json({'ok': True})
         m = re.fullmatch(r'/api/rows/([^/]+)', path)
         if not m or not ROW_ID.match(m.group(1)):

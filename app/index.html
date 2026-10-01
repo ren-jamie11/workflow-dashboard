@@ -191,6 +191,8 @@ tr.xp-spacer td{padding:0;border:0}
 .s2-ask-box h3{margin:0 0 .4rem;font-size:1rem}
 .s2-ask-box p{margin:0 0 1.1rem;font-size:.85rem;color:var(--muted)}
 .s2-ask-acts{display:flex;gap:.6rem;justify-content:flex-end}
+.s2-ask-acts .btn-danger{background:#dc2626;color:#fff}
+.s2-ask-acts .btn-danger:hover{background:#b91c1c}
 .s2-pane{flex:1;min-height:0;overflow-y:auto;padding:1.25rem 1.5rem 2rem}
 .s2-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.2rem 1.5rem 1.4rem;max-width:1100px;margin:0 auto}
 .s2-card.over{box-shadow:0 0 0 3px var(--primary),var(--shadow)}
@@ -211,6 +213,9 @@ tr.xp-spacer td{padding:0;border:0}
   color:transparent;font-size:.7rem;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}
 .of-tick:hover{border-color:#16a34a;color:#86efac}
 .of-tick.on{background:#16a34a;border-color:#16a34a;color:#fff}
+.of-del{position:absolute;top:-6px;left:-10px;width:20px;height:20px;border-radius:50%;border:1px solid var(--line);background:#fff;color:#64748b;
+  font-size:.8rem;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}
+.of-del:hover{color:#dc2626;border-color:#fca5a5}
 .of-tile.flash{animation:of-flash 2.4s ease-out}
 @keyframes of-flash{0%,35%{background:#e0e7ff;border-color:var(--primary)}100%{background:transparent;border-color:transparent}}
 .pk-sec + .pk-sec{margin-top:1.4rem}
@@ -433,6 +438,16 @@ table.pk .none{color:#cbd5e1}
           <button type="button" class="btn btn-ghost btn-sm" id="s2AskStay">取消</button>
           <button type="button" class="btn btn-ghost btn-sm" id="s2AskDrop">不保存</button>
           <button type="button" class="btn btn-primary btn-sm" id="s2AskSave">保存草稿</button>
+        </div>
+      </div>
+    </div>
+    <div class="s2-ask hidden" id="s2Del">
+      <div class="s2-ask-box" role="alertdialog" aria-modal="true" aria-labelledby="s2DelTitle">
+        <h3 id="s2DelTitle">删除草稿？</h3>
+        <p>删除后无法恢复。Excel 文件不受影响。</p>
+        <div class="s2-ask-acts">
+          <button type="button" class="btn btn-ghost btn-sm" id="s2DelCancel">取消</button>
+          <button type="button" class="btn btn-danger btn-sm" id="s2DelOk">删除</button>
         </div>
       </div>
     </div>
@@ -1776,19 +1791,31 @@ function applySubmitted(r, l){
   moveRow(r, () => { r.status = status; r.deliveryDate = dd; });
   renderOrderHead();
 }
-/* a re-read of the folder (window focus) must not land on top of a newer tick: it waits for the ticks being saved,
-   and one started before a tick is dropped */
-let listSeq = 0, marksSaving = Promise.resolve();
+/* a re-read of the folder (window focus) must not land on top of a newer tick or a draft deletion: it waits for the
+   writes in progress (listWrites), and one started before a write is dropped (listSeq) */
+let listSeq = 0, listWrites = Promise.resolve();
+const queueListWrite = p => { listWrites = listWrites.then(() => p).catch(() => {}); };
 async function toggleSubmitted(r, l, name){
   const m = l.marks, e = m.files[name] || (m.files[name] = { submitted: false, deliveryDate: '' });
   ++listSeq;
   e.submitted = !e.submitted;
   renderOrderList();
   const save = api.put(marksPath(r), m);
-  marksSaving = save.catch(() => {});
+  queueListWrite(save);
   try { await save; }
   catch (err) { e.submitted = !e.submitted; renderOrderList(); return; }
   applySubmitted(r, l);
+}
+/* the 草稿 tile's × → 删除: the tile goes at once; a failed delete puts it back */
+async function deleteDraft(r){
+  ++listSeq;
+  if (order.list) { order.list.draft = false; renderOrderList(); }
+  const del = api.del(draftPath(r));
+  queueListWrite(del);
+  try { await del; }
+  catch (err) {                                         // api.onError has shown the toast
+    if (order && order.id === r.id && order.view === 'list' && order.list) { order.list.draft = true; renderOrderList(); }
+  }
 }
 
 function openOrder(r){
@@ -1808,7 +1835,7 @@ function showOrder(autoPick, flash){
   order.list = null;
   renderOrderList();
   const seq = ++listSeq;
-  marksSaving.then(() => loadOrderList(r)).then(l => {
+  listWrites.then(() => loadOrderList(r)).then(l => {
     if (seq !== listSeq || !order || order.id !== r.id || order.view !== 'list') return;
     if (autoPick && !l.files.length && !l.draft) return openPicker(r);
     order.list = l;
@@ -1820,7 +1847,7 @@ function refreshOrderList(){
   const r = order && order.view === 'list' && order.list && byId(order.id);
   if (!r) return;
   const seq = ++listSeq;
-  marksSaving.then(() => loadOrderList(r)).then(l => {
+  listWrites.then(() => loadOrderList(r)).then(l => {
     if (seq === listSeq && order && order.id === r.id && order.view === 'list') { order.list = l; renderOrderList(); }
   }).catch(() => {});
 }
@@ -1835,12 +1862,14 @@ function setView(v){
   s2Frame.classList.toggle('hidden', v !== 'form');
   $('pkCard').classList.remove('over');
   $('s2Ask').classList.add('hidden');
+  $('s2Del').classList.add('hidden');
   renderOrderHead();
 }
 function closeOrder(){
   if (!order) return;
   const id = order.id;
   $('s2Ask').classList.add('hidden');
+  $('s2Del').classList.add('hidden');
   if (order.view === 'form') hubEmbed.send(s2Frame, 'unload');
   order = null;
   $('s2Back').classList.add('hidden');
@@ -1898,7 +1927,8 @@ function renderOrderList(flash){
   }
   el.innerHTML = '<div class="of-grid">' +
     (l.draft ? '<div class="of-tile draft" data-of="draft" title="继续编辑草稿（生成 Excel 后草稿自动删除）">' +
-      '<span class="of-icon">' + DRAFT_ICON + '</span><span class="of-name">草稿 · 继续编辑</span></div>' : '') +
+      '<span class="of-icon">' + DRAFT_ICON + '<button type="button" class="of-del" data-of="del" title="删除草稿">×</button></span>' +
+      '<span class="of-name">草稿 · 继续编辑</span></div>' : '') +
     l.files.map((f, i) => {
       const on = !!(l.marks.files[f.name] && l.marks.files[f.name].submitted);
       return '<div class="of-tile' + (f.name === flash ? ' flash' : '') + '" data-of="file" data-i="' + i + '" title="' +
@@ -1912,6 +1942,7 @@ function renderOrderList(flash){
 $('olList').addEventListener('click', async e => {
   const t = e.target.closest('[data-of]'), r = order && byId(order.id), l = order && order.list;
   if (!t || !r || !l) return;
+  if (t.dataset.of === 'del') return $('s2Del').classList.remove('hidden');   // asks in the pop-up (a native confirm refocuses the window → a re-read)
   if (t.dataset.of === 'draft') return openForm(r);
   const tile = t.closest('.of-tile'), f = tile && l.files[+tile.dataset.i];
   if (!f) return;
@@ -1958,6 +1989,13 @@ $('s2AskSave').addEventListener('click', async () => {
   finally { $('s2AskSave').disabled = false; }
 });
 $('s2Ask').addEventListener('mousedown', e => { if (e.target === $('s2Ask')) $('s2Ask').classList.add('hidden'); });
+$('s2DelCancel').addEventListener('click', () => $('s2Del').classList.add('hidden'));
+$('s2DelOk').addEventListener('click', () => {
+  const r = order && order.view === 'list' && byId(order.id);
+  $('s2Del').classList.add('hidden');
+  if (r) deleteDraft(r);
+});
+$('s2Del').addEventListener('mousedown', e => { if (e.target === $('s2Del')) $('s2Del').classList.add('hidden'); });
 
 /* ---- the picker: 色号 slots × ticked 报价 lines ----
    A slot = one 产品色号: an image (the row's own, main first, uploaded into the slot or duplicated from another slot) and / or
@@ -2186,7 +2224,8 @@ document.addEventListener('keydown', e => {
   if (!order || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === 'Escape') {
     e.preventDefault();
-    if (!$('s2Ask').classList.contains('hidden')) $('s2Ask').classList.add('hidden');   // Esc on 保存草稿？ = 取消
+    const ask = $('s2Back').querySelector('.s2-ask:not(.hidden)');   // Esc on 保存草稿？ / 删除草稿？ = 取消
+    if (ask) ask.classList.add('hidden');
     else orderKey(e.key);
   }
 });
