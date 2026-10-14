@@ -184,6 +184,10 @@ tr.xp-spacer td{padding:0;border:0}
 .s2-btn:disabled{opacity:.35;cursor:default}
 .s2-btn.close{margin-left:.35rem;font-size:1.15rem}
 #s2Frame{flex:1;min-height:0;width:100%;border:0;display:block;background:#f1f5f9}
+/* 报价 → 查看详情 pop-up: Updated Pricing for one 报价 line at a time, ‹ › switch lines (buttons only: ← → step tiers in the tool) */
+.s2.pd{max-width:1240px}
+.pd-pos{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:3.6em;text-align:center}
+#pdFrame{flex:1;min-height:0;width:100%;border:0;display:block;background:#f1f5f9}
 /* the row's 下单计划 list and the picker for a new one (drawn by the hub; the form itself is the tool page) */
 /* 保存草稿？ asked when ‹ leaves an unconfirmed 新下单计划 */
 .s2-ask{position:absolute;inset:0;background:rgba(15,23,42,.35);display:flex;align-items:center;justify-content:center;z-index:5}
@@ -309,7 +313,7 @@ table.pk .none{color:#cbd5e1}
       <div class="xp-inner" id="xpInner">
         <iframe id="xpFrame" title="报价" style="height:300px"></iframe>
         <div class="xp-foot">
-          <span class="hint">点击表格下方「保存」即完成报价。参数（运费 / 汇率 / 毛利率 / 旺季）在
+          <span class="hint">点击表格下方「保存」即完成报价。参数（汇率 / 头程 / 佣金 / 广告 / 仓储 / 目标毛利率）在
             <button type="button" class="menu-link" data-act="quote-settings">⚙ 设置 → 报价</button>
             中统一修改，所有产品实时生效。</span>
         </div>
@@ -354,19 +358,15 @@ table.pk .none{color:#cbd5e1}
     </div>
     <div class="modal-body hidden" data-body="quote">
       <div class="set-grid">
-        <div><label class="form-label">头程运费价格 (￥/kg)</label><input type="number" step="any" class="form-control" data-p="shippingPrice"></div>
-        <div><label class="form-label">美元对人民币汇率</label><input type="number" step="any" class="form-control" data-p="exchangeRate"></div>
-        <div><label class="form-label">毛利率 (%)</label><input type="number" step="any" class="form-control" data-p="profitMargin"></div>
-        <div><label class="form-label">入库配置费 ($)</label><input type="number" step="any" class="form-control" data-p="storageFee"></div>
-        <div>
-          <label class="form-label">是否旺季</label>
-          <div class="toggle-group" id="peakToggle">
-            <button type="button" class="toggle-btn" data-peak="0">非旺季</button>
-            <button type="button" class="toggle-btn" data-peak="1">旺季</button>
-          </div>
-        </div>
+        <!-- 与 Updated Pricing.html 的 Assumptions 相同 -->
+        <div><label class="form-label">美元对人民币汇率</label><input type="number" min="0" step="0.01" class="form-control" data-p="fx"></div>
+        <div><label class="form-label">头程运费 (￥/kg)</label><input type="number" min="0" step="0.1" class="form-control" data-p="shipRmbKg"></div>
+        <div><label class="form-label">亚马逊佣金 (%)</label><input type="number" min="0" step="0.5" class="form-control" data-p="comm"></div>
+        <div><label class="form-label">广告预算 (%)</label><input type="number" min="0" step="0.5" class="form-control" data-p="ads"></div>
+        <div><label class="form-label">仓储 / 退货 (%)</label><input type="number" min="0" step="0.5" class="form-control" data-p="wh"></div>
+        <div><label class="form-label">目标毛利率 (%)</label><input type="number" min="0" step="0.5" class="form-control" data-p="target"></div>
       </div>
-      <div class="hint" style="margin-top:1rem">修改后所有产品的售价立即按新参数重算。
+      <div class="hint" style="margin-top:1rem">建议售价 = 达到目标毛利率的最低售价（佣金 / 广告 / 仓储按售价的百分比计）。修改后所有产品的售价立即按新参数重算。
         <button type="button" class="menu-link" id="p1Reset">恢复默认值</button></div>
     </div>
     <div class="modal-body" data-body="general">
@@ -486,6 +486,24 @@ table.pk .none{color:#cbd5e1}
       </div>
     </div>
     <iframe id="s2Frame" class="hidden" title="下单计划"></iframe>
+  </div>
+</div>
+
+<!-- 报价 → 查看详情：Updated Pricing 试算（不保存） -->
+<div class="iv-back hidden" id="pdBack">
+  <div class="s2 pd" role="dialog" aria-modal="true" aria-labelledby="pdTitle">
+    <div class="s2-head">
+      <img class="s2-thumb" id="pdThumb" alt="">
+      <div class="s2-name">
+        <div class="s2-title" id="pdTitle"></div>
+        <div class="s2-meta" id="pdMeta"></div>
+      </div>
+      <button type="button" class="s2-btn" id="pdPrev" title="上一行">‹</button>
+      <span class="pd-pos" id="pdPos"></span>
+      <button type="button" class="s2-btn" id="pdNext" title="下一行">›</button>
+      <button type="button" class="s2-btn close" id="pdClose" title="关闭（Esc）">×</button>
+    </div>
+    <iframe id="pdFrame" title="售价详情"></iframe>
   </div>
 </div>
 
@@ -996,6 +1014,9 @@ hubEmbed.listen((m, frame) => {
       moveRow(r, () => { r.step1Confirmed = true; });   // held while its panel is open: moves on close
       toast('报价已完成，下一步：下单');
     }
+  } else if (m.type === 'pricing-detail' && frame === xpFrame) {   // 查看详情 in 报价
+    const r = byId(m.row);
+    if (r && m.data && m.data.lines && m.data.lines.length) openDetail(r, m.data.lines);
   }
 });
 
@@ -2048,7 +2069,8 @@ function renderPickLines(){
       '<th>尺寸 / 规格</th><th>工厂价 (￥)</th><th>内盒尺寸</th><th>建议售价 ($)</th></tr></thead><tbody>' +
     pk.lines.map((l, i) => {
       const L = parseFloat(l.l), W = parseFloat(l.w), H = parseFloat(l.h), fp = parseFloat(l.price);   // as in the 报价 panel
-      const sale = L > 0 && W > 0 && H > 0 ? PRICING.computeRow(isNaN(fp) ? 0 : fp, L, W, H, P).price.toFixed(2) : '';
+      const r = L > 0 && W > 0 && H > 0 ? PRICING.computeRow(isNaN(fp) ? 0 : fp, L, W, H, P) : null;
+      const sale = r && r.price != null ? r.price.toFixed(2) : '';   // oversize: no price
       const on = pk.on.has(l);
       return '<tr class="' + (on ? '' : 'off') + '" data-pk="line" data-i="' + i + '">' +
         '<td><input type="checkbox"' + (on ? ' checked' : '') + '></td>' +
@@ -2352,8 +2374,6 @@ function renderSettings(){
     '<span class="hint" style="margin:0">暂无工厂，请在下方添加。</span>';
   document.querySelectorAll('[data-p]').forEach(el => { el.value = settings.step1[el.dataset.p]; });
   document.querySelectorAll('[data-p2]').forEach(el => { el.value = settings.step2[el.dataset.p2]; });
-  document.querySelectorAll('#peakToggle .toggle-btn').forEach(b =>
-    b.classList.toggle('active', (b.dataset.peak === '1') === !!settings.step1.isPeak));
 }
 function showTab(name){
   document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
@@ -2364,6 +2384,62 @@ document.querySelector('.tabs').addEventListener('click', e => {
   if (t && !t.disabled) showTab(t.dataset.tab);
 });
 
+/* ---- 报价 → 查看详情: tools/pricing-detail.html (a copy of Updated Pricing.html) for the 报价 table's lines.
+   A what-if sandbox: it starts from the line and 设置 → 报价, and nothing is written back. ---- */
+const pdFrame = $('pdFrame');
+let detail = null;          // { id, lines:[{sku, price, l, w, h}], i, ready }
+function openDetail(r, lines){
+  if (viewer) closeViewer();
+  detail = { id: r.id, lines, i: 0, ready: false };
+  $('pdBack').classList.remove('hidden');
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  pdFrame.src = 'tools/pricing-detail.html';            // fresh each time: the sandbox starts from 设置 → 报价
+  renderDetailHead();
+}
+function closeDetail(){
+  if (!detail) return;
+  detail = null;
+  $('pdBack').classList.add('hidden');
+  pdFrame.src = 'about:blank';
+}
+function renderDetailHead(){
+  const r = detail && byId(detail.id);
+  if (!r) return;
+  const l = detail.lines[detail.i], n = detail.lines.length;
+  if (r.thumb) $('pdThumb').src = r.thumb; else $('pdThumb').removeAttribute('src');
+  $('pdTitle').innerHTML = '<span class="step-tag">售价详情 · 仅试算</span>' + esc(rowLabel(r));
+  $('pdMeta').textContent = [l.sku || '第 ' + (detail.i + 1) + ' 行', '工厂价 ￥' + l.price, l.l + '×' + l.w + '×' + l.h + ' cm'].join(' · ');
+  $('pdPos').textContent = (detail.i + 1) + ' / ' + n;
+  $('pdPrev').disabled = detail.i === 0;
+  $('pdNext').disabled = detail.i === n - 1;
+}
+/* first = the pop-up just opened: also send 设置 → 报价 (after that, line switches keep the pop-up's own assumptions) */
+function sendLine(first){
+  if (!detail || !detail.ready) return;
+  const l = detail.lines[detail.i];
+  hubEmbed.send(pdFrame, 'load-line', Object.assign({ unitRmb: l.price, l: l.l, w: l.w, h: l.h }, first ? { settings: settings.step1 } : {}));
+}
+function stepDetail(d){
+  if (!detail) return;
+  const i = Math.max(0, Math.min(detail.lines.length - 1, detail.i + d));
+  if (i === detail.i) return;
+  detail.i = i;
+  renderDetailHead();
+  sendLine(false);
+}
+$('pdPrev').addEventListener('click', () => stepDetail(-1));
+$('pdNext').addEventListener('click', () => stepDetail(1));
+$('pdClose').addEventListener('click', closeDetail);
+$('pdBack').addEventListener('mousedown', e => { if (e.target === $('pdBack')) closeDetail(); });
+document.addEventListener('keydown', e => {
+  if (detail && e.key === 'Escape') { e.preventDefault(); closeDetail(); }
+});
+hubEmbed.listen((m, frame) => {
+  if (frame !== pdFrame || !detail) return;
+  if (m.type === 'ready') { detail.ready = true; sendLine(true); }
+  else if (m.type === 'key' && m.data && m.data.key === 'Escape') closeDetail();
+});
+
 /* 设置 → 报价: global, live — every open 报价 panel recalculates */
 function saveStep1(){
   saveSettings();
@@ -2372,16 +2448,11 @@ function saveStep1(){
 }
 document.querySelectorAll('[data-p]').forEach(el => el.addEventListener('change', () => {
   const v = parseFloat(el.value);
-  if (!isFinite(v)) { el.value = settings.step1[el.dataset.p]; return toast('请输入数字', true); }
+  if (!isFinite(v) || v < 0) { el.value = settings.step1[el.dataset.p]; return toast('请输入 0 或以上的数字', true); }
+  if (el.dataset.p === 'fx' && v === 0) { el.value = settings.step1.fx; return toast('汇率不能为 0', true); }
   settings.step1[el.dataset.p] = v;
   saveStep1();
 }));
-$('peakToggle').addEventListener('click', e => {
-  const b = e.target.closest('.toggle-btn'); if (!b) return;
-  settings.step1.isPeak = b.dataset.peak === '1';
-  renderSettings();
-  saveStep1();
-});
 $('p1Reset').addEventListener('click', () => {
   settings.step1 = JSON.parse(JSON.stringify(api.DEFAULT_SETTINGS.step1));
   renderSettings();

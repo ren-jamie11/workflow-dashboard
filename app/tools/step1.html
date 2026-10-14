@@ -124,9 +124,9 @@ body{background:transparent}
             <th style="width:78px">长 (cm)</th>
             <th style="width:78px">宽 (cm)</th>
             <th style="width:78px">高 (cm)</th>
-            <th class="out" style="width:88px">重量 (lb)</th>
+            <th class="out" style="width:96px">计费重量 (lb)</th><!-- HUB: was 重量 (lb); now Amazon's dimensional weight -->
             <th class="out" style="width:98px">头程运费 ($)</th>
-            <th class="out" style="width:104px">入库配置费 ($)</th>
+            <!-- HUB: 入库配置费 removed (Updated Pricing) -->
             <th class="out" style="width:150px">尾程运费 ($)</th>
             <th class="out" style="width:92px">成本 ($)</th>
             <th class="out" style="width:104px">建议售价 ($)</th>
@@ -144,10 +144,9 @@ body{background:transparent}
       <!-- HUB: one table per row, autosaved; 保存 writes a file to 售价计算 Price Calcs -->
       <div class="push">
         <span class="saved-note" id="savedNote"></span>
-        <button type="button" class="btn btn-ghost" id="importBtn">导入</button>
+        <button type="button" class="btn btn-ghost" id="detailBtn" title="用 Updated Pricing 逐行查看费用明细、利润图和缩小包装的建议（仅试算，不保存）">查看详情</button><!-- HUB: replaces 导入 -->
         <button type="button" class="btn btn-primary" id="saveBtn">保存</button>
       </div>
-      <input type="file" id="importFile" accept=".json,application/json" hidden>
     </div>
     <!-- HUB: 黄色行 legend removed; the ⚠ 未覆盖 badge's tooltip explains it -->
   </div>
@@ -161,20 +160,12 @@ body{background:transparent}
   const tbody = document.getElementById('tbody');
   /* HUB: 旺季 toggle lives in the hub's 设置 → 报价 */
 
-  /* HUB: 计算逻辑 moved unchanged into shared/pricing.js (the hub's 下单计划 picker shows 建议售价 too) */
+  /* HUB: 计算逻辑 lives in shared/pricing.js — Updated Pricing.html's model (the hub's 下单计划 picker shows 建议售价 too) */
   const computeRow = PRICING.computeRow;
 
   /* HUB: parameters are global and live — read from settings.step1 instead of the page */
   let P = {};
-  function getParams(){
-    return {
-      shippingPrice: parseFloat(P.shippingPrice) || 0,
-      exchangeRate:  parseFloat(P.exchangeRate)  || 7,
-      profitMargin:  parseFloat(P.profitMargin)  || 0,
-      storageFee:    parseFloat(P.storageFee)    || 0,
-      isPeak:        !!P.isPeak
-    };
-  }
+  function getParams(){ return PRICING.params(P); }
 
   function addRow(data){
     const tr = document.createElement('tr');
@@ -187,7 +178,6 @@ body{background:transparent}
       <td><input type="number" step="any" class="cell-input num f-h" placeholder="0"></td>
       <td class="out-cell empty o-weight">—</td>
       <td class="out-cell empty o-ship">—</td>
-      <td class="out-cell empty o-storage">—</td>
       <td class="out-cell empty o-delivery">—</td>
       <td class="out-cell empty o-cost">—</td>
       <td class="out-cell strong empty o-price">—</td>
@@ -210,7 +200,7 @@ body{background:transparent}
 
   function clearRowOutputs(tr){
     tr.classList.remove('warn');
-    ['.o-weight','.o-ship','.o-storage','.o-delivery','.o-cost','.o-price'].forEach(sel=>{
+    ['.o-weight','.o-ship','.o-delivery','.o-cost','.o-price'].forEach(sel=>{
       const c = tr.querySelector(sel);
       c.textContent = '—';
       c.classList.add('empty');
@@ -237,19 +227,28 @@ body{background:transparent}
       };
       set('.o-weight',   r.weightLb.toFixed(2));
       set('.o-ship',     r.shippingFee.toFixed(2));
-      set('.o-storage',  r.storageFee.toFixed(2));
+
+      /* HUB: oversize (not small / large standard) or no solution → no 尾程 / 成本 / 售价, as in Updated Pricing */
+      const dc = tr.querySelector('.o-delivery');
+      if (r.oversize) {
+        ['.o-cost','.o-price'].forEach(sel => { const c = tr.querySelector(sel); c.textContent = '—'; c.classList.add('empty'); });
+        dc.classList.remove('empty');
+        dc.innerHTML = '—<span class="warn-badge" title="超出标准尺寸（小号 / 大号标准件），无法计算 FBA 配送费和售价，请人工复核。">⚠ 超出标准尺寸</span>';
+        tr.classList.add('warn');
+        return;
+      }
+      if (r.err) {
+        ['.o-delivery','.o-cost'].forEach(sel => { const c = tr.querySelector(sel); c.textContent = '—'; c.classList.add('empty'); });
+        const pc = tr.querySelector('.o-price');
+        pc.classList.remove('empty');
+        pc.innerHTML = '—<span class="warn-badge" title="佣金 + 广告 + 仓储退货 + 目标毛利率 ≥ 100%，没有能达到目标的售价。请在 设置 → 报价 中调整。">无解</span>';
+        tr.classList.add('warn');
+        return;
+      }
+      set('.o-delivery', r.deliveryFee.toFixed(2));
       set('.o-cost',     r.cost.toFixed(2));
       set('.o-price',    r.price.toFixed(2));
-
-      const dc = tr.querySelector('.o-delivery');
-      dc.classList.remove('empty');
-      if (r.uncovered) {
-        dc.innerHTML = '0.00<span class="warn-badge" title="该尺寸/重量不落在任何尾程运费档位，尾程运费按 $0 计入，售价偏低，请人工复核。">⚠ 未覆盖</span>';
-        tr.classList.add('warn');
-      } else {
-        dc.textContent = r.deliveryFee.toFixed(2);
-        tr.classList.remove('warn');
-      }
+      tr.classList.remove('warn');
     });
   }
 
@@ -342,43 +341,16 @@ body{background:transparent}
     } finally { b.disabled = false; }
   });
 
-  /* 导入：本工具保存的 JSON，或旧版「导出全部」的备份文件 */
-  const importFile = document.getElementById('importFile');
-  document.getElementById('importBtn').addEventListener('click', () => importFile.click());
-  importFile.addEventListener('change', () => {
-    const f = importFile.files[0];
-    importFile.value = '';
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      let data;
-      try { data = JSON.parse(reader.result); } catch(e){ alert('文件格式错误'); return; }
-      let rows = data && Array.isArray(data.rows) ? data.rows : null;
-      if (!rows) {                                   // old export: { <表格名>: {name, rows, ...}, ... }
-        const tables = Object.values(data || {}).filter(t => t && Array.isArray(t.rows));
-        if (!tables.length) { alert('文件中没有可导入的表格'); return; }
-        let pick = tables[0];
-        if (tables.length > 1) {
-          const ans = prompt('文件中有 ' + tables.length + ' 个表格，请输入要导入的序号：\n' +
-            tables.map((t, i) => (i + 1) + '. ' + t.name).join('\n'), '1');
-          if (ans === null) return;
-          pick = tables[(parseInt(ans, 10) || 1) - 1];
-          if (!pick) { alert('序号无效'); return; }
-        }
-        rows = pick.rows;
-      }
-      if (hasContent() && !confirm('导入会覆盖当前表格的内容，确定继续？')) return;
-      writeRows(rows.map(r => {
-        const o = {};
-        ROW_FIELDS.forEach(([k]) => o[k] = r[k] == null ? '' : r[k]);
-        return o;
-      }));
-      calcAll();
-      saveNow();
-      markDirty();
-      note('已导入 ' + rows.length + ' 行（参数使用 设置 → 报价 中的全局参数）');
-    };
-    reader.readAsText(f);
+  /* HUB: 查看详情 (replaces 导入) → the hub opens Updated Pricing over the page for the lines with L/W/H, one at a time.
+     A what-if pop-up: nothing comes back to this table. */
+  document.getElementById('detailBtn').addEventListener('click', () => {
+    const lines = readRows()
+      .map(r => ({ sku: String(r.sku || '').trim(), price: parseFloat(r.price), l: parseFloat(r.l), w: parseFloat(r.w), h: parseFloat(r.h) }))
+      .filter(r => r.l > 0 && r.w > 0 && r.h > 0)
+      .map(r => Object.assign(r, { price: isNaN(r.price) ? 0 : r.price }));   // as calcAll: no 工厂价 = 0
+    if (!lines.length) return note('请先填写长宽高');
+    note('');
+    embed.post('pricing-detail', { lines });
   });
 
   /* 设置 → 报价 修改后实时重算 */

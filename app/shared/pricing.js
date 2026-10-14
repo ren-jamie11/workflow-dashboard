@@ -1,233 +1,186 @@
 /* Workflow Hub — 报价 (Step 1) price calculation, shared by tools/step1.html and the hub's 下单计划 picker.
-   computeRow is moved UNCHANGED from the original single-product calculator (Step 1 - *.html). */
+   The fee / cost / minimum-price logic is copied UNCHANGED from `Updated Pricing.html` (the reference), except that the
+   assumptions `A` are passed in instead of read from the page's closure. Keep the arithmetic identical so the prices
+   match that file to the cent. */
 (function () {
 'use strict';
 
-  /* ================= 计算逻辑（与原单品计算器完全一致） ================= */
-  function computeRow(factoryPrice, length, width, height, P){
-    const { shippingPrice, exchangeRate, profitMargin, storageFee, isPeak } = P;
+  /* ================= 计算逻辑（与 Updated Pricing.html 完全一致） ================= */
+  const EPS = 1e-6;
 
-    // 计算重量（体积重）
-    const weightKg = (length * width * height) / 5000;
-    const weightLb = weightKg * 2.2;
-    const weightOz = weightLb * 16;
+  const TIERS = {
+    small: {
+      name:'Small standard',
+      limits:[2,4,6,8,10,12,14,16],
+      labels:['2 oz or less','2+ to 4 oz','4+ to 6 oz','6+ to 8 oz','8+ to 10 oz','10+ to 12 oz','12+ to 14 oz','14+ to 16 oz'],
+      fees:{
+        low: [2.43,2.49,2.56,2.66,2.77,2.82,2.92,2.95],
+        mid: [3.32,3.42,3.45,3.54,3.68,3.78,3.91,3.96],
+        high:[3.58,3.68,3.71,3.80,3.94,4.04,4.17,4.22]
+      }
+    },
+    large: {
+      name:'Large standard',
+      limits:[4,8,12,16,20,24,28,32,36,40,44,48],
+      labels:['4 oz or less','4+ to 8 oz','8+ to 12 oz','12+ to 16 oz','1+ to 1.25 lb','1.25+ to 1.5 lb','1.5+ to 1.75 lb','1.75+ to 2 lb','2+ to 2.25 lb','2.25+ to 2.5 lb','2.5+ to 2.75 lb','2.75+ to 3 lb'],
+      fees:{
+        low: [2.91,3.13,3.38,3.78,4.22,4.60,4.75,5.00,5.10,5.28,5.44,5.85],
+        mid: [3.73,3.95,4.20,4.60,5.04,5.42,5.57,5.82,5.92,6.10,6.26,6.67],
+        high:[3.99,4.21,4.46,4.86,5.30,5.68,5.83,6.08,6.18,6.36,6.52,6.93]
+      },
+      over:{ low:6.15, mid:6.97, high:7.23 }, // + $0.08 per 4 oz above 3 lb, up to 20 lb
+      maxOz:320
+    }
+  };
 
-    // 计算头程运费
-    const shippingVolume = (length * width * height) / 6000;
-    const shippingFee = (shippingVolume * shippingPrice) / exchangeRate;
+  const fmtLb = v => String(+v.toFixed(2));
+  const ceil2 = v => Math.ceil(v*100 - 1e-7)/100;
 
-    // 转换为英寸并排序
-    const dimensions = [length/2.54, width/2.54, height/2.54].sort((a,b)=>b-a);
-    const longest = dimensions[0], middle = dimensions[1], shortest = dimensions[2];
+  function overLabel(n){ return fmtLb(3+(n-1)/4) + '+ to ' + fmtLb(3+n/4) + ' lb'; }
 
-    // 计算尾程运费
-    let deliveryFee = 0;
-
-    // 小号标准尺寸
-    if (longest <= 15 && middle <= 12 && shortest <= 0.75) {
-      const factoryPriceUSD = factoryPrice / exchangeRate;
-      let assumeDeliveryFee = 0;
-      if (weightOz <= 2) assumeDeliveryFee = 2.43;
-      else if (weightOz <= 4) assumeDeliveryFee = 2.49;
-      else if (weightOz <= 6) assumeDeliveryFee = 2.56;
-      else if (weightOz <= 8) assumeDeliveryFee = 2.66;
-      else if (weightOz <= 10) assumeDeliveryFee = 2.77;
-      else if (weightOz <= 12) assumeDeliveryFee = 2.82;
-      else if (weightOz <= 14) assumeDeliveryFee = 2.92;
-      else assumeDeliveryFee = 2.95;
-
-      const tempCost = shippingFee + storageFee + factoryPriceUSD + assumeDeliveryFee;
-      const tempPrice = profitMargin > 0 ? tempCost / (1 - profitMargin / 100) : 0;
-
-      if (tempPrice < 5) {
-        if (weightOz <= 2) deliveryFee = 2.43;
-        else if (weightOz > 2 && weightOz <= 4) deliveryFee = 2.49;
-        else if (weightOz > 4 && weightOz <= 6) deliveryFee = 2.56;
-        else if (weightOz > 6 && weightOz <= 8) deliveryFee = 2.66;
-        else if (weightOz > 8 && weightOz <= 10) deliveryFee = 2.77;
-        else if (weightOz > 10 && weightOz <= 12) deliveryFee = 2.82;
-        else if (weightOz > 12 && weightOz <= 14) deliveryFee = 2.92;
-        else if (weightOz > 14 && weightOz <= 16) deliveryFee = 2.95;
-      } else if (tempPrice <= 25) {
-        if (weightOz <= 2) deliveryFee = isPeak ? 3.25 : 3.32;
-        else if (weightOz > 2 && weightOz <= 4) deliveryFee = isPeak ? 3.34 : 3.42;
-        else if (weightOz > 4 && weightOz <= 6) deliveryFee = isPeak ? 3.44 : 3.45;
-        else if (weightOz > 6 && weightOz <= 8) deliveryFee = isPeak ? 3.53 : 3.54;
-        else if (weightOz > 8 && weightOz <= 10) deliveryFee = isPeak ? 3.64 : 3.68;
-        else if (weightOz > 10 && weightOz <= 12) deliveryFee = isPeak ? 3.74 : 3.78;
-        else if (weightOz > 12 && weightOz <= 14) deliveryFee = isPeak ? 3.82 : 3.91;
-        else if (weightOz > 14 && weightOz <= 16) deliveryFee = isPeak ? 3.87 : 3.96;
-      } else {
-        if (weightOz <= 2) deliveryFee = 3.58;
-        else if (weightOz > 2 && weightOz <= 4) deliveryFee = 3.68;
-        else if (weightOz > 4 && weightOz <= 6) deliveryFee = 3.71;
-        else if (weightOz > 6 && weightOz <= 8) deliveryFee = 3.80;
-        else if (weightOz > 8 && weightOz <= 10) deliveryFee = 3.94;
-        else if (weightOz > 10 && weightOz <= 12) deliveryFee = 4.04;
-        else if (weightOz > 12 && weightOz <= 14) deliveryFee = 4.17;
-        else if (weightOz > 14 && weightOz <= 16) deliveryFee = 4.22;
+  // Weight band for a shipping weight (oz). Returns current fee and the next band down.
+  function bandOf(tierKey, oz, pb){
+    const T = TIERS[tierKey];
+    for (let i=0;i<T.limits.length;i++){
+      if (oz <= T.limits[i] + EPS){
+        return {
+          label:T.labels[i], fee:T.fees[pb][i],
+          lower: i===0 ? null : { oz:T.limits[i-1], label:T.labels[i-1], fee:T.fees[pb][i-1] }
+        };
       }
     }
-    // 大号标准尺寸
-    else if (longest <= 18 && middle <= 14 && shortest <= 8) {
-      const factoryPriceUSD = factoryPrice / exchangeRate;
-      let assumeDeliveryFee = 0;
-      if (weightOz <= 4) assumeDeliveryFee = 2.91;
-      else if (weightOz <= 8) assumeDeliveryFee = 3.13;
-      else if (weightOz <= 12) assumeDeliveryFee = 3.38;
-      else if (weightOz <= 16) assumeDeliveryFee = 3.78;
-      else if (weightLb <= 1.25) assumeDeliveryFee = 4.22;
-      else if (weightLb <= 1.5) assumeDeliveryFee = 4.60;
-      else if (weightLb <= 1.75) assumeDeliveryFee = 4.75;
-      else if (weightLb <= 2) assumeDeliveryFee = 5.00;
-      else if (weightLb <= 2.25) assumeDeliveryFee = 5.10;
-      else if (weightLb <= 2.5) assumeDeliveryFee = 5.28;
-      else if (weightLb <= 2.75) assumeDeliveryFee = 5.44;
-      else if (weightLb <= 3) assumeDeliveryFee = 5.85;
-      else assumeDeliveryFee = 6.15;
+    if (tierKey==='large' && oz <= T.maxOz + EPS){
+      const n = Math.ceil((oz-48)/4 - EPS);
+      const fee = T.over[pb] + n*0.08;
+      const lower = n===1
+        ? { oz:48, label:T.labels[11], fee:T.fees[pb][11] }
+        : { oz:48+(n-1)*4, label:overLabel(n-1), fee:T.over[pb] + (n-1)*0.08 };
+      return { label:overLabel(n), fee, lower };
+    }
+    return null;
+  }
 
-      const tempCost = shippingFee + storageFee + factoryPriceUSD + assumeDeliveryFee;
-      const tempPrice = profitMargin > 0 ? tempCost / (1 - profitMargin / 100) : 0;
+  // Dimensional weight in oz. (Amazon's 2 in minimum width/height applies only to bulky and extra-large tiers, not standard.)
+  function dimOz(cm){
+    return cm[0]*cm[1]*cm[2]/Math.pow(2.54,3)/139*16;
+  }
+  function rawDimOz(cm){ return cm[0]*cm[1]*cm[2]/Math.pow(2.54,3)/139*16; }
 
-      if (tempPrice < 5) {
-        if (weightOz <= 4) deliveryFee = 2.91;
-        else if (weightOz > 4 && weightOz <= 8) deliveryFee = 3.13;
-        else if (weightOz > 8 && weightOz <= 12) deliveryFee = 3.38;
-        else if (weightOz > 12 && weightOz <= 16) deliveryFee = 3.78;
-        else if (weightLb > 1 && weightLb <= 1.25) deliveryFee = 4.22;
-        else if (weightLb > 1.25 && weightLb <= 1.5) deliveryFee = 4.60;
-        else if (weightLb > 1.5 && weightLb <= 1.75) deliveryFee = 4.75;
-        else if (weightLb > 1.75 && weightLb <= 2) deliveryFee = 5.00;
-        else if (weightLb > 2 && weightLb <= 2.25) deliveryFee = 5.10;
-        else if (weightLb > 2.25 && weightLb <= 2.5) deliveryFee = 5.28;
-        else if (weightLb > 2.5 && weightLb <= 2.75) deliveryFee = 5.44;
-        else if (weightLb > 2.75 && weightLb <= 3) deliveryFee = 5.85;
-        else if (weightLb > 3 && weightLb <= 20) {
-          const baseFee = 6.15;
-          const extraWeight = Math.max(0, weightLb - 3);
-          const extraFee = Math.ceil(extraWeight * 16 / 4) * 0.08;
-          deliveryFee = baseFee + extraFee;
-        }
-      } else if (tempPrice <= 25) {
-        if (weightOz <= 4) deliveryFee = isPeak ? 3.92 : 3.73;
-        else if (weightOz > 4 && weightOz <= 8) deliveryFee = isPeak ? 4.16 : 3.95;
-        else if (weightOz > 8 && weightOz <= 12) deliveryFee = isPeak ? 4.43 : 4.20;
-        else if (weightOz > 12 && weightOz <= 16) deliveryFee = isPeak ? 4.84 : 4.60;
-        else if (weightLb > 1 && weightLb <= 1.25) deliveryFee = isPeak ? 5.29 : 5.04;
-        else if (weightLb > 1.25 && weightLb <= 1.5) deliveryFee = isPeak ? 5.68 : 5.42;
-        else if (weightLb > 1.5 && weightLb <= 1.75) deliveryFee = isPeak ? 5.84 : 5.57;
-        else if (weightLb > 1.75 && weightLb <= 2) deliveryFee = isPeak ? 6.10 : 5.82;
-        else if (weightLb > 2 && weightLb <= 2.25) deliveryFee = isPeak ? 6.24 : 5.92;
-        else if (weightLb > 2.25 && weightLb <= 2.5) deliveryFee = isPeak ? 6.44 : 6.10;
-        else if (weightLb > 2.5 && weightLb <= 2.75) deliveryFee = isPeak ? 6.61 : 6.26;
-        else if (weightLb > 2.75 && weightLb <= 3) deliveryFee = isPeak ? 7.03 : 6.67;
-        else if (weightLb > 3 && weightLb <= 20) {
-          const baseFee = isPeak ? 7.46 : 6.97;
-          const extraWeight = Math.max(0, weightLb - 3);
-          const extraFee = Math.ceil(extraWeight * 16 / 4) * 0.08;
-          deliveryFee = baseFee + extraFee;
-        }
-      } else {
-        if (weightOz <= 4) deliveryFee = 3.99;
-        else if (weightOz > 4 && weightOz <= 8) deliveryFee = 4.21;
-        else if (weightOz > 8 && weightOz <= 12) deliveryFee = 4.46;
-        else if (weightOz > 12 && weightOz <= 16) deliveryFee = 4.86;
-        else if (weightLb > 1 && weightLb <= 1.25) deliveryFee = 5.30;
-        else if (weightLb > 1.25 && weightLb <= 1.5) deliveryFee = 5.68;
-        else if (weightLb > 1.5 && weightLb <= 1.75) deliveryFee = 5.83;
-        else if (weightLb > 1.75 && weightLb <= 2) deliveryFee = 6.08;
-        else if (weightLb > 2 && weightLb <= 2.25) deliveryFee = 6.18;
-        else if (weightLb > 2.25 && weightLb <= 2.5) deliveryFee = 6.36;
-        else if (weightLb > 2.5 && weightLb <= 2.75) deliveryFee = 6.52;
-        else if (weightLb > 2.75 && weightLb <= 3) deliveryFee = 6.93;
-        else if (weightLb > 3 && weightLb <= 20) {
-          const baseFee = 7.23;
-          const extraWeight = Math.max(0, weightLb - 3);
-          const extraFee = Math.ceil(extraWeight * 16 / 4) * 0.08;
-          deliveryFee = baseFee + extraFee;
-        }
+  function priceBand(p){
+    if (!(p >= 0) || isNaN(p)) return { key:'mid', defaulted:true };
+    if (p < 10) return { key:'low', defaulted:false };
+    if (p <= 50) return { key:'mid', defaulted:false };
+    return { key:'high', defaulted:false };
+  }
+
+  function compute(dims, unitOz, price){
+    const inch = dims.map(c=>c/2.54).sort((a,b)=>b-a);
+    const [l,m,s] = inch;
+    const pb = priceBand(price);
+    const notes = [];
+    const fitsSmall = l<=15+EPS && m<=12+EPS && s<=0.75+EPS;
+    const fitsLarge = l<=18+EPS && m<=14+EPS && s<=8+EPS;
+    const dim = dimOz(dims);
+    let tier, shipOz, basis;
+
+    if (fitsSmall && (unitOz==null || unitOz <= 16+EPS)){
+      tier='small';
+      if (unitOz==null){
+        shipOz = rawDimOz(dims); basis='Estimate (no weight entered)';
+        notes.push({warn:true, text:'Small standard fees are billed on actual weight. This estimate uses dimensional weight instead.'});
+      } else { shipOz = unitOz; basis='Unit weight'; }
+    } else if (fitsLarge){
+      tier='large';
+      shipOz = Math.max(unitOz ?? 0, dim);
+      basis = (unitOz!=null && unitOz > dim) ? 'Unit weight' : 'Dimensional weight';
+      if (shipOz > TIERS.large.maxOz + EPS) tier = null;
+    } else tier = null;
+
+
+    if (!tier){
+      return { tier:null, inch, dim, unitOz, notes };
+    }
+    const band = bandOf(tier, shipOz, pb.key);
+    return { tier, inch, dim, unitOz, shipOz, basis, band, pb:pb.key, notes, price: pb.defaulted || !(price > 0) ? null : price };
+  }
+
+  // Volumetric shipping weight (kg, L×W×H ÷ 5000). With a shrink scenario, the box is cut until its
+  // dimensional weight sits exactly on the target tier line, so its volume (and freight cost) is fixed by that line,
+  // whichever side(s) you cut.
+  function volKgOf(dims, scen){
+    const cm3 = scen ? scen.oz/16 * 139 * Math.pow(2.54,3) : dims[0]*dims[1]*dims[2];
+    return cm3/5000;
+  }
+
+  // All per-unit costs in USD at a given retail price. `scen` (optional) = a selected cheaper tier { oz, label }.
+  function costsAt(dims, unitRmb, price, scen, A){   /* HUB: A passed in */
+    const r = compute(dims, null, price);
+    if (!r.tier) return null;
+    const volKg = volKgOf(dims, scen);
+    const c = {
+      r, volKg, scen: scen || null,
+      unit: unitRmb / A.fx,
+      ship: volKg * A.shipRmbKg / A.fx,
+      fee: scen ? bandOf(r.tier, scen.oz, r.pb).fee : r.band.fee,
+      comm: price * A.comm/100,
+      ads: price * A.ads/100,
+      wh: price * A.wh/100
+    };
+    c.total = c.unit + c.ship + c.fee + c.comm + c.ads + c.wh;
+    c.margin = price - c.total;
+    c.pct = price > 0 ? c.margin / price : 0;
+    return c;
+  }
+
+  // Lowest price (to the cent) whose gross margin meets the target.
+  // The fulfillment fee depends on the price band, so solve per band and keep the first one that's consistent.
+  function minPrice(dims, unitRmb, scen, A){   /* HUB: A passed in */
+    const varPct = (A.comm + A.ads + A.wh + A.target)/100;
+    if (varPct >= 1) return { err:'Commission, ads, warehousing and target margin add up to 100% or more, so no price can reach the target.' };
+    const fixed = unitRmb/A.fx + volKgOf(dims, scen)*A.shipRmbKg/A.fx;
+    for (const probe of [5, 20, 60]){            // representative price in each band: <$10, $10–$50, >$50
+      const r = compute(dims, null, probe);
+      if (!r.tier) return { err:'oversize' };
+      const fee = scen ? bandOf(r.tier, scen.oz, r.pb).fee : r.band.fee;
+      let p = ceil2((fixed + fee)/(1 - varPct));
+      for (let k=0;k<3;k++){                     // confirm at the rounded price with that price's real fee
+        const c = costsAt(dims, unitRmb, p, scen, A);
+        if (c.pct >= A.target/100 - 1e-9) return { price:p };
+        p = ceil2(p + 0.01);
       }
     }
-    // 超大件
-    else if (longest > 59 || middle > 33 || shortest > 33 || (longest + middle + shortest >= 130) || weightLb >= 50) {
-      const roundedWeight = Math.ceil(weightLb);
-      if (roundedWeight < 50) {
-        const baseFee = isPeak ? 29.06 : 26.33;
-        deliveryFee = baseFee + (roundedWeight - 1) * 0.38;
-      } else if (roundedWeight > 50 && roundedWeight <= 70) {
-        const baseFee = isPeak ? 42.93 : 37.32;
-        deliveryFee = baseFee + (roundedWeight - 51) * 0.75;
-      } else if (roundedWeight > 70 && roundedWeight <= 150) {
-        const baseFee = isPeak ? 59.23 : 51.32;
-        deliveryFee = baseFee + (roundedWeight - 71) * 0.75;
-      } else if (roundedWeight > 150) {
-        const baseFee = isPeak ? 203.46 : 194.95;
-        deliveryFee = baseFee + (roundedWeight - 151) * 0.19;
-      }
-    }
-    // 小号大件
-    else if (longest <= 37 && middle <= 28 && shortest <= 20) {
-      const roundedWeight = Math.ceil(weightLb);
-      let packagingFee = 0;
-      if (roundedWeight <= 5) packagingFee = 1.51;
-      else if (roundedWeight <= 10) packagingFee = 1.68;
-      else if (roundedWeight <= 15) packagingFee = 1.97;
-      else if (roundedWeight <= 20) packagingFee = 2.60;
-      else if (roundedWeight <= 25) packagingFee = 2.92;
-      else if (roundedWeight <= 30) packagingFee = 3.47;
-      else if (roundedWeight <= 35) packagingFee = 3.60;
-      else if (roundedWeight <= 40) packagingFee = 3.78;
-      else if (roundedWeight <= 45) packagingFee = 3.80;
-      else packagingFee = 4.04;
-
-      if (roundedWeight <= 50) {
-        const baseFee = isPeak ? 10.65 : 7.55;
-        deliveryFee = baseFee + (roundedWeight - 1) * 0.38 + packagingFee;
-      }
-    }
-    // 大号大件
-    else if (longest <= 59 && middle <= 33 && shortest <= 33 && weightLb <= 50) {
-      const roundedWeight = Math.ceil(weightLb);
-      let packagingFee = 0;
-      if (roundedWeight <= 5) packagingFee = 1.51;
-      else if (roundedWeight <= 10) packagingFee = 1.68;
-      else if (roundedWeight <= 15) packagingFee = 1.97;
-      else if (roundedWeight <= 20) packagingFee = 2.60;
-      else if (roundedWeight <= 25) packagingFee = 2.92;
-      else if (roundedWeight <= 30) packagingFee = 3.47;
-      else if (roundedWeight <= 35) packagingFee = 3.60;
-      else if (roundedWeight <= 40) packagingFee = 3.78;
-      else if (roundedWeight <= 45) packagingFee = 3.80;
-      else packagingFee = 4.04;
-
-      if (roundedWeight <= 50) {
-        const baseFee = isPeak ? 10.65 : 9.35;
-        deliveryFee = baseFee + (roundedWeight - 1) * 0.38 + packagingFee;
-      }
-    }
-
-    // 计算成本
-    const factoryPriceUSD = factoryPrice / exchangeRate;
-    const cost = shippingFee + storageFee + factoryPriceUSD + deliveryFee;
-
-    // 计算建议售价
-    const price = cost / (1 - profitMargin / 100);
-
-    return { weightLb, shippingFee, storageFee, deliveryFee, cost, price, uncovered: deliveryFee === 0 };
+    return { err:'No price found.' };
   }
   /* ============================================================== */
 
-  /* settings.step1 → the numbers computeRow expects (same defaults as step1.html) */
-  function params(P){
-    P = P || {};
-    return {
-      shippingPrice: parseFloat(P.shippingPrice) || 0,
-      exchangeRate:  parseFloat(P.exchangeRate)  || 7,
-      profitMargin:  parseFloat(P.profitMargin)  || 0,
-      storageFee:    parseFloat(P.storageFee)    || 0,
-      isPeak:        !!P.isPeak
-    };
+  /* One 报价 line → the table's columns. Unit weight is never entered, so (as in Updated Pricing.html) the
+     shipping weight is the dimensional weight. price / cost / deliveryFee are null when oversize or unsolvable. */
+  function computeRow(factoryPrice, length, width, height, A){
+    const dims = [length, width, height];
+    const m = minPrice(dims, factoryPrice, undefined, A);
+    const out = { weightLb: dimOz(dims)/16, shippingFee: volKgOf(dims) * A.shipRmbKg / A.fx,
+                  deliveryFee: null, cost: null, price: null, oversize: m.err === 'oversize', err: null };
+    if (m.err) { if (!out.oversize) out.err = m.err; return out; }
+    const c = costsAt(dims, factoryPrice, m.price, undefined, A);
+    out.weightLb = c.r.shipOz/16;
+    out.shippingFee = c.ship;
+    out.deliveryFee = c.fee;
+    out.cost = c.unit + c.ship + c.fee;
+    out.price = m.price;
+    return out;
   }
 
-  window.PRICING = { computeRow, params };
+  /* settings.step1 → the assumptions computeRow expects (defaults = Updated Pricing.html's) */
+  const DEFAULTS = { fx:6.7, shipRmbKg:6, comm:15, ads:12, wh:5, target:18 };
+  function params(P){
+    P = P || {};
+    const A = {};
+    for (const k in DEFAULTS){
+      const v = parseFloat(P[k]);
+      A[k] = v >= 0 && !(k === 'fx' && v === 0) ? v : DEFAULTS[k];
+    }
+    return A;
+  }
+
+  window.PRICING = { computeRow, params, DEFAULTS };
 })();
