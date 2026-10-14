@@ -23,7 +23,7 @@ Settings → **报价** tab, and journey step 报价.
   on `input` (debounced 400ms) with `readTable().rows`. Params are **not** saved per row (C2).
 - **Buttons in `.actions`:** 计算售价 · + 添加行 · 清空 · **导入** (loads a `售价…json`: accept
   `{rows:[…]}`, or the old export shape `{name:{rows}}` using its first table) · **保存**.
-  保存 → `api.output('售价计算 Price Calcs', '<品名>_<SKU>_售价.json', {name, sku, savedAt, params, rows})`,
+  保存 → `api.output('售价计算 Price Calcs', '<品名>_<SKU>_售价.json', {name, sku, savedAt, params, rows})` *(2026-10-01: `<类目>_<工厂>` in place of 品名 when it is empty)*,
   then the button reads **✓** (the file name is in its tooltip) and the tool posts `step1-saved`.
   The `黄色行 = …` legend under the table is removed; the `⚠ 未覆盖` badge's tooltip explains yellow rows.
 - **Page chrome:** hide the `h1` card header (the hub row already shows the product). Set the body

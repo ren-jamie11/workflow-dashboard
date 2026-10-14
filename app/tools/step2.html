@@ -1,0 +1,1706 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>下单计划表格生成器</title>
+<style>
+:root{
+  --primary:#4f46e5; --primary-dark:#4338ca; --secondary:#10b981;
+  --dark:#1e293b; --muted:#64748b; --line:#e2e8f0;
+  --warn-bg:#fffbeb; --warn-line:#f59e0b; --warn-text:#92400e;
+  --radius:12px;
+  --shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:#f1f5f9;color:var(--dark);line-height:1.6;margin:0;
+}
+.container{max-width:1400px;margin:0 auto;padding:2rem 1.5rem 4rem}
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.75rem;margin-bottom:1.5rem}
+.card-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:1rem;margin-bottom:1.25rem;gap:1rem}
+h1{font-size:1.4rem;font-weight:600;color:var(--primary);margin:0}
+h2{font-size:1rem;font-weight:600;color:var(--dark);margin:0}
+
+/* ---------- 设置 (extender) ---------- */
+details.params{border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:var(--shadow);margin-bottom:1.5rem}
+details.params summary{
+  cursor:pointer;padding:1rem 1.25rem;font-weight:600;color:var(--primary);
+  list-style:none;display:flex;align-items:center;gap:.5rem;user-select:none;
+}
+details.params summary::-webkit-details-marker{display:none}
+details.params summary::before{content:'▸';transition:transform .2s;display:inline-block}
+details.params[open] summary::before{transform:rotate(90deg)}
+.params-body{padding:0 1.25rem 1.25rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1.1rem;border-top:1px solid var(--line);padding-top:1.25rem}
+.form-label{display:block;font-size:.82rem;font-weight:500;color:var(--muted);margin-bottom:.35rem}
+.form-label .req{color:#ef4444;margin-left:.15rem}
+.form-control{width:100%;padding:.6rem .75rem;border:1px solid var(--line);border-radius:8px;font-size:.95rem;font-family:inherit;background:#fff;color:var(--dark)}
+.form-control:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+textarea.form-control{resize:vertical;min-height:64px;line-height:1.5}
+.form-control.missing{border-color:var(--warn-line);background:var(--warn-bg)}
+
+.chip-wrap{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
+.chip{display:inline-flex;align-items:center;gap:.3rem;background:#eef2ff;color:var(--primary);border:1px solid #e0e7ff;border-radius:6px;padding:.15rem .5rem;font-size:.82rem}
+.chip button{background:none;border:none;color:var(--primary);cursor:pointer;font-size:.9rem;line-height:1;padding:0;opacity:.55}
+.chip button:hover{opacity:1;color:#ef4444}
+.inline-add{display:flex;gap:.4rem;margin-top:.5rem}
+.inline-add .form-control{flex:1}
+
+/* ---------- 货号 card ---------- */
+.prod{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:1.25rem;background:#fff;overflow:hidden}
+.prod.dragging{opacity:.4}
+.prod.drop-target{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+.prod-head{display:flex;align-items:center;gap:.75rem;padding:.85rem 1rem;background:#f8fafc;border-bottom:1px solid var(--line)}
+.grip{cursor:grab;color:#cbd5e1;font-size:1rem;line-height:1;padding:.15rem .3rem;user-select:none}
+.grip:active{cursor:grabbing}
+.prod-title{font-weight:600;font-size:.95rem;flex:1;color:var(--dark)}
+.prod-title .sub{font-weight:400;color:var(--muted);font-size:.85rem;margin-left:.5rem}
+.prod-body{padding:1.15rem 1rem 1.25rem}
+.prod-grid{display:grid;grid-template-columns:210px repeat(auto-fit,minmax(150px,1fr));gap:1rem;align-items:start}
+/* HUB: 货号 in the card header; the image on the left, the colour / size table beside it */
+.prod-head .code-input{flex:1;max-width:320px;padding:.4rem .65rem;font-weight:600;font-size:.92rem}
+.prod-head .sub{font-weight:400;color:var(--muted);font-size:.85rem;flex:1}
+.prod-rows{flex:1;min-width:0}
+.prod-rows .vwrap{margin-top:0;border-top:none;padding:0 0 .25rem}
+/* HUB: one card per 下单计划; every row has its own square 图片 (evenly spaced fixed columns) */
+table.vt{table-layout:fixed;min-width:1140px}   /* HUB: keeps each shared column ≥ ~140px (内盒尺寸 fits) */
+table.vt .colorcell{gap:.75rem}
+table.vt .colorcell .cell-input{flex:none;width:148px}
+td.imgcell{padding:.4rem .3rem}
+.imgbox.rimg{width:72px;height:72px;padding:0;border-width:1px;border-radius:8px}
+.imgbox.rimg .ph{font-size:.68rem}
+
+/* ---------- image drop ---------- */
+.imgbox{
+  border:2px dashed var(--line);border-radius:10px;background:#f8fafc;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;position:relative;overflow:hidden;text-align:center;padding:.5rem;
+}
+.imgbox.empty{aspect-ratio:3/4}
+.imgbox:hover,.imgbox.over{border-color:var(--primary);background:#eef2ff}
+.imgbox.missing{border-color:var(--warn-line);background:var(--warn-bg)}
+/* HUB: every image is a 1:1 square — the frame stays still and the image moves inside it
+   (press + drag, Ctrl + wheel), as in the hub's row thumbs. The img is placed inline from the crop */
+.imgbox img{position:absolute;top:0;left:0;display:block;max-width:none;pointer-events:none;-webkit-user-drag:none;user-select:none}
+.imgbox.empty img{width:100%;height:100%;object-fit:cover}
+.imgbox.sq{width:200px;height:200px;padding:0}
+.imgbox.empty.sq{aspect-ratio:auto}
+.imgbox.has{border:1px solid var(--line);background:#fff;cursor:grab;touch-action:none}
+.imgbox.has:hover{border-color:var(--primary);background:#fff}
+.imgbox.has.panning{cursor:grabbing;border-color:var(--primary)}
+.imgbox .ph{font-size:.78rem;color:var(--muted);line-height:1.45}
+.imgbox .ph b{display:block;color:var(--primary);font-size:.85rem;margin-bottom:.15rem}
+.imgbox .clear{position:absolute;top:.3rem;right:.3rem;background:rgba(15,23,42,.72);color:#fff;border:none;border-radius:6px;width:22px;height:22px;font-size:.85rem;line-height:1;cursor:pointer;z-index:2;opacity:0}
+.imgbox:hover .clear{opacity:1}
+.imgbox.sm{width:60px;height:60px;aspect-ratio:auto;border-width:1px;border-radius:8px;flex:none}
+.imgbox.sm .ph{font-size:.62rem}
+.imgbox.sm .clear{width:16px;height:16px;font-size:.6rem;top:.1rem;right:.1rem}
+
+/* ---------- variants table ---------- */
+.vwrap{overflow-x:auto;margin-top:1rem;border-top:1px solid var(--line);padding:1rem 0 1.1rem;position:relative}
+.marquee{position:absolute;border:1px solid var(--primary);background:rgba(79,70,229,.10);
+  pointer-events:none;z-index:5;border-radius:3px}
+body.marquee-on{user-select:none}
+td.gutter,th.gutter{cursor:pointer;user-select:none}
+td.gutter:hover{background:#eef2ff;color:var(--primary)}
+table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:720px}/* HUB: was 1120px (交货日期 / SKU / 产品描述 columns removed) */
+thead th{
+  background:#f8fafc;color:var(--muted);font-weight:600;font-size:.78rem;
+  text-align:left;padding:.55rem .5rem;border-bottom:2px solid var(--line);white-space:nowrap;
+}
+thead th.out{background:#eef2ff;color:var(--primary)}
+tbody td{padding:.3rem .3rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+tbody tr.sel td{background:#eef2ff}
+tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--primary)}
+.cell-input{width:100%;padding:.45rem .5rem;border:1px solid var(--line);border-radius:6px;font-size:.88rem;font-family:inherit;background:#fff;color:var(--dark)}
+.cell-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(79,70,229,.12)}
+.cell-input.num{text-align:right}
+.cell-input.missing{border-color:var(--warn-line);background:var(--warn-bg)}
+.cell-input.locked{background:#f8fafc;color:var(--muted)}
+.colorcell{display:flex;align-items:center;gap:.35rem}
+/* HUB: 产品描述 column removed (written automatically at 生成) */
+.del-btn{background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:1.15rem;line-height:1;padding:.25rem .45rem;border-radius:6px}
+.del-btn:hover{color:#ef4444;background:#fef2f2}
+
+.actions{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1.25rem;align-items:center}
+.actions.tight{margin-top:.85rem}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.7rem 1.35rem;border-radius:8px;font-weight:500;font-size:.95rem;font-family:inherit;cursor:pointer;border:none;transition:.2s;white-space:nowrap}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-ghost{background:#fff;color:var(--muted);border:1px solid var(--line)}
+.btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+.btn-danger{background:#fff;color:#ef4444;border:1px solid #fecaca}
+.btn-danger:hover{background:#fef2f2;border-color:#ef4444}
+.btn.sm{padding:.42rem .8rem;font-size:.83rem;border-radius:7px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.hint{margin-top:1rem;font-size:.8rem;color:var(--muted)}
+.empty{border:2px dashed var(--line);border-radius:var(--radius);padding:2.5rem 1.5rem;text-align:center;color:var(--muted);font-size:.9rem}
+.empty b{display:block;color:var(--dark);font-size:1rem;margin-bottom:.3rem;font-weight:600}
+
+/* ---------- preview ---------- */
+.prev-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table.prev{min-width:1600px;font-size:.78rem}
+table.prev thead th{padding:.4rem .45rem;font-size:.7rem}
+table.prev td{padding:.35rem .45rem;border-bottom:1px solid #f1f5f9;white-space:pre-line;vertical-align:middle;max-width:220px}
+table.prev tr.groupstart td{border-top:2px solid var(--dark)}
+table.prev img{width:34px;height:34px;object-fit:cover;border-radius:4px;display:block}
+
+/* ---------- alert ---------- */
+.alert{border-radius:10px;padding:.85rem 1rem;font-size:.86rem;margin-bottom:1rem;line-height:1.55}
+.alert-warn{background:var(--warn-bg);border:1px solid #fcd34d;color:var(--warn-text)}
+.alert-ok{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46}
+.alert ul{margin:.4rem 0 0;padding-left:1.1rem}
+.alert li{margin:.1rem 0}
+.saved{font-size:.78rem;color:var(--muted);white-space:nowrap}
+
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(150%);
+  background:var(--dark);color:#fff;padding:.8rem 1.4rem;border-radius:10px;font-size:.9rem;
+  box-shadow:0 10px 25px rgba(0,0,0,.2);transition:transform .28s;z-index:99;
+  display:flex;align-items:center;gap:.9rem}
+#toastAct{background:none;border:1px solid rgba(255,255,255,.35);color:#fff;font-family:inherit;
+  font-size:.83rem;font-weight:500;padding:.28rem .7rem;border-radius:6px;cursor:pointer;white-space:nowrap}
+#toastAct:hover{background:rgba(255,255,255,.14);border-color:#fff}
+#toastMsg{max-width:52ch;overflow-wrap:anywhere}
+.toast.show{transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* HUB: embedded in the hub's 下单 pop-up */
+.container{max-width:none;padding:1.25rem 1.5rem 2rem}
+body.loading .container{opacity:.45;pointer-events:none;transition:opacity .1s .15s}
+/* HUB: 工厂 type-to-filter dropdown (shared/combo.js), rules copied from shared/theme.css */
+input.combo{background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2364748b' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right .75rem center;padding-right:1.8rem;cursor:pointer;text-overflow:ellipsis}
+input.combo:focus{cursor:text}
+.cb-pop{position:fixed;z-index:150;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 12px 28px rgba(15,23,42,.18);
+  padding:.25rem;max-height:260px;overflow-y:auto;font-size:.86rem;user-select:none}
+.cb-opt{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.4rem .55rem;border-radius:6px;cursor:pointer;color:var(--dark);white-space:nowrap}
+.cb-opt.hi{background:#eef2ff;color:var(--primary)}
+.cb-opt.sel{font-weight:600}
+.cb-opt.add{color:var(--primary);font-weight:500}
+.cb-empty{padding:.45rem .55rem;color:#94a3b8}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HUB: 设置 (运营 / 店铺 + 国家) is in the hub's ⚙ 设置 → 下单; SKU 前缀 = the hub's 类目 -->
+
+  <!-- 订单信息 -->
+  <div class="card">
+    <div class="card-header">
+      <h2>订单信息</h2><!-- HUB: the pop-up header shows the product -->
+      <div style="display:flex;align-items:center;gap:.8rem">
+        <span class="saved" id="savedAt"></span>
+        <button type="button" class="btn btn-ghost sm" id="syncBtn" style="display:none" title="把报价表的单价、内盒尺寸更新到尺寸相同的行">从报价更新</button><!-- HUB -->
+        <!-- HUB: 导入已有 Excel moved to the hub's 下单计划 list (从 Excel 导入 creates a new form) -->
+      </div>
+    </div>
+    <div class="params-body" style="padding:0;border-top:none">
+      <div>
+        <label class="form-label">工厂<span class="req">*</span></label>
+        <input type="text" id="ofFactory" class="form-control combo" data-combo="factory" placeholder="选择或输入工厂" autocomplete="off"><!-- HUB: global 工厂 list (设置 → 工厂) -->
+      </div>
+      <!-- HUB: 品名 / 材质 = the hub row's (synced both ways; 品名 is optional and only edited here); 是否含真植物 is order-wide; 订单名称 / 下单数量 removed -->
+      <div>
+        <label class="form-label">品名</label>
+        <input type="text" id="ofPname" class="form-control" placeholder="例 狗狗金属相框">
+      </div>
+      <div>
+        <label class="form-label">产品材质</label>
+        <select id="ofMat" class="form-control"></select>
+      </div>
+      <div>
+        <label class="form-label">是否含真植物</label>
+        <select id="ofPlant" class="form-control"><option value="不含">不含</option><option value="含">含</option></select>
+      </div>
+      <div>
+        <label class="form-label">交货日期<span class="req">*</span></label>
+        <input type="date" id="ofDate" class="form-control">
+      </div>
+      <div>
+        <label class="form-label">SKU 前缀<span class="req">*</span></label>
+        <select id="ofSku" class="form-control"></select>
+      </div>
+      <div>
+        <label class="form-label">税率</label>
+        <input type="text" id="ofTax" class="form-control" list="dlTax" placeholder="例 专票13%"><!-- HUB: filled from the 工厂 -->
+        <datalist id="dlTax"><option value="专票1%"><option value="专票13%"><option value="专票6%"></datalist>
+      </div>
+      <div>
+        <label class="form-label">运费</label>
+        <input type="text" id="ofFreight" class="form-control" list="dlFreight" placeholder="含运费">
+        <datalist id="dlFreight"><option value="含运费"><option value="不含"></datalist>
+      </div>
+    </div>
+  </div>
+  <!-- HUB: rows are picked from 报价 in the hub when the form is created; 从报价更新 re-syncs prices -->
+
+  <!-- 货号列表 -->
+  <div id="prodList"></div>
+  <!-- HUB: one 货号 card per 下单计划 (+ 添加产品货号 removed) -->
+
+  <!-- HUB: Excel 预览 removed -->
+
+  <!-- 生成 -->
+  <div class="card">
+    <div id="alertBox"></div>
+    <div class="actions" style="margin-top:0">
+      <button type="button" class="btn btn-primary" id="genBtn">生成 Excel</button><!-- HUB: written to 下单计划/<product folder> -->
+      <button type="button" class="btn btn-danger" id="clearBtn">清空全部</button>
+    </div>
+    <div class="hint" id="fnHint"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button type="button" id="toastAct"></button></div>
+
+<!-- HUB: ExcelJS moved unchanged into vendor/exceljs.min.js (the original has it inline) -->
+<script src="vendor/exceljs.min.js"></script>
+<script src="../shared/api.js"></script>
+<script src="../shared/embed.js"></script>
+<script src="../shared/crop.js"></script>
+<script src="../shared/pinyin.js"></script><!-- HUB: 工厂 dropdown -->
+<script src="../shared/combo.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ============ 常量：Excel 模板规格 ============ */
+const SHEET_NAME = '订单表格录入信息填写要求';
+// 仅设置模板中显式指定的列宽；其余沿用 defaultColWidth = 9
+const COL_W = {1:25.79,2:13.89,3:37.26,4:28.37,5:22.10,6:22.00,7:22.63,8:15.47,9:9.37,10:9.37,
+  11:10.26,12:15.26,13:43.47,16:21.63,17:10.63,18:22.37,19:12.63,20:16.89,21:17.63,22:24.89,
+  23:21.63,24:21.63,29:11.89};
+const EMU = 9525;   // EMU per pixel
+const HEADERS = ['运营*','工厂*','图片*','产品货号*','产品色号','产品尺寸',
+  '产品单价*\n（写清楚是套一或者是套三的单价）','配件货号/描述*（盆子/灯等等）','配件色号','配件尺寸',
+  '配件价格*','整个产品包含配件一起的总价','产品描述*（规格：工厂+品名）','预估箱率','预估箱数',
+  '预估内盒尺寸*','预估外箱尺寸','开发部负责同事*',
+  '下单数量*\n（若数量需减少的请自行与开发或者陈总确认好是否可行并告知）','交货日期*',
+  'SKU*\n（前缀分类：例SSF_/SSP_等）','备注','是否含真植物','详细写出具体真植物','产品材质',
+  '一级分类','二级分类','三级分类','税率','运费'];
+/* 逐列样式，直接从模板 2026_8_03_Jamie_HUAZHI_MUGS_下单计划.xlsx 提取（A..AD）
+   主题色已解析为固定 ARGB：绿 FFACD78E / 蓝 FFB6C7EA / 黄 FFFEE695 / 红 FFEF949E */
+const HDR_STYLE = [
+  /*A */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center"},
+  /*B */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center"},
+  /*C */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center"},
+  /*D */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center"},
+  /*E */ {"f": "微软雅黑", "s": 12.0, "h": "center", "w": 1},
+  /*F */ {"f": "微软雅黑", "s": 12.0, "h": "center", "w": 1},
+  /*G */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center", "w": 1},
+  /*H */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center", "w": 1},
+  /*I */ {"f": "微软雅黑", "s": 12.0, "h": "center"},
+  /*J */ {"f": "微软雅黑", "s": 12.0, "h": "center"},
+  /*K */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center"},
+  /*L */ {"f": "微软雅黑", "s": 12.0, "h": "center", "w": 1},
+  /*M */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center", "w": 1},
+  /*N */ {"f": "微软雅黑", "s": 12.0, "h": "center"},
+  /*O */ {"f": "微软雅黑", "s": 12.0, "h": "center"},
+  /*P */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center", "w": 1},
+  /*Q */ {"f": "微软雅黑", "s": 12.0, "h": "center", "w": 1},
+  /*R */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center", "w": 1},
+  /*S */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center", "w": 1},
+  /*T */ {"f": "微软雅黑", "s": 12.0, "bg": "FFFFFF00", "h": "center"},
+  /*U */ {"f": "微软雅黑", "s": 12.0, "b": 1, "bg": "FFACD78E", "h": "center", "w": 1, "nf": "0_ "},
+  /*V */ {"f": "微软雅黑", "s": 16.0, "h": "center"},
+  /*W */ {"f": "微软雅黑", "s": 20.0, "b": 1, "bg": "FFFF0000", "h": "center", "w": 1},
+  /*X */ {"f": "微软雅黑", "s": 20.0, "b": 1, "bg": "FFFF0000", "h": "center", "w": 1},
+  /*Y */ {"f": "微软雅黑", "s": 11.0, "bg": "FFACD78E"},
+  /*Z */ {"f": "微软雅黑", "s": 11.0, "bg": "FFACD78E"},
+  /*AA*/ {"f": "微软雅黑", "s": 11.0, "bg": "FFACD78E"},
+  /*AB*/ {"f": "微软雅黑", "s": 11.0, "bg": "FFACD78E"},
+  /*AC*/ {"f": "Calibri", "s": 12.0, "bg": "FFACD78E"},
+  /*AD*/ {"f": "Calibri", "s": 12.0, "bg": "FFACD78E"}
+];
+
+const DAT_STYLE = [
+  /*A */ {"f": "微软雅黑", "s": 20.0, "h": "center"},
+  /*B */ {"f": "微软雅黑", "s": 20.0, "h": "center"},
+  /*C */ {"f": "Calibri", "s": 20.0},
+  /*D */ {"f": "微软雅黑", "s": 20.0, "bg": "FFFFFFFF", "h": "center", "w": 1},
+  /*E */ {"f": "Calibri", "s": 20.0},
+  /*F */ {"f": "微软雅黑", "s": 20.0, "h": "center", "w": 1},
+  /*G */ {"f": "微软雅黑", "s": 20.0, "b": 1, "c": "FFFF0000", "bg": "FFB6C7EA", "h": "center", "w": 1},
+  /*H */ {"f": "宋体", "s": 20.0, "h": "center", "w": 1},
+  /*I */ {"f": "宋体", "s": 36.0, "bg": "FFFFFF00"},
+  /*J */ {"f": "Microsoft YaHei UI", "s": 20.0, "h": "center", "nf": "\\¥#,##0.00_);[Red]\\(\\¥#,##0.00\\)"},
+  /*K */ {"f": "微软雅黑", "s": 20.0, "h": "center", "w": 1},
+  /*L */ {"f": "Microsoft YaHei UI", "s": 20.0, "bg": "FFFFFF00", "h": "center", "nf": "\\¥#,##0.00_);[Red]\\(\\¥#,##0.00\\)"},
+  /*M */ {"f": "宋体", "s": 20.0, "h": "center", "w": 1},
+  /*N */ {"f": "宋体", "s": 20.0, "h": "center", "w": 1},
+  /*O */ {"f": "Microsoft YaHei UI", "s": 20.0, "h": "center", "w": 1},
+  /*P */ {"f": "Microsoft YaHei UI", "s": 20.0, "h": "center", "w": 1},
+  /*Q */ {"f": "微软雅黑", "s": 20.0, "h": "center", "w": 1},
+  /*R */ {"f": "Microsoft YaHei UI", "s": 20.0, "h": "center", "w": 1},
+  /*S */ {"f": "Microsoft YaHei UI", "s": 20.0, "h": "center", "w": 1},
+  /*T */ {"f": "微软雅黑", "s": 20.0, "h": "center", "w": 1},
+  /*U */ {"f": "微软雅黑", "s": 20.0, "b": 1, "c": "FFC00000", "bg": "FFFEE695", "h": "center"},
+  /*V */ {"f": "宋体", "s": 26.0, "c": "FFFF0000", "bg": "FFFFFFFF", "w": 1},
+  /*W */ {"f": "宋体", "s": 36.0, "bg": "FFEF949E"},
+  /*X */ {"f": "宋体", "s": 36.0, "bg": "FFEF949E"},
+  /*Y */ {"f": "黑体", "s": 16.0, "c": "FF0B1019"},
+  /*Z */ {"f": "黑体", "s": 16.0, "c": "FF0B1019"},
+  /*AA*/ {"f": "黑体", "s": 16.0},
+  /*AB*/ {"f": "黑体", "s": 16.0},
+  /*AC*/ {"f": "Calibri", "s": 16.0, "w": 1, "nf": "0%"},
+  /*AD*/ {"f": "Calibri", "s": 16.0}
+];
+const NOTE1 = '注：以上黄色信息必须由运营或者开发部同事全部填写正确，不要出现错误、错别字或者工厂名错误等，红色下的标黄色部分必须填写，没有的信息可以暂时不填。绿色由供应链填写';
+const NOTE2 = '开发同事请注意: 新工厂下单前，请做到以下部分配合：\n1.新工厂付款方式与工厂确认，确认后告知（对公：收取几个点税点？开什么类型发票？开票类目？/对私）；\n2.新工厂及时建群，并让供应商群里提供以下信息资料：公司名+工厂地址及联系人信息+\n收款相关信息资料（对公的账户信息+营业执照/对私的账户信息+身份证号码）';
+const IMG_PAD = 12;                         /* HUB: 图片与单元格边框之间的留白（px） */
+const IMG_BOX = 266 - 2*IMG_PAD;            /* HUB: C 列方形图片 = 242（原 262） */
+const ROW_PAD = 2*IMG_PAD;                  /* HUB: 图片上下留白（原 42） */
+const MIN_ROW_PX = 175;                     // 无图片时的最小行高（= 模板原始 131.25pt）
+const SWATCH_BOX_W = 140;                   // E 列色号图最大宽度
+const E_TEXT_PX = 40;                       /* HUB: 色号图下方的色号名（Calibri 20 一行）所需高度 */
+const ACC_BOX_W = 100;                      // H 列配件图最大宽度
+const IMG_STORE_MAX = 1400;                 // 存储时最长边上限（保留完整画面）
+const UI_BOX = 200;                         /* HUB: 货号图片方框（CSS px） */
+const SW_BOX = 60;                          /* HUB: 色号图片方框（CSS px） */
+const ROW_BOX = 72;                         /* HUB: 每行图片方框（CSS px） */
+const EXPORT_PX = 900;                      /* HUB: 导出时方形图片的像素边长 */
+const COL_C_PX = Math.round(COL_W[3]*7)+5;  // 图片列 C = 266 px
+const COL_E_PX = Math.round(COL_W[5]*7)+5;  // 色号列 E = 160 px
+const COL_H_PX = Math.round(COL_W[8]*7)+5;  // 配件列 H
+
+
+/* ============ state ============ */
+const DEFAULTS = {
+  settings:{operator:'Jamie', store:'Arborus-US（店铺+国家）', skuPrefixes:['MUG_','XK_'], materials:[], factories:[]},
+  /* HUB: 交货日期 / SKU / 是否含真植物 are order-wide (every row); 订单名称 and the 下单数量 default are gone;
+     品名 / 材质 are the hub row's (META.name / META.material), never stored here */
+  order:{factory:'',date:'',sku:'',plant:'不含',taxRate:'',freight:'含运费'},   /* HUB: 税率 comes from the 工厂 */
+  /* HUB: exactly one 货号 card; each row has its own 图片: v.img = an id in `images` ({url,w,h}, stored once), v.imgCrop */
+  products:[],
+  images:{},
+  memory:{factories:[],materials:[],productNames:[],colorNames:[]},
+  hub:{}                                    /* HUB: {legacy} = copied from the old step2.json, flattened on load */
+};
+let S = JSON.parse(JSON.stringify(DEFAULTS));
+const uid = ()=> Math.random().toString(36).slice(2,10);
+
+/* ============ HUB: 自动保存到 data/rows/<id>/orders/draft.json ============
+   The Excel files in 下单计划/<product folder>/ are the record; this page only makes new ones. A row has at most one draft
+   (FORM = 'draft'), deleted once its Excel is generated. Only user actions call
+   save(): the defaults filled in when a form opens are not written, so opening one without editing it changes nothing on disk.
+   The suggestion lists (memory) are shared by the row's forms: rows/<id>/order-memory.json.
+   settings are global (hub ⚙ 设置 → 下单), never saved here */
+let ROW = null, FORM = null, FOLDER = '', META = {}, loading = false, saveTimer = null, pendingPath = null, pendingRow = null;
+let memSent = '';                           // order-memory.json as last read / written
+function stateFor(){
+  const images = {};                        // only the images some row still uses
+  S.products.forEach(p => p.variants.forEach(v => { if(v.img && S.images[v.img]) images[v.img] = S.images[v.img]; }));
+  return {order:S.order, products:S.products, images, hub:S.hub};
+}
+function save(){
+  if(!ROW || !FORM || loading) return;
+  clearTimeout(saveTimer);
+  pendingPath = 'rows/'+ROW+'/orders/'+FORM+'.json'; pendingRow = ROW;
+  saveTimer = setTimeout(saveNow, 400);
+}
+function saveNow(){
+  clearTimeout(saveTimer); saveTimer = null;
+  const path = pendingPath; pendingPath = null;
+  if(!path) return Promise.resolve();
+  const jobs = [api.put(path, stateFor())];
+  const mem = JSON.stringify(S.memory);
+  if(mem !== memSent){ memSent = mem; jobs.push(api.put('rows/'+pendingRow+'/order-memory.json', S.memory)); }
+  return Promise.all(jobs).then(()=>{
+    const d = new Date();
+    $('savedAt').textContent = '已自动保存 '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  }).catch(()=>{});
+}
+/* the page may go away (hub reload): best effort — keepalive only takes small bodies */
+window.addEventListener('pagehide', ()=>{
+  if(!pendingPath) return;
+  clearTimeout(saveTimer);
+  const body = JSON.stringify(stateFor());
+  try{ fetch('/api/data/'+pendingPath.split('/').map(encodeURIComponent).join('/'),
+    {method:'PUT', keepalive: body.length < 60000, headers:{'Content-Type':'application/json'}, body}); }catch(e){}
+});
+api.onError = err => toast(err.offline ? err.message : '保存失败：'+err.message);
+/* HUB: forms are independent of the row's images (the table thumb never follows a form). The hub reads 交货日期 at 生成 */
+function latestDate(){ return S.order.date || ''; }   /* HUB: one 交货日期 for the whole order */
+
+/* ============ helpers ============ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let toastTimer=null;
+function hideToast(){ $('toast').classList.remove('show'); clearTimeout(toastTimer); }
+function showToast(msg, action, ms){
+  const t=$('toast'), b=$('toastAct');
+  $('toastMsg').textContent = msg;
+  b.style.display = action ? 'inline-flex' : 'none';
+  if(action) b.textContent = action.label;
+  b.onclick = action ? ()=>{ hideToast(); action.fn(); } : null;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, ms || (action?3000:2600));
+}
+function toast(msg){ showToast(msg, null); }
+function remember(key,val){
+  val = (val||'').trim(); if(!val) return;
+  const a = S.memory[key]; if(!a.includes(val)){ a.unshift(val); if(a.length>40) a.pop(); }
+}
+function fmtDate(iso){ if(!iso) return ''; const p=iso.split('-'); return p.length===3 ? p[0]+'.'+String(+p[1])+'.'+String(+p[2]) : iso; }
+function todayParts(){ const d=new Date(); return d.getFullYear()+'_'+(d.getMonth()+1)+'_'+String(d.getDate()).padStart(2,'0'); }
+
+/* 产品描述： 工厂 + 色号 + 尺寸 + 品名 */
+function autoDesc(p,v){
+  const parts = [S.order.factory, (v.colorCode||'')+(v.size||''), META.name];   /* HUB: 品名 = the hub row's */
+  return parts.map(x=>(x||'').trim()).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+}
+function descOf(p,v){ return autoDesc(p,v); }   /* HUB: always automatic (the column is hidden, no hand edits) */
+/* HUB: Excel file name = 日期_工厂[_品名]_下单计划_运营.xlsx (品名 is optional) */
+function fileName(){
+  const clean = s => String(s||'').trim().replace(/[\\/:*?"<>|]/g,'_');
+  const parts = [todayParts(), clean(S.order.factory)||'订单', clean(META.name), '下单计划', clean(S.settings.operator||'Jamie')];
+  return parts.filter(Boolean).join('_')+'.xlsx';
+}
+
+/* 图片：完整保留画面，只在超大时等比缩小 → {url,w,h} */
+function loadImageData(url, cb){
+  const img = new Image();
+  img.onload = () => {
+    const k = Math.min(1, IMG_STORE_MAX/Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width*k)), h = Math.max(1, Math.round(img.height*k));
+    const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
+    const cx = cv.getContext('2d');
+    cx.fillStyle='#fff'; cx.fillRect(0,0,w,h);
+    cx.drawImage(img, 0,0,img.width,img.height, 0,0,w,h);
+    cb({url: cv.toDataURL('image/jpeg',0.85), w, h});
+  };
+  img.onerror = ()=>cb(null);
+  img.src = url;
+}
+function loadImageFile(file, cb){
+  const fr = new FileReader();
+  fr.onload = e => loadImageData(e.target.result, d=>{
+    if(d) cb(d); else toast('图片读取失败，请换一张');
+  });
+  fr.readAsDataURL(file);
+}
+
+/* HUB: square images. Each has a crop {x,y,s} (shared/crop.js): a row's 图片 v.imgCrop, its 色号 v.colorCrop.
+   A missing crop = the centred square. A slot = {url, nat, crop, set(crop), setNat(nat)} */
+function rowSlot(v){
+  const im = v && v.img ? S.images[v.img] : null;
+  if(!im) return null;
+  return {url:im.url, nat: im.w ? {w:im.w, h:im.h} : null, crop:v.imgCrop || null,
+          set: c => { v.imgCrop = c; }, setNat: n => { im.w = n.w; im.h = n.h; }};
+}
+function colorSlot(v){
+  if(!v || !v.colorImage) return null;
+  return {url:v.colorImage, nat:v.colorNat, crop:v.colorCrop || null,
+          set: c => { v.colorCrop = c; }, setNat: n => { v.colorNat = n; }};
+}
+const imgSlots = () => {
+  const out = [];
+  S.products.forEach(p => p.variants.forEach(v => { const r = rowSlot(v), c = colorSlot(v); if(r) out.push(r); if(c) out.push(c); }));
+  return out;
+};
+/* an image → its id in S.images (the same picture is stored once) */
+function addImage(d){
+  const hit = Object.keys(S.images).find(k => S.images[k].url === d.url);
+  if(hit) return hit;
+  const id = uid();
+  S.images[id] = {url:d.url, w:d.w||0, h:d.h||0};
+  return id;
+}
+/* the <img> style that shows crop c of a W×H image in a size px square */
+function squareStyle(nat, c, size){
+  const k = size / (c.s * Math.min(nat.w, nat.h));
+  return 'width:'+(nat.w*k)+'px;height:'+(nat.h*k)+'px;left:'+(-c.x*nat.w*k)+'px;top:'+(-c.y*nat.h*k)+'px';
+}
+function squareImg(url, nat, crop, size){
+  if(!nat || !nat.w) return '<img src="'+url+'" alt="" draggable="false" style="width:100%;height:100%;object-fit:cover">';
+  return '<img src="'+url+'" alt="" draggable="false" style="'+squareStyle(nat, CROP.cropOf(crop, nat.w, nat.h), size)+'">';
+}
+/* older drafts may miss an image's natural size: measure it (in memory only, nothing is written) */
+function ensureNat(){
+  const todo = imgSlots().filter(s => !s.nat || !s.nat.w);
+  let pending = todo.length;
+  const row = ROW;
+  todo.forEach(s=>{
+    const im = new Image();
+    im.onload = im.onerror = () => {
+      if(im.naturalWidth) s.setNat({w:im.naturalWidth, h:im.naturalHeight});
+      if(--pending === 0 && row === ROW) render();
+    };
+    im.src = s.url;
+  });
+}
+
+/* ============ 校验 ============ */
+function validate(){
+  const miss = [];
+  if(!S.order.factory.trim()) miss.push('工厂');
+  if(!(S.order.date||'').trim()) miss.push('交货日期');
+  if(!(S.order.sku||'').trim()) miss.push('SKU 前缀');
+  /* HUB: one 货号 card; the 图片 is per row */
+  S.products.forEach(p=>{
+    if(!p.code.trim()) miss.push('产品货号');
+    if(!p.variants.length) miss.push('至少一行');
+    p.variants.forEach((v,vi)=>{
+      const vt = '第'+(vi+1)+'行';
+      if(!rowSlot(v)) miss.push(vt+'：图片');
+      if(!String(v.price).trim()) miss.push(vt+'：产品单价');
+      if(!(v.boxSize||'').trim()) miss.push(vt+'：预估内盒尺寸');
+      if(!String(v.qty==null?'':v.qty).trim()) miss.push(vt+'：下单数量');
+    });
+  });
+  return miss;
+}
+/* ============ 渲染 ============ */
+function renderSettings(){
+  /* HUB: 运营 / 店铺 are edited in the hub's 设置 → 下单; SKU 前缀 = 类目 */
+  const sel = $('ofSku'), cur = S.order.sku;
+  const list = S.settings.skuPrefixes.slice();
+  if(cur && !list.includes(cur)) list.unshift(cur);         /* HUB: e.g. a prefix from an imported Excel */
+  sel.innerHTML = '<option value="">— 请选择 —</option>'+
+    list.map(s=>'<option value="'+esc(s)+'">'+esc(s)+'</option>').join('');
+  sel.value = cur || '';
+}
+function renderOrder(){
+  if(document.activeElement !== $('ofFactory')) $('ofFactory').value = S.order.factory;
+  const pn = $('ofPname');                                  /* HUB: 品名 / 材质 = the hub row's */
+  if(document.activeElement !== pn) pn.value = META.name || '';
+  const mat = META.material || '', mats = (S.settings.materials||[]).slice();
+  if(mat && !mats.includes(mat)) mats.unshift(mat);
+  $('ofMat').innerHTML = '<option value="">—</option>'+mats.map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join('');
+  $('ofMat').value = mat;
+  $('ofPlant').value = S.order.plant === '含' ? '含' : '不含';
+  $('ofDate').value = S.order.date;
+  $('ofDate').classList.toggle('missing', !(S.order.date||'').trim());
+  $('ofSku').classList.toggle('missing', !(S.order.sku||'').trim());
+  $('ofTax').value = S.order.taxRate || '';
+  const fac = findFactory(S.order.factory);                 /* HUB */
+  $('ofTax').placeholder = fac && !fac.taxRate ? '该工厂未设税率' : '例 专票13%';
+  $('ofFreight').value = S.order.freight || '';
+  $('fnHint').textContent = '文件名：'+fileName();
+  $('syncBtn').style.display = step1Rows.length ? '' : 'none';
+}
+function renderProducts(){
+  /* HUB: one 货号 card per 下单计划; each row has its own square 图片 (drag / Ctrl + wheel to position it) */
+  const wrap = $('prodList');
+  if(!S.products.length){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = S.products.map((p,pi)=>{
+    const rows = p.variants.map((v,vi)=>{
+      const rs = rowSlot(v);
+      return '<tr data-vid="'+v.id+'">'+
+        '<td class="gutter" style="text-align:center;color:#cbd5e1;font-size:.8rem">'+(vi+1)+'</td>'+
+        '<td class="imgcell"><div class="imgbox rimg'+(rs?' has':' missing')+'" data-act="rimg" data-pi="'+pi+'" data-vi="'+vi+'" title="'+
+          (rs?'点击更换 · 按住拖动调整位置 · Ctrl+滚轮缩放':'点击上传、拖入，或悬停后按 Ctrl+V 粘贴')+'">'+
+          (rs?squareImg(rs.url, rs.nat, rs.crop, ROW_BOX):'<span class="ph">图片</span>')+
+        '</div></td>'+
+        '<td><div class="colorcell">'+
+          /* HUB: square 色号 image, press + drag / Ctrl + wheel to position it */
+          '<div class="imgbox sm'+(v.colorImage?' has':'')+'" data-act="cimg" data-pi="'+pi+'" data-vi="'+vi+'" title="'+
+            (v.colorImage?'点击更换 · 按住拖动调整位置 · Ctrl+滚轮缩放':'点击上传、拖入，或悬停后按 Ctrl+V 粘贴')+'">'+
+            (v.colorImage?squareImg(v.colorImage, v.colorNat, v.colorCrop, SW_BOX)+'<button class="clear" data-act="cimgclr" data-pi="'+pi+'" data-vi="'+vi+'">×</button>':'<span class="ph">图</span>')+
+          '</div>'+
+          '<input class="cell-input" list="dlColor" data-f="colorCode" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.colorCode)+'" placeholder="色号 / 颜色名"></div></td>'+
+        '<td><input class="cell-input" data-f="size" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.size)+'" placeholder="4x6"></td>'+
+        '<td><input class="cell-input num" data-f="setQty" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.setQty)+'" placeholder="4"></td>'+
+        '<td><input class="cell-input num'+(String(v.price).trim()?'':' missing')+'" data-f="price" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.price)+'" placeholder="28"></td>'+
+        '<td><input class="cell-input'+((v.boxSize||'').trim()?'':' missing')+'" data-f="boxSize" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.boxSize)+'" placeholder="25.5x25.5x12cm"></td>'+
+        '<td><input class="cell-input num'+(String(v.qty==null?'':v.qty).trim()?'':' missing')+'" data-f="qty" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.qty)+'" placeholder="200"></td>'+
+        /* HUB: 交货日期 / SKU are in 订单信息; 产品描述 is written automatically at 生成 */
+        '<td style="text-align:center">'+
+          '<button class="del-btn" data-act="vdup" data-pi="'+pi+'" data-vi="'+vi+'" title="复制此行">⧉</button>'+
+          '<button class="del-btn" data-act="vdel" data-pi="'+pi+'" data-vi="'+vi+'" title="删除此行">×</button></td>'+
+      '</tr>';
+    }).join('');
+
+    return '<div class="prod" draggable="false" data-pi="'+pi+'">'+
+      '<div class="prod-head">'+
+        /* HUB: 产品货号 is edited in the card header; 产品名称 / 材质 / 是否含真植物 are in 订单信息 */
+        '<input class="form-control code-input'+(p.code.trim()?'':' missing')+'" data-pf="code" data-pi="'+pi+'" value="'+esc(p.code)+'" placeholder="产品货号 *  例 HZ5404">'+
+        '<span class="sub">'+p.variants.length+' 行</span>'+
+      '</div>'+
+      '<div class="prod-body">'+
+        '<div class="prod-rows">'+
+          '<div class="vwrap"><table class="vt"><colgroup>'+
+            /* HUB: 图片 / 产品色号 fixed; 尺寸 · 套数 · 单价 · 内盒尺寸 · 下单数量 share the rest evenly */
+            '<col style="width:40px"><col style="width:86px"><col style="width:236px"><col><col><col><col><col><col style="width:72px">'+
+          '</colgroup><thead><tr>'+
+            '<th class="gutter"></th><th>图片</th><th>产品色号</th><th>产品尺寸</th><th>套数</th>'+
+            '<th>单价 (￥)</th><th>预估内盒尺寸</th><th>下单数量</th><th></th>'+
+          '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
+          '<div class="actions tight">'+
+            '<button class="btn btn-ghost sm" data-act="vadd" data-pi="'+pi+'">+ 添加一行</button>'+
+          '</div>'+
+        '</div>'+
+      '</div></div>';
+  }).join('') +
+  '<datalist id="dlColor">'+S.memory.colorNames.map(c=>'<option value="'+esc(c)+'">').join('')+'</datalist>';
+}
+
+/* 生成 Excel 行数据 */
+function buildRows(){
+  const out = [];
+  S.products.forEach(p=>{
+    p.variants.forEach((v,vi)=>{
+      const price = String(v.price).trim();
+      const setq = String(v.setQty).trim();
+      const ps = v.pass || {};
+      const keep = k => ps[k]!==undefined && ps[k]!==null ? ps[k] : '';
+      const rs = rowSlot(v);                 /* HUB: every row has its own 图片 */
+      out.push({
+        groupStart: vi===0 || v.img !== p.variants[vi-1].img || v.colorImage !== p.variants[vi-1].colorImage
+                    || v.colorCode !== p.variants[vi-1].colorCode,   /* HUB: rows of one 图片 + 色号 (image and / or name) = one group */
+        crop: rs ? rs.crop : null,            /* HUB: 方形取景 */
+        image: rs ? rs.url : null,
+        colorImage: v.colorImage,
+        colorCrop: v.colorCrop || null,       /* HUB */
+        accImg: v.accImg || null,             // 配件图片（导入时保留）
+        A:S.settings.operator||'Jamie', B:S.order.factory, D:p.code,
+        E: v.colorCode,                       /* HUB: 色号名 is written even under a 色号 image */
+        F: v.size,
+        G: v.gRaw ? v.gRaw : (price ? (price+'元'+(setq?'\n套'+setq:'')) : ''),
+        H:keep('H'), I:keep('I'), J:keep('J'), K:keep('K'),
+        L: price===''?'':(isNaN(Number(price))?price:Number(price)),
+        M: descOf(p,v),
+        N:keep('N'), O:keep('O'), P:v.boxSize, Q:keep('Q'), R:keep('R'),
+        S: String(v.qty==null?'':v.qty).trim()===''?'':(isNaN(Number(v.qty))?v.qty:Number(v.qty)),
+        /* HUB: 交货日期 / SKU / 是否含真植物 from 订单信息, 产品材质 = the hub row's — the same on every row */
+        T: fmtDate(S.order.date), U:S.order.sku, V:keep('V'),
+        W:S.order.plant||'不含', X:keep('X'), Y:META.material||'',
+        Z:keep('Z'), AA:keep('AA'), AB:keep('AB'),
+        AC: ps.AC!==undefined && ps.AC!==null ? ps.AC : (S.order.taxRate||''),   /* HUB: empty 税率 → blank cell */
+        AD: ps.AD!==undefined && ps.AD!==null ? ps.AD : (S.order.freight||'含运费')
+      });
+    });
+  });
+  return out;
+}
+function renderPreview(){ /* HUB: Excel 预览 removed */ }
+/* HUB: 报价 → 下单. The rows of a new form are picked from 报价 in the hub's picker (images × lines).
+   从报价更新 re-syncs prices later. Nothing flows back to 报价 */
+let step1Rows = [];
+const s1Box = r => [r.l, r.w, r.h].every(x => String(x==null?'':x).trim()) ? r.l+'x'+r.w+'x'+r.h+'cm' : '';
+const s1Val = x => String(x==null?'':x).trim();
+/* 从报价更新: a labelled 报价 line (尺寸 / 规格) updates every row whose 尺寸 equals it: 单价 / 内盒尺寸 are overwritten
+   when 报价 has a value. Lines are never added (the form holds only what was picked); unlabelled lines are skipped */
+function syncFromStep1(){
+  if(!S.products.length || !step1Rows.length) return;
+  const key = s => String(s==null?'':s).trim().toLowerCase();
+  const before = S.products.map(p => [p, JSON.parse(JSON.stringify(p.variants))]);
+  const touched = new Set();
+  const put = (v, r) => {
+    const price = s1Val(r.price), box = s1Box(r);
+    let ch = false;
+    if(price && String(v.price==null?'':v.price).trim() !== price){ v.price = price; v.gRaw = ''; ch = true; }
+    if(box && (v.boxSize||'').trim() !== box){ v.boxSize = box; ch = true; }
+    if(ch) touched.add(v.id);
+  };
+  step1Rows.forEach(r=>{
+    const label = key(r.sku);
+    if(!label) return;
+    S.products.forEach(p => p.variants.forEach(v => { if(key(v.size) === label) put(v, r); }));
+  });
+  if(!touched.size) return toast('已与报价一致');
+  clearSel(); save(); render();
+  showToast('已从报价更新 '+touched.size+' 行', {label:'撤销', fn:()=>{
+    before.forEach(([p, vs]) => { p.variants = vs; });
+    clearSel(); save(); render();
+    toast('已撤销');
+  }}, 4000);
+}
+function renderAlert(){
+  const miss = validate();
+  $('alertBox').innerHTML = miss.length
+    ? ''                                    /* HUB: no 未填 list — the yellow fields mark what's missing */
+    : '<div class="alert alert-ok">全部必填项已完成，可以生成 Excel。</div>';
+}
+function render(){ renderSettings(); renderOrder(); renderProducts(); renderPreview(); renderAlert(); applySel(); }
+
+/* ============ 数据操作 ============ */
+function newVariant(p){
+  /* HUB: 交货日期 / SKU are order-wide; 下单数量 and the 图片 (with its position) start as the row above's */
+  const last = p && p.variants.length ? p.variants[p.variants.length-1] : null;
+  return {id:uid(),colorCode:'',colorImage:null,size:'',setQty:'',price:'',boxSize:'',
+    qty: last && last.qty != null ? last.qty : '',
+    img: last ? last.img || null : null, imgCrop: last && last.imgCrop ? Object.assign({}, last.imgCrop) : null,
+    accImg:null, colorNat:null, gRaw:'', pass:{}};
+}
+/* HUB: one 货号 card per form. Older drafts (several cards, the image on the card) and imported files are flattened:
+   every row keeps its image (a row's imgOverride, else its card's image) and position, in the original order.
+   crop0 = the position of the first card's image (the old 货号 #1 = the row's main image → meta.thumbCrop) */
+function flatten(products, crop0){
+  const out = {id:uid(), code:'', image:null, imgNat:null, crop:null, variants:[]};
+  products.forEach((p,pi)=>{
+    if(!out.code.trim() && String(p.code||'').trim()) out.code = String(p.code);
+    const vs = p.variants && p.variants.length ? p.variants : (p.image ? [newVariant(null)] : []);
+    vs.forEach(v=>{
+      const url = v.imgOverride || p.image;
+      if(url && !v.img){
+        const nat = v.imgOverride ? null : p.imgNat;
+        v.img = addImage({url, w: nat ? nat.w : 0, h: nat ? nat.h : 0});
+        v.imgCrop = v.imgOverride ? null : ((pi === 0 && crop0) ? Object.assign({}, crop0) : (p.crop || null));
+      }
+      delete v.imgOverride;
+      out.variants.push(v);
+    });
+  });
+  return [out];
+}
+const needsFlatten = () => S.products.length > 1 || S.products.some(p => p.image);
+
+
+/* ============ 行多选 / 复制粘贴 ============ */
+let sel = {pid:null, ids:new Set()};   // 选区始终限定在同一个货号内
+let selAnchor = null;                  // shift 连选的锚点
+let clip = null;                       // {pid, rows:[...]}
+
+function clearSel(){ sel = {pid:null, ids:new Set()}; selAnchor = null; applySel(); }
+function applySel(){
+  document.querySelectorAll('tr[data-vid]').forEach(tr=>
+    tr.classList.toggle('sel', sel.ids.has(tr.dataset.vid)));
+}
+function selectRows(p, ids){
+  sel = {pid:p.id, ids:new Set(ids)};
+  applySel();
+}
+function gutterClick(p, vid, e){
+  const ids = p.variants.map(v=>v.id);
+  if(sel.pid !== p.id){ sel = {pid:p.id, ids:new Set()}; selAnchor = null; }
+  if(e.shiftKey && selAnchor && ids.includes(selAnchor)){
+    const a = ids.indexOf(selAnchor), b = ids.indexOf(vid);
+    const [lo,hi] = a<b ? [a,b] : [b,a];
+    sel.ids = new Set(ids.slice(lo,hi+1));
+  } else if(e.ctrlKey || e.metaKey){
+    if(sel.ids.has(vid)) sel.ids.delete(vid); else sel.ids.add(vid);
+    selAnchor = vid;
+  } else {
+    sel.ids = new Set([vid]); selAnchor = vid;
+  }
+  sel.pid = p.id;
+  applySel();
+}
+function copyRows(){
+  const p = S.products.find(x=>x.id===sel.pid);
+  if(!p || !sel.ids.size) return;
+  const rows = p.variants.filter(v=>sel.ids.has(v.id));
+  clip = {pid:p.id, rows:JSON.parse(JSON.stringify(rows))};
+  toast('已复制 '+rows.length+' 行');
+}
+function pasteRows(){
+  if(!clip) return;
+  const p = S.products.find(x=>x.id===clip.pid);
+  if(!p) return toast('原货号已删除，无法粘贴');
+  let at = p.variants.length;
+  if(sel.pid===p.id && sel.ids.size){
+    let last = -1;
+    p.variants.forEach((v,i)=>{ if(sel.ids.has(v.id)) last = i; });
+    if(last >= 0) at = last+1;
+  }
+  const copies = clip.rows.map(r=>{
+    const c = JSON.parse(JSON.stringify(r)); c.id = uid(); return c;
+  });
+  const before = JSON.parse(JSON.stringify(p.variants));
+  p.variants.splice(at, 0, ...copies);
+  selAnchor = copies[copies.length-1].id;
+  save(); render(); selectRows(p, copies.map(c=>c.id));
+  showToast('已粘贴 '+copies.length+' 行', {label:'撤销', fn:()=>{
+    p.variants = before;
+    clearSel(); save(); render();
+    toast('已撤销粘贴');
+  }}, 3000);
+}
+/* 选中行整体上/下移动一格（同一货号内） */
+function moveSelected(dir){
+  const p = S.products.find(x=>x.id===sel.pid);
+  if(!p || !sel.ids.size) return;
+  const v = p.variants, n = v.length;
+  let moved = false;
+  if(dir < 0){
+    for(let i=1;i<n;i++){
+      if(sel.ids.has(v[i].id) && !sel.ids.has(v[i-1].id)){
+        const t=v[i-1]; v[i-1]=v[i]; v[i]=t; moved=true;
+      }
+    }
+  } else {
+    for(let i=n-2;i>=0;i--){
+      if(sel.ids.has(v[i].id) && !sel.ids.has(v[i+1].id)){
+        const t=v[i+1]; v[i+1]=v[i]; v[i]=t; moved=true;
+      }
+    }
+  }
+  if(!moved) return;                       // 已经到顶/到底
+  save(); render();
+  const first = document.querySelector('tr.sel');
+  if(first && first.scrollIntoView) first.scrollIntoView({block:'nearest'});
+}
+function deleteSelected(){
+  const p = S.products.find(x=>x.id===sel.pid);
+  if(!p || !sel.ids.size) return;
+  const keep = p.variants.filter(v=>!sel.ids.has(v.id));
+  if(!keep.length) return toast('至少保留一行');
+  const n = p.variants.length - keep.length;
+  p.variants = keep;
+  clearSel(); save(); render();
+  toast('已删除 '+n+' 行');
+}
+
+/* 框选：在行号列或空白处按住拖动 */
+let mq = null, mqWait = null;
+const MQ_THRESHOLD = 4;
+
+document.addEventListener('mousedown', e=>{
+  if(e.button !== 0) return;
+  const wrap = e.target.closest('.vwrap');
+  if(!wrap){ clearSel(); return; }
+  const card = wrap.closest('.prod');
+  const p = S.products[+card.dataset.pi];
+  if(!p) return;
+  if(e.target.closest('input,select,button,textarea,.imgbox,[data-rs]')) return;
+
+  const g = e.target.closest('td.gutter');
+  e.preventDefault();                       // 拖动时不选中文字
+  mqWait = {
+    p, wrap, x0:e.clientX, y0:e.clientY,
+    vid: g ? g.closest('tr').dataset.vid : null,
+    shift:e.shiftKey, ctrl:e.ctrlKey||e.metaKey,
+    base:(e.ctrlKey||e.metaKey) && sel.pid===p.id ? new Set(sel.ids) : new Set()
+  };
+});
+
+function startMarquee(w){
+  const el = document.createElement('div');
+  el.className = 'marquee';
+  w.wrap.appendChild(el);
+  mq = Object.assign({el, tbody:w.wrap.querySelector('tbody')}, w);
+  document.body.classList.add('marquee-on');
+}
+
+document.addEventListener('mousemove', e=>{
+  if(mqWait && !mq){
+    if(Math.abs(e.clientX-mqWait.x0) < MQ_THRESHOLD &&
+       Math.abs(e.clientY-mqWait.y0) < MQ_THRESHOLD) return;
+    startMarquee(mqWait);                   // 移动超过阈值 → 变成框选
+  }
+  if(!mq || !mq.tbody) return;
+  const wr  = mq.wrap.getBoundingClientRect();
+  const top = Math.min(mq.y0, e.clientY), bot = Math.max(mq.y0, e.clientY);
+  const lef = Math.min(mq.x0, e.clientX), rig = Math.max(mq.x0, e.clientX);
+  mq.el.style.left   = (lef - wr.left + mq.wrap.scrollLeft)+'px';
+  mq.el.style.top    = (top - wr.top)+'px';
+  mq.el.style.width  = (rig - lef)+'px';
+  mq.el.style.height = (bot - top)+'px';
+  const hit = new Set(mq.base);
+  mq.tbody.querySelectorAll('tr[data-vid]').forEach(tr=>{
+    const r = tr.getBoundingClientRect();
+    if(r.bottom > top && r.top < bot) hit.add(tr.dataset.vid);
+  });
+  selectRows(mq.p, hit);
+});
+
+document.addEventListener('mouseup', ()=>{
+  if(mq){
+    mq.el.remove();
+    document.body.classList.remove('marquee-on');
+    const ordered = mq.p.variants.map(v=>v.id).filter(id=>sel.ids.has(id));
+    selAnchor = ordered[ordered.length-1] || null;
+  } else if(mqWait){
+    if(mqWait.vid) gutterClick(mqWait.p, mqWait.vid,
+        {shiftKey:mqWait.shift, ctrlKey:mqWait.ctrl, metaKey:false});
+    else clearSel();                        // 空白处单击 → 取消选择
+  }
+  mq = null; mqWait = null;
+});
+
+/* 快捷键：输入框内不拦截 */
+function inField(){
+  const a = document.activeElement;
+  return !!a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName);
+}
+document.addEventListener('keydown', e=>{
+  const k = (e.key||'').toLowerCase();
+  if((e.ctrlKey||e.metaKey) && k==='c'){
+    if(inField() || !sel.ids.size) return;
+    e.preventDefault(); copyRows(); return;
+  }
+  if((e.ctrlKey||e.metaKey) && k==='v'){
+    if(inField()) return;
+    if(pasteTarget) return;          // 悬停在图片框上 → 交给 paste 事件判断
+    if(!clip) return;
+    e.preventDefault(); pasteRows(); return;
+  }
+  if((e.key==='Delete' || e.key==='Backspace') && !inField() && sel.ids.size){
+    e.preventDefault(); deleteSelected(); return;
+  }
+  if((e.key==='ArrowUp' || e.key==='ArrowDown') && !inField() && sel.ids.size){
+    e.preventDefault(); moveSelected(e.key==='ArrowUp' ? -1 : 1);
+  }
+  /* HUB: the pop-up's keys — Esc closes it */
+  if(e.key==='Escape'){ e.preventDefault(); embed.post('key', {key:'Escape'}); }
+});
+
+/* ============ HUB: 方形图片 — 按住拖动调整位置，Ctrl + 滚轮缩放（与总览表格的缩略图相同） ============ */
+/* the image slot behind an .imgbox (see rowSlot / colorSlot), or null while its size is unknown */
+function slotOf(box){
+  const p = S.products[+box.dataset.pi]; if(!p) return null;
+  const v = p.variants[+box.dataset.vi];
+  const s = box.dataset.act === 'rimg' ? rowSlot(v) : colorSlot(v);
+  return s && s.nat && s.nat.w ? s : null;
+}
+let pan = null, skipImgClick = false;       // pan: {box, s, size, x0, y0, c0, c, moved}
+document.addEventListener('pointerdown', e=>{
+  const box = e.target.closest('.imgbox.has');
+  if(!box || e.button!==0 || e.target.closest('.clear')) return;
+  const s = slotOf(box); if(!s) return;
+  if(wz) wheelEnd();                        // a zoom still waiting to be saved: the drag starts from it
+  const n = s.nat;
+  pan = {box, s, size:box.clientWidth, x0:e.clientX, y0:e.clientY, c0:CROP.cropOf(s.crop, n.w, n.h), c:null, moved:false};
+  box.setPointerCapture(e.pointerId);
+});
+document.addEventListener('pointermove', e=>{
+  const g = pan; if(!g) return;
+  const dx = e.clientX-g.x0, dy = e.clientY-g.y0;
+  if(!g.moved && Math.abs(dx)+Math.abs(dy) < 4) return;
+  g.moved = true; g.box.classList.add('panning');
+  const n = g.s.nat;
+  g.c = CROP.panCrop(Object.assign({}, g.c0), n.w, n.h, dx/g.size, dy/g.size);
+  g.box.querySelector('img').setAttribute('style', squareStyle(n, g.c, g.size));
+});
+['pointerup','pointercancel'].forEach(type => document.addEventListener(type, ()=>{
+  const g = pan; if(!g) return;
+  pan = null;
+  g.box.classList.remove('panning');
+  if(!g.moved) return;                      // a plain click: the click handler opens the file picker
+  skipImgClick = true; setTimeout(()=>{ skipImgClick = false; }, 0);
+  if(g.c){ g.s.set(roundCrop(g.c)); save(); }
+}));
+const roundCrop = c => ({x:Math.round(c.x*1e4)/1e4, y:Math.round(c.y*1e4)/1e4, s:Math.round(c.s*1e4)/1e4});
+let wz = null;                              // Ctrl + wheel: {box, s, c, timer}; saved once the wheel goes quiet
+document.addEventListener('wheel', e=>{
+  if(!e.ctrlKey && !e.metaKey) return;
+  const box = e.target.closest('.imgbox.has');
+  const s = box && slotOf(box);
+  if(!s) return;
+  e.preventDefault();                       // no browser zoom
+  if(pan) return;
+  if(wz && wz.box !== box) wheelEnd();
+  const n = s.nat, size = box.clientWidth, b = box.getBoundingClientRect();
+  if(!wz) wz = {box, s, c:CROP.cropOf(s.crop, n.w, n.h)};
+  const at = v => Math.min(1, Math.max(0, v));
+  CROP.zoomCrop(wz.c, n.w, n.h, CROP.wheelFactor(e),
+    at((e.clientX-b.left-box.clientLeft)/size), at((e.clientY-b.top-box.clientTop)/size));
+  box.querySelector('img').setAttribute('style', squareStyle(n, wz.c, size));
+  clearTimeout(wz.timer);
+  wz.timer = setTimeout(wheelEnd, 400);
+}, {passive:false});
+function wheelEnd(){
+  const z = wz; wz = null;
+  if(!z) return;
+  clearTimeout(z.timer);
+  z.s.set(roundCrop(z.c));
+  save();
+}
+
+/* ============ 图片输入 ============ */
+let pasteTarget = null;
+function pickImage(cb){
+  const inp = document.createElement('input');
+  inp.type='file'; inp.accept='image/*';
+  inp.onchange = () => { if(inp.files[0]) cb(inp.files[0]); };
+  inp.click();
+}
+/* HUB: a row's 图片 (this form only; the row's own images in the hub are untouched) */
+function setRowImg(pi,vi,file){
+  const seq = loadSeq, v = S.products[pi] && S.products[pi].variants[vi];
+  loadImageFile(file, d=>{
+    if(seq !== loadSeq || !v) return;   /* HUB: switched to another form meanwhile */
+    v.img = addImage(d);
+    v.imgCrop = CROP.centerCrop(d.w, d.h);   /* HUB: a new image starts as the centred square */
+    save(); render();
+  });
+}
+function setColorImg(pi,vi,file){
+  const seq = loadSeq, v = S.products[pi] && S.products[pi].variants[vi];
+  loadImageFile(file, d=>{
+    if(seq !== loadSeq || !v) return;   /* HUB */
+    v.colorImage = d.url; v.colorNat = {w:d.w, h:d.h};
+    v.colorCrop = CROP.centerCrop(d.w, d.h);   /* HUB */
+    save(); render();
+  });
+}
+
+document.addEventListener('paste', e=>{
+  const items = (e.clipboardData||{}).items||[];
+  if(pasteTarget){
+    for(const it of items){
+      if(it.type.indexOf('image')===0){
+        const f = it.getAsFile();
+        if(f){ e.preventDefault();
+          if(pasteTarget.kind==='r') setRowImg(pasteTarget.pi,pasteTarget.vi,f); else setColorImg(pasteTarget.pi,pasteTarget.vi,f);
+          toast('图片已粘贴'); }
+        return;
+      }
+    }
+  }
+  /* 剪贴板里没有图片 → 粘贴已复制的行 */
+  if(!inField() && clip){ e.preventDefault(); pasteRows(); }
+});
+document.addEventListener('mouseover', e=>{
+  const box = e.target.closest('[data-act="rimg"],[data-act="cimg"]');   /* HUB: row 图片 / 色号 */
+  pasteTarget = !box ? null : {kind: box.dataset.act==='rimg' ? 'r' : 'c', pi:+box.dataset.pi, vi:+box.dataset.vi};
+});
+document.addEventListener('dragover', e=>{
+  const box = e.target.closest('[data-act="rimg"],[data-act="cimg"]');
+  if(box){ e.preventDefault(); box.classList.add('over'); }
+  /* HUB: a file dropped next to a box must not replace this page (the pop-up would lose the form) */
+  else if(e.dataTransfer && [...(e.dataTransfer.types||[])].includes('Files')) e.preventDefault();
+});
+document.addEventListener('dragleave', e=>{
+  const box = e.target.closest('[data-act="rimg"],[data-act="cimg"]');
+  if(box) box.classList.remove('over');
+});
+document.addEventListener('drop', e=>{
+  const box = e.target.closest('[data-act="rimg"],[data-act="cimg"]');
+  if(!box){ if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) e.preventDefault(); return; }   /* HUB */
+  e.preventDefault(); box.classList.remove('over');
+  const f = (e.dataTransfer.files||[])[0];
+  if(!f || f.type.indexOf('image')!==0) return toast('请拖入图片文件');
+  if(box.dataset.act==='rimg') setRowImg(+box.dataset.pi,+box.dataset.vi,f);
+  else setColorImg(+box.dataset.pi,+box.dataset.vi,f);
+});
+
+/* ============ 事件委托 ============ */
+document.addEventListener('click', e=>{
+  if(e.target.closest('[data-rs]')) return;
+  const t = e.target.closest('[data-act]'); if(!t) return;
+  const act = t.dataset.act, pi = +t.dataset.pi, vi = +t.dataset.vi;
+  switch(act){
+    case 'cimgclr': e.stopPropagation(); { const v=S.products[pi].variants[vi]; v.colorImage=null; v.colorNat=null; v.colorCrop=null; } save(); render(); break;
+    case 'rimg': if(!skipImgClick) pickImage(f=>setRowImg(pi,vi,f)); break;   /* HUB: not after a drag */
+    case 'cimg': if(!skipImgClick) pickImage(f=>setColorImg(pi,vi,f)); break;
+    /* HUB: one 货号 card per form: no 删除 / 复制整个货号 */
+    case 'vadd': S.products[pi].variants.push(newVariant(S.products[pi])); save(); render(); break;
+    case 'vdup': {
+      const c = JSON.parse(JSON.stringify(S.products[pi].variants[vi]));
+      c.id = uid(); S.products[pi].variants.splice(vi+1,0,c); save(); render(); break;
+    }
+    case 'vdel':
+      if(S.products[pi].variants.length<=1) return toast('至少保留一行');
+      S.products[pi].variants.splice(vi,1); save(); render(); break;
+  }
+});
+
+document.addEventListener('input', e=>{
+  const el = e.target;
+  if(el.dataset.pf!==undefined && el.dataset.pi!==undefined){
+    S.products[+el.dataset.pi][el.dataset.pf] = el.value; save(); softRefresh(); return;
+  }
+  if(el.dataset.f!==undefined && el.dataset.vi!==undefined){
+    const v = S.products[+el.dataset.pi].variants[+el.dataset.vi];
+    v[el.dataset.f] = el.value;                  /* HUB: no 产品描述 input any more */
+    if(el.dataset.f==='price' || el.dataset.f==='setQty') v.gRaw = '';
+    save(); softRefresh(); return;
+  }
+});
+/* 轻量刷新：不重建 DOM，避免打断输入 */
+let refreshTimer=null;
+function softRefresh(){
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(()=>{
+    /* HUB: 产品描述 is hidden; only the 货号 input's missing mark and the row count need refreshing */
+    document.querySelectorAll('.prod').forEach((card,pi)=>{
+      const p = S.products[pi]; if(!p) return;
+      const ci = card.querySelector('.code-input');
+      if(ci) ci.classList.toggle('missing', !p.code.trim());
+      const sub = card.querySelector('.prod-head .sub');
+      if(sub) sub.textContent = p.variants.length+' 行';
+    });
+    renderPreview(); renderAlert(); renderOrder();
+  },260);
+}
+document.addEventListener('change', e=>{
+  const el = e.target;
+  if(el.dataset.pf!==undefined || el.dataset.f!==undefined){
+    if(el.dataset.f==='colorCode') remember('colorNames',el.value);
+    save();
+  }
+});
+
+/* HUB: 货号 drag-sorting removed (one card per form); the row 图片 is independent of the hub's main image */
+
+/* ============ 顶部字段 ============ */
+/* HUB: 运营 / 店铺 / SKU 前缀 inputs removed (hub ⚙ 设置 → 下单 and 类目) */
+/* HUB: 工厂 = a dropdown of the global list (hub 设置 → 工厂, in its order). Picking one fills its 税率;
+   '+ 添加「X」' adds a factory without 税率. The hub keeps the list: factory-used adds it at the end if new */
+function findFactory(name){
+  const k = api.factoryKey(name);
+  return k ? (S.settings.factories||[]).find(f => api.factoryKey(f.name) === k) : null;
+}
+/* HUB: a row with a 工厂 shows it in every form; a form saved with another 工厂 takes it and that factory's 税率 */
+function syncFactoryFromRow(){
+  const rf = String(META.factory || '').trim();
+  if(!rf || rf === S.order.factory) return;
+  const f = findFactory(rf);
+  S.order.factory = rf;
+  S.order.taxRate = f ? (f.taxRate || '') : '';
+}
+function pickFactory(name){
+  const f = findFactory(name);
+  S.order.factory = name;
+  S.order.taxRate = f ? (f.taxRate || '') : '';
+  /* HUB: the 工厂 is the hub row's too (synced both ways): it also sets the row's 类目 (unless the SKU decides it) and 材质 */
+  META.factory = name;
+  if(f && f.material && (S.settings.materials||[]).includes(f.material)) META.material = f.material;
+  if(f && f.category && !META.sku) META.category = f.category;
+  tellMeta();
+  embed.post('factory-used', {name, add: true});
+  save(); renderOrder(); softRefresh();
+}
+combo.bind($('ofFactory').parentNode, () => {
+  const names = (S.settings.factories||[]).map(f => f.name);
+  if(S.order.factory && !findFactory(S.order.factory)) names.push(S.order.factory);   // e.g. an old form's "Huazhi"
+  return {
+    value: S.order.factory, empty: null, options: names.map(n => ({value: n})),
+    onPick: pickFactory,
+    onCreate: name => { S.settings.factories.push({name, taxRate: ''}); },
+    onReject: t => toast('没有工厂「'+t+'」，选择「+ 添加」新增')
+  };
+});
+/* HUB: 品名 / 材质 are the hub row's: edited here, they update the hub (meta-changed); not stored in step2.json.
+   品名 is optional: '' clears it */
+function tellMeta(){ embed.post('meta-changed', {name: META.name || '', material: META.material || '',
+                                                  factory: META.factory || '', category: META.category || ''}); }   /* HUB: + 工厂 / 类目 */
+$('ofPname').addEventListener('change', e=>{
+  const v = e.target.value.trim();
+  e.target.value = v;
+  if(v === (META.name||'')) return;
+  META.name = v; tellMeta(); softRefresh();
+});
+$('ofMat').addEventListener('change', e=>{ META.material = e.target.value; tellMeta(); softRefresh(); });
+$('ofPlant').addEventListener('change', e=>{ S.order.plant = e.target.value; save(); });
+$('ofDate').addEventListener('input',e=>{ S.order.date=e.target.value; save(); softRefresh(); });
+$('ofSku').addEventListener('change',e=>{ S.order.sku=e.target.value; save(); softRefresh(); });
+$('syncBtn').addEventListener('click', syncFromStep1);
+$('ofTax').addEventListener('input',e=>{ S.order.taxRate=e.target.value; save(); softRefresh(); });
+$('ofFreight').addEventListener('input',e=>{ S.order.freight=e.target.value; save(); softRefresh(); });
+$('clearBtn').addEventListener('click',()=>{
+  if(!confirm('清空这个下单计划？第一行的图片会保留。')) return;   /* HUB */
+  const keep = S.settings, mem = S.memory, images = S.images;
+  const v0 = S.products[0] && S.products[0].variants[0];
+  S = JSON.parse(JSON.stringify(DEFAULTS));
+  S.settings = keep; S.memory = mem; S.images = images;
+  /* HUB: one blank row, keeping the first row's image and its position */
+  const p = {id:uid(), code:'', image:null, imgNat:null, crop:null, variants:[]};
+  const v = newVariant(p);
+  if(v0){ v.img = v0.img || null; v.imgCrop = v0.imgCrop ? Object.assign({}, v0.imgCrop) : null; }
+  p.variants.push(v);
+  S.products = [p];
+  applyDefaults();
+  syncFactoryFromRow();                     /* HUB */
+  save(); render(); toast('已清空');
+});
+
+
+/* ============ 导入已有 Excel ============ */
+const PASS_COLS = {8:'H',9:'I',10:'J',11:'K',14:'N',15:'O',17:'Q',18:'R',
+                   22:'V',24:'X',26:'Z',27:'AA',28:'AB',29:'AC',30:'AD'};
+
+function cellText(cell){
+  let v = cell ? cell.value : null;
+  if(v===null || v===undefined) return '';
+  if(typeof v === 'object'){
+    if(v instanceof Date) return v;
+    if(v.richText) return v.richText.map(t=>t.text).join('');
+    if(v.text !== undefined) return v.text;
+    if(v.result !== undefined) return v.result;
+    if(v.hyperlink !== undefined) return v.text || '';
+    return '';
+  }
+  return v;
+}
+function parseImportDate(v){
+  if(v instanceof Date && !isNaN(v)) {
+    return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+  }
+  const m = String(v||'').match(/(\d{4})\s*[.\-\/年]\s*(\d{1,2})\s*[.\-\/月]\s*(\d{1,2})/);
+  return m ? m[1]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[3]).padStart(2,'0') : '';
+}
+/* 27元套一 / 13.3元\n套1 → {price:'27', setQty:'一'} ；原文保留以便原样写回 */
+function parseG(g){
+  const s = String(g==null?'':g);
+  const pm = s.match(/([\d]+(?:\.\d+)?)\s*元/) || s.match(/^\s*([\d]+(?:\.\d+)?)/);
+  const qm = s.match(/套\s*([0-9０-９一二三四五六七八九十两]+)/);
+  return {price: pm?pm[1]:'', setQty: qm?qm[1]:'', raw:s};
+}
+const normCode = t => String(t==null?'':t).replace(/\s+/g,' ').trim();
+
+function bytesToDataURL(bytes, ext){
+  let bin = '', CH = 0x8000;
+  for(let i=0;i<bytes.length;i+=CH)
+    bin += String.fromCharCode.apply(null, bytes.subarray ? bytes.subarray(i,i+CH) : bytes.slice(i,i+CH));
+  return 'data:image/'+(ext||'png')+';base64,'+btoa(bin);
+}
+const loadAsync = url => new Promise(res => loadImageData(url, res));
+
+/* 每张图片按“垂直中心落在哪一行”归位 —— 手工排版的图片经常跨行 */
+function mapImages(ws, wb, lastRow){
+  const def = (ws.properties && ws.properties.defaultRowHeight) || 14.4;
+  const top = [0,0];
+  for(let r=1;r<=lastRow+3;r++) top[r+1] = top[r] + ((ws.getRow(r).height || def) * 12700);
+  const rowAt = emu => {
+    for(let r=1;r<=lastRow+2;r++) if(emu >= top[r] && emu < top[r+1]) return r;
+    return -1;
+  };
+  const out = [];
+  (ws.getImages()||[]).forEach(im => {
+    const tl = im.range && im.range.tl, br = im.range && im.range.br;
+    if(!tl) return;
+    const t = top[tl.nativeRow+1] + (tl.nativeRowOff||0);
+    const b = br ? top[br.nativeRow+1] + (br.nativeRowOff||0)
+                 : t + ((im.range.ext ? im.range.ext.height : 0) * 9525);
+    const media = wb.getImage(Number(im.imageId));
+    if(!media || !media.buffer) return;
+    out.push({row: rowAt((t+b)/2), col: tl.nativeCol,
+              url: bytesToDataURL(media.buffer, media.extension)});
+  });
+  return out;
+}
+
+async function importWorkbook(file){
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await file.arrayBuffer());
+  const ws = wb.worksheets[0];
+  if(!ws) throw new Error('文件里没有工作表');
+
+  const hd = c => String(cellText(ws.getCell(4,c))||'').replace(/\s+/g,'');
+  if(!(hd(1).indexOf('运营')===0 && hd(4).indexOf('产品货号')===0 && hd(13).indexOf('产品描述')===0))
+    throw new Error('第 4 行表头不匹配，这似乎不是下单计划模板');
+
+  /* 数据行：到注释行为止，跳过空行 */
+  const dataRows = [];
+  const lim = Math.max(ws.rowCount, 5);
+  for(let r=5;r<=lim;r++){
+    const a = String(cellText(ws.getCell(r,1))||'');
+    if(a.indexOf('注：')===0 || a.indexOf('开发同事')===0) break;
+    const any = [1,2,4,5,6,7,13,16,19,20,21].some(c=>String(cellText(ws.getCell(r,c))||'').trim()!=='');
+    if(any) dataRows.push(r);
+  }
+  if(!dataRows.length) throw new Error('没有读到任何数据行');
+
+  /* 图片归位 */
+  const imgs = mapImages(ws, wb, lim);
+  const byRow = {};
+  imgs.forEach(im => {
+    if(im.row < 5) return;
+    (byRow[im.row] = byRow[im.row] || {})[im.col] = im.url;
+  });
+  const cache = new Map();
+  async function crop(url){
+    if(!url) return null;
+    if(cache.has(url)) return cache.get(url);
+    const out = await loadAsync(url);
+    cache.set(url, out);
+    return out;
+  }
+
+  /* 第一行决定订单级的 税率 / 运费 */
+  const r0 = dataRows[0];
+  const tax0 = cellText(ws.getCell(r0,29)), fre0 = cellText(ws.getCell(r0,30));
+
+  const products = [];
+  let cur = null, curKey = null, skippedImgs = 0, nImg = 0;
+  imgs.forEach(im => { if(im.row < 5 || [2,4,7].indexOf(im.col) < 0) skippedImgs++; });
+
+  for(const r of dataRows){
+    const rawCode = cellText(ws.getCell(r,4));
+    const key = normCode(rawCode);
+    const pics = byRow[r] || {};
+    const prodImg = await crop(pics[2]);
+    if(!cur || key !== curKey){                       // 连续同货号才合并
+      /* HUB: 品名 / 材质 stay the hub row's; 是否含真植物 is read once for the order (below) */
+      cur = {id:uid(), code:String(rawCode==null?'':rawCode),
+             imgNat: prodImg ? {w:prodImg.w, h:prodImg.h} : null,
+             frame:  prodImg ? {w:prodImg.w, h:prodImg.h} : null,
+             image: prodImg ? prodImg.url : null, variants:[]};
+      products.push(cur); curKey = key;
+    }
+    const g = parseG(cellText(ws.getCell(r,7)));
+    const pass = {};
+    Object.keys(PASS_COLS).forEach(ci=>{
+      const val = cellText(ws.getCell(r,+ci));
+      if(val !== '' && val !== null && val !== undefined) pass[PASS_COLS[ci]] = val;
+    });
+    if(String(pass.AC) === String(tax0)) delete pass.AC;   // 与订单级一致 → 交给顶部字段
+    if(String(pass.AD) === String(fre0)) delete pass.AD;
+
+    const colorImg = await crop(pics[4]);
+    const accImg   = await crop(pics[7]);
+    if(pics[2]) nImg++; if(pics[4]) nImg++; if(pics[7]) nImg++;
+
+    cur.variants.push({
+      id:uid(),
+      colorCode: String(cellText(ws.getCell(r,5))||''),
+      colorImage: colorImg ? colorImg.url : null,
+      colorNat: colorImg ? {w:colorImg.w, h:colorImg.h} : null,
+      size: String(cellText(ws.getCell(r,6))||''),
+      setQty: g.setQty, price: g.price, gRaw: g.raw,
+      boxSize: String(cellText(ws.getCell(r,16))||''),
+      qty: String(cellText(ws.getCell(r,19))||''),
+      /* HUB: 交货日期 / SKU come from the first row (order-wide); 产品描述 is rebuilt at 生成 */
+      imgOverride: (prodImg && prodImg.url !== cur.image) ? prodImg.url : null,
+      accImg: accImg ? accImg.url : null, pass: pass
+    });
+  }
+
+  /* HUB: 订单名称 removed (file name = 品名); 交货日期 / SKU / 是否含真植物 = the first data row's */
+  const oper = String(cellText(ws.getCell(r0,1))||'').trim();
+  const factory = String(cellText(ws.getCell(r0,2))||'');
+  const w0 = String(cellText(ws.getCell(r0,23))||'不含');
+
+  return {
+    products,
+    order: {
+      factory,
+      date: parseImportDate(cellText(ws.getCell(r0,20))),
+      sku:  String(cellText(ws.getCell(r0,21))||''),
+      plant: w0.indexOf('含')===0 && w0.indexOf('不含')!==0 ? '含' : '不含',
+      taxRate: tax0===''?'':String(tax0),   /* HUB: a blank 税率 stays blank */
+      freight: fre0===''?'含运费':String(fre0)
+    },
+    operator: oper,
+    store: String(cellText(ws.getCell(3,1))||''),
+    stats: {rows: dataRows.length, groups: products.length, images: nImg, skipped: skippedImgs}
+  };
+}
+
+/* HUB: 从 Excel 导入 (the hub's 下单计划 list) creates a new form and sends the file with load-row. Every 货号 of the file
+   goes into the one card (the first 产品货号 is kept); the row's main image in the hub is never changed */
+async function runImport(file){
+  const seq = loadSeq, form = FORM;
+  try{
+    const res = await importWorkbook(file);
+    if(seq !== loadSeq) return;               /* HUB: switched to another form meanwhile */
+    if(!res.products.length) throw new Error('没有读到任何货号');
+    const codes = [...new Set(res.products.map(p => normCode(p.code)).filter(Boolean))];
+    S.images = {};
+    S.products = flatten(res.products, null);
+    S.order    = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.order)), res.order);
+    /* HUB: 运营 / 店铺 stay the global settings; an unknown SKU 前缀 only shows in this form's dropdowns */
+    applyDefaults();
+    /* HUB: an unknown 工厂 joins the global list with the file's 税率 (a known one keeps its default) */
+    if(S.order.factory.trim() && !findFactory(S.order.factory)){
+      const name = S.order.factory.trim();
+      S.settings.factories.push({name, taxRate: S.order.taxRate || ''});
+      embed.post('factory-used', {name, taxRate: S.order.taxRate || '', add: true, imported: true});
+    }
+    /* HUB: the row's 工厂 wins; a row without one takes the file's (类目 / 材质 unchanged) */
+    if(String(META.factory || '').trim()) syncFactoryFromRow();
+    else if(S.order.factory.trim()){ META.factory = S.order.factory.trim(); tellMeta(); }
+    S.products.forEach(p=>p.variants.forEach(v=>remember('colorNames', v.colorCode)));
+    clearSel(); save(); render(); ensureNat();
+    const st = res.stats;
+    toast('已导入 '+st.rows+' 行 / '+st.images+' 张图片'
+          + (codes.length > 1 ? '；'+codes.length+' 个货号已合并为「'+codes[0]+'」' : '')
+          + (st.skipped ? '（跳过 '+st.skipped+' 张位置异常的图片）' : ''));
+  }catch(err){
+    console.error(err);
+    if(seq !== loadSeq) return;
+    toast('导入失败：'+(err && err.message ? err.message : err));
+    embed.post('import-failed', {form});    /* HUB: the hub drops the empty draft it started */
+  }
+}
+
+/* ============ Excel 生成 ============ */
+/* 按取景框把原图裁出来；exact=true 用精确像素区域（主图），否则按比例取最大区域 */
+function cropForExport(url, frame, exact){
+  return new Promise(res=>{
+    const img = new Image();
+    img.onload = () => {
+      const nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height;
+      if(!nw || !nh) return res(null);          // 读不到尺寸就跳过，避免生成 1x1 图片
+      const ar = (frame && frame.w>0 && frame.h>0) ? frame.w/frame.h : nw/nh;
+      let sw, sh;
+      if(exact && frame){ sw = Math.min(nw, frame.w); sh = Math.min(nh, frame.h); }
+      else if(nw/nh > ar){ sh = nh; sw = Math.round(nh*ar); }   // 原图偏宽 → 取满高度
+      else               { sw = nw; sh = Math.round(nw/ar); }   // 原图偏高 → 取满宽度
+      sw = Math.max(1, Math.min(nw, Math.round(sw)));
+      sh = Math.max(1, Math.min(nh, Math.round(sh)));
+      const outW = Math.max(1, Math.min(sw, 900));
+      const outH = Math.max(1, Math.round(outW*sh/sw));
+      const cv = document.createElement('canvas'); cv.width=outW; cv.height=outH;
+      const cx = cv.getContext('2d');
+      cx.fillStyle='#fff'; cx.fillRect(0,0,outW,outH);
+      cx.drawImage(img, 0,0,sw,sh, 0,0,outW,outH);   // 左上角对齐
+      res({url:cv.toDataURL('image/jpeg',0.85), w:sw, h:sh});
+    };
+    img.onerror = ()=>res(null);
+    img.src = url;
+  });
+}
+/* HUB: the square exactly as shown in the form (crop null = centred); white where zoomed out past the image */
+function squareForExport(url, crop){
+  return new Promise(res=>{
+    const img = new Image();
+    img.onload = () => {
+      const nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height;
+      if(!nw || !nh) return res(null);
+      res({url: CROP.renderSquare(img, CROP.cropOf(crop, nw, nh), EXPORT_PX, 0.85), w:EXPORT_PX, h:EXPORT_PX});
+    };
+    img.onerror = ()=>res(null);
+    img.src = url;
+  });
+}
+/* 等比放进 boxW x boxH */
+function fitBox(w, h, boxW, boxH){
+  const k = Math.min(boxW/w, boxH/h);
+  return {w: Math.max(1,Math.round(w*k)), h: Math.max(1,Math.round(h*k))};
+}
+const b64 = d => d.split(',')[1];
+function applyStyle(cell, sp, topThick){
+  cell.font = {name:sp.f, size:sp.s, bold:!!sp.b};
+  if(sp.c) cell.font.color = {argb:sp.c};
+  if(sp.bg) cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:sp.bg}};
+  cell.alignment = {vertical:'middle', wrapText:!!sp.w};
+  if(sp.h) cell.alignment.horizontal = sp.h;
+  if(sp.nf) cell.numFmt = sp.nf;
+  const thin = {style:'thin', color:{argb:'FF000000'}};
+  cell.border = {left:thin, right:thin, bottom:thin,
+    top: topThick ? {style:'medium', color:{argb:'FF000000'}} : thin};
+}
+async function generate(){
+  const rows = buildRows();
+  if(!rows.length) return toast('还没有可导出的内容');
+  const miss = validate();
+  if(miss.length && !confirm('还有 '+miss.length+' 项必填未完成。仍然生成？')) return;   /* HUB: 生成 */
+  const row = ROW, form = FORM, seq = loadSeq, delivery = latestDate();   /* HUB */
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = S.settings.operator||'Jamie';
+  const ws = wb.addWorksheet(SHEET_NAME, {
+    views:[{state:'frozen', ySplit:4}],
+    properties:{defaultColWidth:9, defaultRowHeight:14.4}
+  });
+
+  Object.keys(COL_W).forEach(i=>{ ws.getColumn(+i).width = COL_W[i]; });
+
+  /* 标题区 */
+  ws.mergeCells('A1:V2');
+  const t = ws.getCell('A1'); t.value = '新品下单表格模板';
+  t.font = {name:'Calibri',size:16,bold:true};
+  t.alignment = {horizontal:'center',vertical:'middle'};
+  ws.getRow(2).height = 23.1;
+
+  ws.mergeCells('A3:V3');
+  const st = ws.getCell('A3'); st.value = S.settings.store||'Arborus-US（店铺+国家）';
+  st.font = {name:'微软雅黑',size:16};
+  st.alignment = {horizontal:'center',vertical:'middle'};
+  ws.mergeCells('Y3:AA3');
+  ws.getRow(3).height = 22.5;
+
+  /* 表头 */
+  const hr = ws.getRow(4);
+  HEADERS.forEach((h,i)=>{
+    const c = hr.getCell(i+1); c.value = h;
+    applyStyle(c, HDR_STYLE[i], false);
+  });
+  hr.height = 171;
+
+  /* 数据行 */
+  const imgs = [], rowPlan = [];
+  rows.forEach((r,i)=>{
+    const rn = 5+i, row = ws.getRow(rn);
+    const put = (col,val)=>{
+      const c = row.getCell(col);
+      if(val!=='' && val!=null) c.value = val;
+      applyStyle(c, DAT_STYLE[col-1], r.groupStart);
+    };
+    for(let c=1;c<=30;c++) put(c,'');
+    put(1,r.A); put(2,r.B); put(4,r.D); put(5,r.E); put(6,r.F); put(7,r.G);
+    put(8,r.H); put(9,r.I); put(10,r.J); put(11,r.K);
+    put(12,r.L); put(13,r.M); put(14,r.N); put(15,r.O); put(16,r.P);
+    put(17,r.Q); put(18,r.R); put(19,r.S); put(20,r.T); put(21,r.U); put(22,r.V);
+    put(23,r.W); put(24,r.X); put(25,r.Y);
+    put(26,r.Z); put(27,r.AA); put(28,r.AB); put(29,r.AC); put(30,r.AD);
+    if(r.colorImage && r.E) row.getCell(5).alignment = {vertical:'bottom', horizontal:'center', wrapText:true};   /* HUB: 色号名 under its image */
+    rowPlan.push({rn, r});
+  });
+
+  /* 先把所有图片按取景框裁好，再决定每行行高 */
+  for(const pl of rowPlan){
+    const r = pl.r;
+    let maxH = 0;
+    const main = r.image ? await squareForExport(r.image, r.crop) : null;   /* HUB: square */
+    if(main){
+      const d = fitBox(main.w, main.h, IMG_BOX, IMG_BOX);
+      imgs.push({data:main.url, col:2, colPx:COL_C_PX, w:d.w, h:d.h, rn:pl.rn});
+      maxH = Math.max(maxH, d.h);
+    }
+    const sw = r.colorImage ? await squareForExport(r.colorImage, r.colorCrop) : null;   /* HUB: square */
+    let swNeed = 0;                          /* HUB: image + 色号名: the image at the top, the name at the bottom */
+    if(sw){
+      const top = !!r.E;
+      const d = fitBox(sw.w, sw.h, SWATCH_BOX_W, IMG_BOX);
+      imgs.push({data:sw.url, col:4, colPx:COL_E_PX, w:d.w, h:d.h, rn:pl.rn, top});
+      maxH = Math.max(maxH, d.h);
+      if(top) swNeed = d.h + ROW_PAD + E_TEXT_PX;
+    }
+    const ac = r.accImg ? await cropForExport(r.accImg, null, false) : null;   /* HUB: whole image */
+    if(ac){
+      const d = fitBox(ac.w, ac.h, ACC_BOX_W, IMG_BOX);
+      imgs.push({data:ac.url, col:7, colPx:COL_H_PX, w:d.w, h:d.h, rn:pl.rn});
+      maxH = Math.max(maxH, d.h);
+    }
+    pl.px = Math.max(MIN_ROW_PX, maxH + ROW_PAD, swNeed);
+    ws.getRow(pl.rn).height = pl.px*72/96;
+  }
+  const rowPx = {};
+  rowPlan.forEach(pl => { rowPx[pl.rn] = pl.px; });
+
+  /* 图片：居中于单元格，oneCellAnchor（可自由缩放） */
+  imgs.forEach(im=>{
+    const id = wb.addImage({base64:b64(im.data), extension:'jpeg'});
+    ws.addImage(id,{
+      tl:{ nativeCol: im.col, nativeColOff: Math.round((im.colPx-im.w)/2*EMU),
+           nativeRow: im.rn-1, nativeRowOff: Math.round((im.top ? IMG_PAD : ((rowPx[im.rn]||MIN_ROW_PX)-im.h)/2)*EMU) },
+      ext:{width:im.w, height:im.h},
+      editAs:'oneCell'
+    });
+  });
+
+  /* 注释区 */
+  const last = 4+rows.length;
+  const n1 = last+2;
+  ws.mergeCells('A'+n1+':V'+n1);
+  const c1 = ws.getCell('A'+n1); c1.value = NOTE1;
+  c1.font = {name:'Calibri',size:12};
+  c1.alignment = {horizontal:'left',vertical:'middle'};
+  ws.getRow(n1).height = 32.1;
+
+  const n2 = n1+2;
+  ws.mergeCells('A'+n2+':J'+n2);
+  const c2 = ws.getCell('A'+n2); c2.value = NOTE2;
+  c2.font = {name:'Calibri',size:14};
+  c2.alignment = {horizontal:'left',vertical:'top',wrapText:true};
+  ws.getRow(n2).height = 121;
+
+  /* 下载 */
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const fname = fileName();   /* HUB: 日期_工厂[_品名]_下单计划_运营.xlsx */
+  const folder = FOLDER || META.orderFolder;
+  if(!folder) throw new Error('产品文件夹未知，请从产品总览打开');
+
+  /* HUB: straight into 下单计划/<product folder> (no dialog); the draft has served its purpose */
+  const saved = await api.output('下单计划', fname, blob, folder);
+  if(seq === loadSeq && ROW === row){
+    clearTimeout(saveTimer); saveTimer = null; pendingPath = null;   // nothing may write the draft again
+    FORM = null;
+  }
+  await api.del('rows/'+row+'/orders/'+form+'.json').catch(()=>{});
+  embed.post('step2-generated', {row, file: saved, deliveryDate: delivery});   /* HUB: back to the list, the file shows */
+}
+$('genBtn').addEventListener('click',()=>{
+  const b = $('genBtn'); b.disabled=true; b.textContent='生成中…';
+  generate().catch(err=>{ console.error(err); if(!err.offline) toast('生成失败：'+err.message); })
+    .finally(()=>{ b.disabled=false; b.textContent='生成 Excel'; });
+});
+
+/* ============ HUB: 启动 — the hub keeps this page loaded and sends load-row {id} for each product ============ */
+let SETTINGS = null;                        // S.settings from the hub's settings.json
+function applySettings(st){
+  SETTINGS = {operator: st.step2.operator || 'Jamie', store: st.step2.store || 'Arborus-US（店铺+国家）',
+              skuPrefixes: st.categories.map(c => c+'_'), materials: (st.materials||[]).slice(),   /* HUB: 材质 list */
+              factories: JSON.parse(JSON.stringify(st.factories||[]))};   /* HUB: 工厂 list */
+  S.settings = Object.assign({}, SETTINGS, {skuPrefixes: SETTINGS.skuPrefixes.slice(),
+                                            factories: SETTINGS.factories.map(f => Object.assign({}, f))});
+}
+/* the row's defaults; they are shown but not written until the first edit */
+function applyDefaults(){
+  /* HUB: 品名 / 材质 are read from the hub row (META), so nothing product-level is copied in */
+  if(!S.products.length) S.products.push({id:uid(), code:'', image:null, imgNat:null, crop:null, variants:[]});
+  if(!S.order.sku && META.category) S.order.sku = META.category+'_';
+  if(!S.order.date){
+    const d = new Date(); d.setMonth(d.getMonth()+2);
+    S.order.date = d.toISOString().slice(0,10);
+  }
+  if(S.order.plant !== '含') S.order.plant = '不含';
+  S.products.forEach(p=>{ if(!p.variants.length) p.variants.push(newVariant(p)); });
+}
+/* HUB: drafts saved before 交货日期 / SKU / 是否含真植物 became order-wide: fold the per-row values into the order */
+function foldOldDraft(saved){
+  const o = saved.order || {}, vs = [];
+  S.products.forEach(p => p.variants.forEach(v => vs.push(v)));
+  if(!o.date){ let d = ''; vs.forEach(v => { if((v.date||'') > d) d = v.date; }); S.order.date = d; }
+  if(!o.sku){ const v = vs.find(v => (v.sku||'').trim()); S.order.sku = v ? v.sku : ''; }
+  if(!o.plant) S.order.plant = (S.products[0] && S.products[0].plant) || '不含';
+  delete S.order.orderName; delete S.order.qty;   // no longer used
+}
+let loadSeq = 0;
+/* HUB: load-row {id, form, folder, file?}: the row's draft (rows/<id>/orders/draft.json); folder = its 下单计划 subfolder */
+async function loadRow(id, form, folder, file){
+  const seq = ++loadSeq;
+  if(wz) wheelEnd();
+  pan = null;
+  await saveNow();                          // the previous form's pending edits
+  loading = true;
+  document.body.classList.add('loading');
+  ROW = id; FORM = form || null; FOLDER = folder || ''; embed.row = id;
+  let st, meta, saved, mem, s1;
+  try{
+    [st, meta, saved, mem, s1] = await Promise.all([api.settings(), api.get('rows/'+id+'/meta.json'),
+      FORM ? api.get('rows/'+id+'/orders/'+FORM+'.json') : null, api.get('rows/'+id+'/order-memory.json'),
+      api.get('rows/'+id+'/step1.json')]);
+  }catch(e){ return; }                      // offline: api.onError has shown the toast
+  if(seq !== loadSeq) return;               // another form was asked for meanwhile
+  META = meta || {};
+  S = JSON.parse(JSON.stringify(DEFAULTS));
+  if(saved && Array.isArray(saved.products)){
+    S.products = saved.products;
+    S.order  = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.order)),  saved.order||{});
+    S.images = Object.assign({}, saved.images||{});
+    S.hub    = Object.assign({}, saved.hub||{});
+    foldOldDraft(saved);                    /* HUB */
+    /* HUB: a draft copied from the old step2.json: its 货号 #1 image was the row's main image (position = thumbCrop) */
+    if(S.hub.legacy || needsFlatten()) S.products = flatten(S.products, S.hub.legacy ? META.thumbCrop : null);
+    delete S.hub.legacy; delete S.hub.prefillDone;
+  }
+  S.memory = Object.assign(JSON.parse(JSON.stringify(DEFAULTS.memory)), mem || (saved && saved.memory) || {});
+  memSent = mem ? JSON.stringify(S.memory) : '';
+  applySettings(st);
+  applyDefaults();
+  syncFactoryFromRow();                     /* HUB: in memory only, written with the first edit */
+  step1Rows = (s1 && Array.isArray(s1.rows) ? s1.rows : [])
+    .filter(r => ['sku','price','l','w','h'].some(k => String(r[k]==null?'':r[k]).trim()));
+  sel = {pid:null, ids:new Set()}; selAnchor = null; clip = null; mq = null; mqWait = null;
+  $('savedAt').textContent = '';
+  loading = false;
+  document.body.classList.remove('loading');
+  render();
+  ensureNat();
+  window.scrollTo(0, 0);
+  embed.post('loaded', {form: FORM});
+  if(file) runImport(file);                 /* HUB: 从 Excel 导入 */
+}
+embed.on('load-row', d => loadRow(d.id, d.form, d.folder, d.file));
+embed.on('flush', () => {
+  if(wz) wheelEnd();
+  if(document.activeElement === $('ofPname')) $('ofPname').blur();   /* HUB: commit a 品名 being typed (change → hub) */
+  saveNow();
+});
+/* HUB: the hub went back to the list: save, then forget the form (a replaced draft must not be written again) */
+embed.on('unload', () => {
+  if(wz) wheelEnd();
+  if(document.activeElement && document.activeElement.blur) document.activeElement.blur();   // commits a field being typed
+  ++loadSeq;                                // a load still in progress is dropped
+  saveNow();                                // takes the pending path and S now
+  FORM = null;
+});
+embed.on('settings-changed', async () => {
+  try{ applySettings(await api.settings()); }catch(e){ return; }
+  if(ROW && !loading) render();
+});
+if(embed.row) loadRow(embed.row, new URLSearchParams(location.search).get('form') || 'draft');   // opened directly as tools/step2.html?row=<id>
+embed.post('ready');
+})();
+</script>
+</body>
+</html>

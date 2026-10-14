@@ -17,7 +17,7 @@ function newId() {
 
 function newRow(category) {
   return {
-    id: newId(), name: '', category: category || '', material: '', sku: '', parentAsin: '',
+    id: newId(), name: '', factory: '', category: category || '', material: '', sku: '', parentAsin: '',
     status: STATUSES[0], liveDate: '', step1Confirmed: false, deliveryDate: '',
     thumb: null, createdAt: Date.now()
   };
@@ -52,19 +52,31 @@ function filterRows(rows, ui, always) {
     if (ui.status && r.status !== ui.status) return false;
     if (ui.cat && r.category !== ui.cat) return false;
     if (ui.mat && r.material !== ui.mat) return false;
-    if (q && ![r.name, r.sku, r.parentAsin].join(' ').toLowerCase().includes(q)) return false;
+    if (q && ![r.name, r.factory, r.sku, r.parentAsin].join(' ').toLowerCase().includes(q)) return false;
     return true;
   });
 }
 
-/* newest first, so a row never moves after it is created or edited */
-function sortRows(list) {
+/* furthest step reached: 0 待报价 · 1 报价✓ · 2 已下单 · 3 已上架 (status wins over a skipped 报价) */
+function stage(r) {
+  return r.status === '已上架' ? 3 : statusRank(r.status) >= 1 ? 2 : r.step1Confirmed ? 1 : 0;
+}
+
+/* sort key: stage, and within a stage a row that skipped 报价 first (e.g. 已下单 without 报价 before 已下单 with it) */
+function progress(r) { return stage(r) * 2 + (r.step1Confirmed ? 1 : 0); }
+
+/* least progress first; then 上架时间 earliest first (blank last); then newest first.
+   progressOf lets the hub hold a row's progress while its 报价 panel is open */
+function sortRows(list, progressOf) {
+  const st = progressOf || progress;
   return list.slice().sort((a, b) =>
+    st(a) - st(b) ||
+    (!a.liveDate - !b.liveDate) || (a.liveDate < b.liveDate ? -1 : a.liveDate > b.liveDate ? 1 : 0) ||
     (b.createdAt || 0) - (a.createdAt || 0) || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
 }
 
 /* → [{cat, label, rows}]: 未分类 first, then the settings order, then unknown categories A–Z */
-function groupRows(list, categories) {
+function groupRows(list, categories, progressOf) {
   const by = new Map();
   list.forEach(r => {
     const c = r.category || '';
@@ -74,8 +86,8 @@ function groupRows(list, categories) {
   const extra = [...by.keys()].filter(c => c && !categories.includes(c)).sort();
   return [''].concat(categories, extra)
     .filter(c => by.has(c))
-    .map(c => ({ cat: c, label: c || '未分类', rows: sortRows(by.get(c)) }));
+    .map(c => ({ cat: c, label: c || '未分类', rows: sortRows(by.get(c), progressOf) }));
 }
 
-window.ROWS = { STATUSES, STEPS, statusRank, newRow, normalize, journey, filterRows, sortRows, groupRows };
+window.ROWS = { STATUSES, STEPS, statusRank, stage, progress, newRow, normalize, journey, filterRows, sortRows, groupRows };
 })();

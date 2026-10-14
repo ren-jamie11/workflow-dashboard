@@ -6,6 +6,8 @@
      empty      label of the '' option shown first ('—', '全部'); null = no empty option
      onPick(v)  called when the value changes
      onReject(text)  optional: typed text that matches nothing (the input reverts)
+     onCreate(text)  optional: typed text with no exact match (ignoring case and spaces) gets a last option
+                     '+ 添加「text」'; picking it (click / Enter, not Tab) calls onCreate(text), then onPick(text)
    }
    Keys: typing filters (text or pinyin, e.g. shi → 实木) · ↑ ↓ move · Enter / Tab pick the highlighted option · Esc reverts.
    Leaving the box keeps an exact (or the only) match; anything else reverts. */
@@ -15,6 +17,7 @@
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = s => String(s == null ? '' : s).trim().toLowerCase();
 const labelOf = o => o.label != null ? o.label : o.value;
+const key = s => norm(s).replace(/\s+/g, '');
 /* the typed text is part of the label, or pinyin for it (shi / shimu / sm → 实木; shared/pinyin.js, optional) */
 const matches = (label, q) => norm(label).includes(q) || (!!window.pinyin && window.pinyin.match(label, q));
 
@@ -56,13 +59,17 @@ function close() {
 function draw() {
   const c = cur, q = c.typed ? norm(c.input.value) : '';
   let list = c.cfg.options.slice();
-  if (q) list = list.filter(o => matches(labelOf(o), q));
-  else if (c.cfg.empty != null) list.unshift({ value: '', label: c.cfg.empty, none: true });
+  if (q) {
+    list = list.filter(o => matches(labelOf(o), q));
+    const text = c.input.value.trim();
+    if (c.cfg.onCreate && !c.cfg.options.some(o => key(labelOf(o)) === key(text)))
+      list.push({ value: text, label: '+ 添加「' + text + '」', create: true });
+  } else if (c.cfg.empty != null) list.unshift({ value: '', label: c.cfg.empty, none: true });
   c.list = list;
   c.hi = Math.min(c.hi, list.length - 1);
   c.el.innerHTML = list.length
     ? list.map((o, i) =>
-        '<div class="cb-opt' + (i === c.hi ? ' hi' : '') + (o.value === (c.cfg.value || '') ? ' sel' : '') + (o.none ? ' none' : '') +
+        '<div class="cb-opt' + (i === c.hi ? ' hi' : '') + (o.value === (c.cfg.value || '') ? ' sel' : '') + (o.none ? ' none' : '') + (o.create ? ' add' : '') +
         '" role="option" data-i="' + i + '">' + esc(labelOf(o)) +
         (o.note != null ? '<span class="n">' + esc(o.note) + '</span>' : '') + '</div>').join('')
     : '<div class="cb-empty">无匹配项</div>';
@@ -88,6 +95,7 @@ function pick(o, keepFocus) {
   const c = cur;
   if (!c || !o) return;
   close();
+  if (o.create) c.cfg.onCreate(o.value);
   set(c, o.value);
   if (!keepFocus) c.input.blur();
 }
@@ -105,8 +113,9 @@ function commit() {
   if (!c.typed) return revert(c);
   const q = norm(c.input.value);
   if (!q) return c.cfg.empty != null ? set(c, '') : revert(c);
-  const exact = c.cfg.options.find(o => norm(labelOf(o)) === q);
-  const m = exact || (c.list.length === 1 ? c.list[0] : null);
+  const exact = c.cfg.options.find(o => key(labelOf(o)) === key(q));
+  const real = c.list.filter(o => !o.create);         // '+ 添加' only on an explicit pick
+  const m = exact || (real.length === 1 ? real[0] : null);
   if (m) return set(c, m.value);
   const text = c.input.value.trim();
   revert(c);
@@ -146,8 +155,8 @@ function bind(root, getConfig) {
         if (c && c.hi >= 0 && c.list[c.hi]) pick(c.list[c.hi]);
         else { commit(); t.blur(); }
         break;
-      case 'Tab':                                      // pick what was typed, then let the focus move on
-        if (c && c.typed && c.hi >= 0 && c.list[c.hi]) pick(c.list[c.hi], true);
+      case 'Tab':                                      // pick what was typed, then let the focus move on ('+ 添加' needs Enter / click)
+        if (c && c.typed && c.hi >= 0 && c.list[c.hi] && !c.list[c.hi].create) pick(c.list[c.hi], true);
         break;
       case 'Escape':
         e.preventDefault(); e.stopPropagation();

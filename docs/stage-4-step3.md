@@ -1,7 +1,11 @@
 # Stage 4: 上架 (Step 3 inventory) per row
 
-Context: [README.md](README.md). This assumes Stages 1–3 work (workspace page with iframe, `embed.js`,
-`sku.js`).
+Context: [README.md](README.md). This assumes Stages 1–3 work (`embed.js`, `sku.js`, the 下单 pop-up).
+
+> **Changed in Stage 3 (2026-09-29):** there is no `workspace.html`. The working assumption (A2, not final) is that
+> 上架 opens in a pop-up over the hub like 下单 — see [stage-3-step2.md](stage-3-step2.md): one tool page loaded
+> once and switched with `load-row`, ← → between products, × / Esc / backdrop close. Read "workspace.html" below as
+> "the hub (`index.html`)", and "refresh the sidebar" as "re-render the table". Confirm this when scoping Stage 4.
 
 ## Goal
 The **上架** step shows the Step 3 inventory dashboard filtered to that row's SKUs, with a seasonality
@@ -38,7 +42,7 @@ tab (target days and legacy backup import).
 
 ## workspace.html: `sales-updated`
 For every row with a SKU range:
-- If any MSKU in the range `hasSales` and `statusRank(status) < 已上架` → set status to 已上架.
+- If any MSKU in the range `hasSales` and `statusRank(status) < 已上架` → set status to 已上架. Do it through the hub's `moveRow(r, change)` so the row re-sorts to the 已上架 tier and flashes.
 - If `parentAsin` is empty → set it to the first non-empty `parent` among its MSKUs.
 - Save each changed `meta.json`, refresh the sidebar, and show the toast `已更新 N 个产品的状态`.
 - `liveDate` isn't touched (B4: always typed by hand).

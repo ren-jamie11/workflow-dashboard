@@ -49,7 +49,7 @@ select.cell-in:disabled{background:#f8fafc;color:var(--dark);opacity:1;cursor:no
 .sub-asin{display:block;font-size:.7rem;color:#94a3b8;margin:.15rem 0 0 .15rem;font-variant-numeric:tabular-nums}
 
 /* image */
-.thumb{width:96px;height:96px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;position:relative;
+.thumb{width:110px;height:110px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;position:relative;
   display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
 .thumb span{font-size:.75rem;color:#94a3b8}
 .thumb:hover,.thumb.over,.thumb:focus-visible{border-color:var(--primary);background:#eef2ff;outline:none}
@@ -63,7 +63,7 @@ select.cell-in:disabled{background:#f8fafc;color:var(--dark);opacity:1;cursor:no
   background:rgba(15,23,42,.72);color:#fff;font-size:.7rem;line-height:1;cursor:pointer;opacity:0;padding:0}
 .thumb:hover .clear{opacity:1}
 
-/* draft row: not saved until it has an image and 品名 */
+/* draft row: not saved until it has an image and 类目 */
 tr.row.draft td{background:#fcfcfd}
 tr.row.draft td:first-child{box-shadow:inset 3px 0 0 #cbd5e1}
 .draft-tag{display:block;font-size:.7rem;color:var(--warn-text);margin:.15rem 0 0 .15rem}
@@ -104,6 +104,8 @@ tr.row.draft .step,tr.row.draft .step:hover{color:#cbd5e1;border-color:#f1f5f9;b
 tr.row{scroll-margin-top:40px}
 tr.row.open td{background:#f8faff}
 tr.row.open td:first-child{box-shadow:inset 3px 0 0 var(--primary)}
+@keyframes rowMoved{from{background:#e0e7ff}to{background:transparent}}
+tr.row.moved td{animation:rowMoved 1.4s ease-out}
 tr.row td{cursor:pointer}
 tr.xp-spacer td{padding:0;border:0}
 .xp-gap{height:0;background:#f8faff;transition:height .22s ease}
@@ -118,6 +120,12 @@ tr.xp-spacer td{padding:0;border:0}
 .set-sec + .set-sec{margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid #f1f5f9}
 .set-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem}
 .set-sec .form-label .note{font-weight:400;color:#94a3b8;margin-left:.35rem}
+/* 设置 → 工厂: one line per factory (name · 类目 · 材质 · 税率 · ×); this order is used everywhere */
+.fac-head,.fac-line{display:grid;grid-template-columns:1fr 84px 92px 116px 32px;gap:.4rem;align-items:center}
+.fac-head{font-size:.75rem;color:var(--muted);font-weight:600;margin-bottom:.3rem}
+.fac-line + .fac-line{margin-top:.35rem}
+.fac-line .form-control{padding:.4rem .6rem;font-size:.9rem}
+#facAddRow{grid-template-columns:1fr 84px 92px 116px auto;margin-top:.8rem}
 #liveOffset{max-width:140px}
 
 /* image viewer */
@@ -125,8 +133,6 @@ tr.xp-spacer td{padding:0;border:0}
 .iv{background:#fff;border-radius:var(--radius);box-shadow:0 20px 40px rgba(15,23,42,.3);width:100%;height:100%;max-width:1700px;display:flex;overflow:hidden}
 .iv.over{box-shadow:0 0 0 3px var(--primary),0 20px 40px rgba(15,23,42,.3)}
 .iv-stage{flex:1;min-width:0;position:relative;background:#fff}
-.iv-img{position:absolute;inset:2rem 5.5rem;width:calc(100% - 11rem);height:calc(100% - 4rem);object-fit:contain;display:block;user-select:none;-webkit-user-drag:none}
-.iv-img.soft{filter:blur(1px);opacity:.85}
 .iv-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border:1px solid var(--line);border-radius:8px;background:#fff;
   color:var(--dark);font-size:1.6rem;line-height:1;cursor:pointer;box-shadow:0 2px 6px rgba(15,23,42,.08);font-family:inherit}
 .iv-nav:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
@@ -144,8 +150,13 @@ tr.xp-spacer td{padding:0;border:0}
 .iv-tile{position:relative;aspect-ratio:1/1;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:#fff;padding:0}
 .iv-tile img{width:100%;height:100%;object-fit:cover;display:block}
 .iv-tile.on{border:2px solid var(--primary)}
+.iv-tile.over{box-shadow:0 0 0 3px var(--primary)}
+.iv-tile.main.on:hover::after{content:'更换';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(15,23,42,.35);color:#fff;font-size:.78rem;font-weight:600}
+/* a tile image at its square position (tileStyle): percentages of the tile */
+.iv-tile img.pos,.pk-tile img.pos{position:absolute;max-width:none;object-fit:fill}
 .iv-tile .tag{position:absolute;left:3px;bottom:3px;font-size:.62rem;line-height:1.4;background:rgba(15,23,42,.72);color:#fff;border-radius:3px;padding:0 .3rem}
-.iv-tile .del{position:absolute;top:3px;right:3px;width:18px;height:18px;border:none;border-radius:4px;background:rgba(15,23,42,.72);
+.iv-tile .del{position:absolute;z-index:1;top:3px;right:3px;width:18px;height:18px;border:none;border-radius:4px;background:rgba(15,23,42,.72);
   color:#fff;font-size:.7rem;line-height:1;cursor:pointer;opacity:0;padding:0}
 .iv-tile:hover .del{opacity:1}
 .iv-tile.add{border:1px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;font-size:1.5rem;font-family:inherit;display:flex;align-items:center;justify-content:center}
@@ -156,6 +167,94 @@ tr.xp-spacer td{padding:0;border:0}
   box-shadow:0 2px 10px rgba(15,23,42,.08);cursor:grab;touch-action:none;user-select:none}
 .iv-frame.dragging{cursor:grabbing}
 .iv-frame img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-user-drag:none}
+
+/* 下单 pop-up (Step 2): a compact header over the tool; ‹ (top left) goes back a view, × / Esc / backdrop close */
+.s2{background:#f1f5f9;border-radius:var(--radius);box-shadow:0 20px 40px rgba(15,23,42,.3);width:100%;height:100%;max-width:1700px;
+  display:flex;flex-direction:column;overflow:hidden;position:relative}
+.s2-head{display:flex;align-items:center;gap:.8rem;padding:.6rem .8rem .6rem .8rem;background:#fff;border-bottom:1px solid var(--line);flex:none}
+.s2-thumb{width:40px;height:40px;border-radius:6px;border:1px solid var(--line);object-fit:cover;display:block;flex:none;background:#f8fafc}
+.s2-name{display:flex;flex-direction:column;min-width:0;flex:1}
+.s2-title{font-weight:600;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s2-title .step-tag{font-size:.72rem;font-weight:500;color:var(--muted);margin-right:.45rem}
+.s2-meta{font-size:.76rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s2-warn{font-size:.72rem;font-weight:500;color:var(--warn-text);background:var(--warn-bg);border:1px solid #fcd34d;border-radius:999px;padding:.1rem .55rem;white-space:nowrap;flex:none}
+.s2-btn{width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--dark);font-size:1.25rem;line-height:1;
+  cursor:pointer;font-family:inherit;flex:none}
+.s2-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+.s2-btn:disabled{opacity:.35;cursor:default}
+.s2-btn.close{margin-left:.35rem;font-size:1.15rem}
+#s2Frame{flex:1;min-height:0;width:100%;border:0;display:block;background:#f1f5f9}
+/* the row's 下单计划 list and the picker for a new one (drawn by the hub; the form itself is the tool page) */
+/* 保存草稿？ asked when ‹ leaves an unconfirmed 新下单计划 */
+.s2-ask{position:absolute;inset:0;background:rgba(15,23,42,.35);display:flex;align-items:center;justify-content:center;z-index:5}
+.s2-ask-box{background:#fff;border-radius:var(--radius);box-shadow:0 20px 40px rgba(15,23,42,.3);padding:1.3rem 1.5rem 1.1rem;width:min(400px,92%)}
+.s2-ask-box h3{margin:0 0 .4rem;font-size:1rem}
+.s2-ask-box p{margin:0 0 1.1rem;font-size:.85rem;color:var(--muted)}
+.s2-ask-acts{display:flex;gap:.6rem;justify-content:flex-end}
+.s2-ask-acts .btn-danger{background:#dc2626;color:#fff}
+.s2-ask-acts .btn-danger:hover{background:#b91c1c}
+.s2-pane{flex:1;min-height:0;overflow-y:auto;padding:1.25rem 1.5rem 2rem}
+.s2-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.2rem 1.5rem 1.4rem;max-width:1100px;margin:0 auto}
+.s2-card.over{box-shadow:0 0 0 3px var(--primary),var(--shadow)}
+.s2-card-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding-bottom:.9rem;margin-bottom:1rem;border-bottom:1px solid var(--line)}
+.s2-card-head h2{font-size:1rem;margin:0}
+.s2-card-head .acts{display:flex;gap:.5rem}
+/* the files, as in Explorer: icon + wrapped name; the corner tick = 已提交 */
+.of-grid{display:flex;flex-wrap:wrap;gap:.5rem}
+.of-tile{width:132px;display:flex;flex-direction:column;align-items:center;gap:.45rem;padding:.7rem .45rem .6rem;border:1px solid transparent;
+  border-radius:8px;cursor:pointer;user-select:none}
+.of-tile:hover{background:#eef2ff;border-color:#c7d2fe}
+.of-icon{position:relative;width:48px;height:56px;flex:none}
+.of-icon svg{width:100%;height:100%;display:block}
+.of-name{font-size:.76rem;line-height:1.35;text-align:center;word-break:break-all;color:var(--dark);
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.of-tile.draft .of-name{color:var(--primary);font-weight:600}
+.of-tick{position:absolute;top:-6px;right:-10px;width:20px;height:20px;border-radius:50%;border:1.5px solid #cbd5e1;background:#fff;
+  color:transparent;font-size:.7rem;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}
+.of-tick:hover{border-color:#16a34a;color:#86efac}
+.of-tick.on{background:#16a34a;border-color:#16a34a;color:#fff}
+.of-del{position:absolute;top:-6px;left:-10px;width:20px;height:20px;border-radius:50%;border:1px solid var(--line);background:#fff;color:#64748b;
+  font-size:.8rem;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}
+.of-del:hover{color:#dc2626;border-color:#fca5a5}
+.of-tile.flash{animation:of-flash 2.4s ease-out}
+@keyframes of-flash{0%,35%{background:#e0e7ff;border-color:var(--primary)}100%{background:transparent;border-color:transparent}}
+.pk-sec + .pk-sec{margin-top:1.4rem}
+.pk-label{font-size:.88rem;font-weight:600;margin-bottom:.65rem}
+.pk-label .note{font-weight:400;color:var(--muted);margin-left:.5rem;font-size:.78rem}
+.pk-grid{display:flex;flex-wrap:wrap;gap:.75rem}
+.pk-tile{position:relative;width:128px;height:128px;border:2px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;background:#fff;padding:0;flex:none}
+.pk-tile img{width:100%;height:100%;object-fit:cover;display:block}
+.pk-tile:hover{border-color:#a5b4fc}
+.pk-tile[data-pk="img"]{cursor:grab}
+.pk-tile .tag{position:absolute;left:4px;bottom:4px;font-size:.66rem;line-height:1.4;background:rgba(15,23,42,.72);color:#fff;border-radius:3px;padding:0 .3rem}
+/* duplicating an image (double-click + hold + drag): the source dims, the target is outlined, a small copy follows the cursor */
+.pk-tile.pk-src{filter:brightness(.7)}
+.pk-tile.pk-target{border-color:#20c997;box-shadow:0 0 0 3px rgba(32,201,151,.25)}
+.pk-ghost{position:fixed;width:64px;height:64px;object-fit:cover;border-radius:8px;pointer-events:none;z-index:1000;
+  transform:translate(-50%,-50%);opacity:.85;box-shadow:0 4px 14px rgba(15,23,42,.3)}
+body.pk-dragging,body.pk-dragging *{cursor:grabbing !important;user-select:none}
+.pk-tile.add{border:2px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;font-size:1.8rem;font-family:inherit}
+.pk-tile.add:hover{border-color:var(--primary);color:var(--primary);background:#eef2ff}
+/* a 色号 slot: the image tile (optional) + its name */
+.pk-slot{position:relative;display:flex;flex-direction:column;gap:.4rem;width:128px;flex:none}
+.pk-slot .pk-name{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:6px;padding:.3rem .45rem;font:inherit;font-size:.8rem}
+.pk-slot .pk-name:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(79,70,229,.15)}
+.pk-tile.empty{border-style:dashed;background:#f8fafc;color:#94a3b8;font-size:.76rem;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2rem}
+.pk-tile.empty .ph{font-size:1.4rem;line-height:1}
+.pk-tile.empty:hover{color:var(--primary);background:#eef2ff}
+.pk-slot .del{position:absolute;top:-7px;left:-7px;width:20px;height:20px;border-radius:50%;border:1px solid var(--line);background:#fff;color:#64748b;
+  font-size:.8rem;line-height:1;cursor:pointer;padding:0;z-index:1;display:flex;align-items:center;justify-content:center}
+.pk-slot .del:hover{color:#dc2626;border-color:#fca5a5}
+table.pk{width:100%;border-collapse:collapse;font-size:.88rem}
+table.pk th{background:#f8fafc;color:var(--muted);font-weight:600;font-size:.78rem;text-align:left;padding:.5rem .6rem;border-bottom:2px solid var(--line);white-space:nowrap}
+table.pk td{padding:.5rem .6rem;border-bottom:1px solid #f1f5f9;font-variant-numeric:tabular-nums}
+table.pk tbody tr{cursor:pointer}
+table.pk tbody tr:hover td{background:#fafbff}
+table.pk tr.off td{color:#94a3b8}
+table.pk input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--primary);vertical-align:middle}
+table.pk .none{color:#cbd5e1}
+.pk-foot{display:flex;align-items:center;gap:.75rem;margin-top:1.4rem;padding-top:1rem;border-top:1px solid var(--line)}
+.pk-foot .hint{margin:0 auto 0 0;font-size:.82rem}
 </style>
 </head>
 <body>
@@ -175,7 +274,7 @@ tr.xp-spacer td{padding:0;border:0}
     <div class="filters">
       <div class="fgroup">
         <label class="form-label" for="search">搜索</label>
-        <input type="text" id="search" class="form-control" placeholder="品名 / SKU / 父ASIN">
+        <input type="text" id="search" class="form-control" placeholder="品名 / 工厂 / SKU / 父ASIN">
       </div>
       <div class="fgroup">
         <span class="form-label">状态</span>
@@ -198,10 +297,10 @@ tr.xp-spacer td{padding:0;border:0}
   <div class="card table-card">
     <table class="hub">
       <colgroup>
-        <col style="width:112px"><col><col style="width:104px"><col style="width:96px"><col style="width:170px">
-        <col style="width:112px"><col style="width:132px"><col style="width:236px"><col style="width:44px">
+        <!-- 图片 · 工厂 类目 材质 SKU 状态 上架时间 (share the rest evenly) · 流程 · × -->
+        <col style="width:142px"><col><col><col><col><col><col><col style="width:250px"><col style="width:48px">
       </colgroup>
-      <thead id="thead"><tr><th>图片</th><th>品名</th><th>类目</th><th>材质</th><th>SKU</th><th>状态</th><th>上架时间</th><th>流程</th><th></th></tr></thead>
+      <thead id="thead"><tr><th>图片</th><th>工厂</th><th>类目</th><th>材质</th><th>SKU</th><th>状态</th><th>上架时间</th><th>流程</th><th></th></tr></thead>
       <tbody id="tbody"></tbody>
     </table>
     <div id="emptyBox" class="empty-box hidden"></div>
@@ -229,8 +328,29 @@ tr.xp-spacer td{padding:0;border:0}
     <div class="tabs">
       <button type="button" class="tab active" data-tab="general">通用</button>
       <button type="button" class="tab" data-tab="quote">报价</button>
-      <button type="button" class="tab" disabled title="后续阶段">下单</button>
+      <button type="button" class="tab" data-tab="order">下单</button>
+      <button type="button" class="tab" data-tab="factory">工厂</button>
       <button type="button" class="tab" disabled title="后续阶段">上架</button>
+    </div>
+    <div class="modal-body hidden" data-body="order">
+      <div class="set-grid">
+        <div><label class="form-label" for="s2Operator">运营</label><input type="text" id="s2Operator" class="form-control" data-p2="operator" placeholder="Jamie"></div>
+        <div><label class="form-label" for="s2Store">店铺 + 国家</label><input type="text" id="s2Store" class="form-control" data-p2="store" placeholder="Arborus-US（店铺+国家）"></div>
+      </div>
+      <div class="hint" style="margin-top:1rem">写入下单计划 Excel（运营列、店铺行和文件名），所有产品通用。SKU 前缀 = 类目（在「通用」中管理）。</div>
+    </div>
+    <div class="modal-body hidden" data-body="factory">
+      <div class="fac-head"><span>工厂</span><span>类目</span><span>材质</span><span>默认税率</span><span></span></div>
+      <div id="facList"></div>
+      <div class="fac-line" id="facAddRow">
+        <input type="text" id="facNew" class="form-control" maxlength="30" placeholder="新增工厂">
+        <select id="facNewCat" class="form-control"></select>
+        <select id="facNewMat" class="form-control"></select>
+        <input type="text" id="facNewTax" class="form-control" list="dlFacTax" placeholder="税率（可空）">
+        <button type="button" class="btn btn-ghost btn-sm" id="facAdd">添加</button>
+      </div>
+      <datalist id="dlFacTax"><option value="专票1%"><option value="专票6%"><option value="专票13%"></datalist>
+      <div class="hint" style="margin-top:1rem">在表格或下单计划中选择工厂时，自动填入对应的类目（SKU 前缀已定时不变）、材质和税率；均可留空。改名时使用该工厂的产品随之更新；删除不影响已有产品和下单计划。</div>
     </div>
     <div class="modal-body hidden" data-body="quote">
       <div class="set-grid">
@@ -279,8 +399,7 @@ tr.xp-spacer td{padding:0;border:0}
 <div class="iv-back hidden" id="ivBack">
   <div class="iv" id="iv" role="dialog" aria-modal="true" aria-labelledby="ivTitle">
     <div class="iv-stage" id="ivStage">
-      <img class="iv-img" id="ivImg" alt="">
-      <div class="iv-frame hidden" id="ivFrame" title="按住拖动调整位置，Ctrl+滚轮缩放"><img id="ivFrameImg" alt="" draggable="false"></div>
+      <div class="iv-frame" id="ivFrame" title="按住拖动调整位置，Ctrl+滚轮缩放"><img id="ivFrameImg" alt="" draggable="false"></div>
       <button type="button" class="iv-nav prev" id="ivPrev" title="上一张">‹</button>
       <button type="button" class="iv-nav next" id="ivNext" title="下一张">›</button>
     </div>
@@ -291,12 +410,82 @@ tr.xp-spacer td{padding:0;border:0}
       <div class="iv-count" id="ivCount"></div>
       <div class="iv-grid" id="ivGrid"></div>
       <div class="iv-actions" id="ivActions">
-        <button type="button" class="btn btn-ghost btn-sm" id="ivReplace" title="用新图片替换主图">替换主图</button>
-        <button type="button" class="btn btn-ghost btn-sm" id="ivReset" title="恢复为居中、铺满方框">重置位置</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="ivMakeMain" title="与主图交换位置，表格缩略图随之更新">设为主图</button>
       </div>
-      <div class="hint" id="ivFrameHint">主图方框 = 表格缩略图：按住拖动调整位置，Ctrl + 滚轮缩放（可缩小到显示整张图），自动保存。</div>
-      <div class="hint" id="ivHint">粘贴或拖入图片即可添加，每个产品最多 6 张。</div>
+      <div class="hint" id="ivHint"></div>
     </div>
+  </div>
+</div>
+
+<!-- 下单计划 (Step 2): one tool page, loaded once and reused for every product -->
+<div class="iv-back hidden" id="s2Back">
+  <div class="s2" role="dialog" aria-modal="true" aria-labelledby="s2Title">
+    <div class="s2-head">
+      <button type="button" class="s2-btn" id="s2ToList">‹</button>
+      <img class="s2-thumb" id="s2Thumb" alt="">
+      <div class="s2-name">
+        <div class="s2-title" id="s2Title"></div>
+        <div class="s2-meta" id="s2Meta"></div>
+      </div>
+      <span class="s2-warn hidden" id="s2Warn" title="报价还没有保存；仍可先填写下单计划">报价未完成</span>
+      <button type="button" class="s2-btn close" id="s2Close" title="关闭（Esc）">×</button>
+    </div>
+    <div class="s2-ask hidden" id="s2Ask">
+      <div class="s2-ask-box" role="alertdialog" aria-modal="true" aria-labelledby="s2AskTitle">
+        <h3 id="s2AskTitle">保存为草稿？</h3>
+        <p>新下单计划还没有确认。保存后可在下单计划列表中从「草稿」继续编辑。</p>
+        <div class="s2-ask-acts">
+          <button type="button" class="btn btn-ghost btn-sm" id="s2AskStay">取消</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="s2AskDrop">不保存</button>
+          <button type="button" class="btn btn-primary btn-sm" id="s2AskSave">保存草稿</button>
+        </div>
+      </div>
+    </div>
+    <div class="s2-ask hidden" id="s2Del">
+      <div class="s2-ask-box" role="alertdialog" aria-modal="true" aria-labelledby="s2DelTitle">
+        <h3 id="s2DelTitle">删除草稿？</h3>
+        <p>删除后无法恢复。Excel 文件不受影响。</p>
+        <div class="s2-ask-acts">
+          <button type="button" class="btn btn-ghost btn-sm" id="s2DelCancel">取消</button>
+          <button type="button" class="btn btn-danger btn-sm" id="s2DelOk">删除</button>
+        </div>
+      </div>
+    </div>
+    <!-- the row's 下单计划 files (下单计划/<product folder>/*.xlsx) and its draft -->
+    <div class="s2-pane hidden" id="s2List">
+      <div class="s2-card">
+        <div class="s2-card-head">
+          <h2>下单计划</h2>
+          <div class="acts">
+            <button type="button" class="btn btn-ghost btn-sm" id="olFolder" title="在文件管理器中打开这个产品的下单计划文件夹">打开文件夹</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="olImport" title="用已有的下单计划 Excel 填写一份新草稿">从 Excel 导入</button>
+            <button type="button" class="btn btn-primary btn-sm" id="olNew">+ 新下单计划</button>
+            <input type="file" id="olFile" accept=".xlsx" class="hidden">
+          </div>
+        </div>
+        <div id="olList"></div>
+      </div>
+    </div>
+    <!-- a new 下单计划: images × 报价 lines -->
+    <div class="s2-pane hidden" id="s2Pick">
+      <div class="s2-card" id="pkCard">
+        <div class="s2-card-head"><h2>新下单计划</h2></div>
+        <div class="pk-sec">
+          <div class="pk-label">选择产品色号<span class="note">每个色号 = 图片和/或色号名，各生成一组行（图片列统一为主图） · 点击 + 添加空色号（最多 9 个） · 双击按住图片拖到另一个色号可复制 · 可粘贴或拖入图片（加入产品图片）</span></div>
+          <div class="pk-grid" id="pkGrid"></div>
+        </div>
+        <div class="pk-sec">
+          <div class="pk-label">选择报价行<span class="note">每个选中的色号下各生成一行</span></div>
+          <div id="pkLines"></div>
+        </div>
+        <div class="pk-foot">
+          <span class="hint" id="pkSum"></span>
+          <button type="button" class="btn btn-ghost btn-sm" id="pkCancel">取消</button>
+          <button type="button" class="btn btn-primary btn-sm" id="pkOk">确认</button>
+        </div>
+      </div>
+    </div>
+    <iframe id="s2Frame" class="hidden" title="下单计划"></iframe>
   </div>
 </div>
 
@@ -309,6 +498,8 @@ tr.xp-spacer td{padding:0;border:0}
 <script src="shared/pinyin.js"></script>
 <script src="shared/combo.js"></script>
 <script src="shared/embed.js"></script>
+<script src="shared/crop.js"></script>
+<script src="shared/pricing.js"></script>
 <script>
 (function(){
 'use strict';
@@ -317,17 +508,19 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const IMG_STORE_MAX = 1400;       // same as Step 2: longest side kept for the full image
 const THUMB_SIZE = 320;           // meta.thumb is a THUMB_SIZE square, cropped by meta.thumbCrop
-const IMG_LIMIT = 6;              // images per row: the main one + 5 more (viewer only)
+const IMG_LIMIT = 9;              // images per row: the main one + 8 more
 
 let settings = null;
 let rows = [];
 const ui = { q: '', status: '', cat: '', mat: '' };   // '' = no filter
 const justAdded = new Set();      // new rows stay visible whatever the filters, until reload
-const drafts = new Set();         // new rows that aren't saved yet: they need an image and 品名
-const draftImg = new Map();       // draft id → full image, written to step2.json once the draft is saved
+const drafts = new Set();         // new rows that aren't saved yet: they need an image and 类目
+const draftImg = new Map();       // draft id → full image, written to images.json once the draft is saved
 const collapsedCats = new Set();  // collapsed category groups ('' = 未分类); this session only
 const showCat = c => collapsedCats.delete(c || '');   // an edited / new row must not vanish into a collapsed group
 const imgCount = r => r.imgCount != null ? r.imgCount : (r.thumb ? 1 : 0);
+/* how a product is named in messages and headers: its 品名 (set in 下单计划), else 类目 · 工厂 */
+const rowLabel = r => r.name || [r.category, r.factory].filter(Boolean).join(' · ') || '未命名';
 
 /* ============ toast ============ */
 let toastTimer = null;
@@ -358,15 +551,15 @@ window.addEventListener('pagehide', () => {
     if (r) api.saveRowBeacon(r);
   });
 });
-/* a draft is written for the first time once it has both an image and 品名 */
+/* a draft is written for the first time once it has both an image and 类目 */
 function commitDraft(r){
-  if (!r.name.trim() || !draftImg.has(r.id)) return;
+  if (!r.category || !draftImg.has(r.id)) return;
   const full = draftImg.get(r.id);
   drafts.delete(r.id);
   draftImg.delete(r.id);
   api.saveRow(r)
-    .then(() => updateStep2Image(r, full))
-    .then(() => toast('已保存「' + r.name + '」'))
+    .then(() => updateMainImage(r, full))
+    .then(() => toast('已保存「' + rowLabel(r) + '」'))
     .catch(() => {});
 }
 function saveSettings(){ return api.saveSettings(settings).catch(() => {}); }
@@ -374,6 +567,40 @@ const byId = id => rows.find(r => r.id === id);
 
 /* ============ render ============ */
 function visibleRows(){ return ROWS.filterRows(rows, ui, justAdded); }
+
+/* a row keeps its progress (sort key) while its 报价 panel is open; it moves once the panel has closed */
+const held = {};                  // row id → progress frozen when its panel opened
+const progressOf = r => r.id in held ? held[r.id] : ROWS.progress(r);
+function releaseProgress(id){
+  setTimeout(() => {                                    // after the closing / switching code has settled
+    if (!(id in held) || id === expandedId) return;
+    const before = around(id);
+    delete held[id];
+    if (byId(id) && around(id) !== before) { render(); flashRow(id); }
+  }, 0);
+}
+/* the row's neighbours in the table order; a change means the row moved */
+function around(id){
+  const o = ROWS.groupRows(visibleRows(), settings.categories, progressOf).reduce((a, g) => a.concat(g.rows.map(r => r.id)), []);
+  const i = o.indexOf(id);
+  return i < 0 ? '' : o[i - 1] + '|' + o[i + 1];
+}
+/* change a sort key (stage / 上架时间), save, re-render; a row that lands somewhere new flashes */
+function moveRow(r, change){
+  const before = around(r.id);
+  change();
+  saveRow(r);
+  renderSoon();
+  setTimeout(() => { if (around(r.id) !== before) flashRow(r.id); }, 0);   // runs after renderSoon's render
+}
+function flashRow(id){
+  const tr = $('tbody').querySelector('tr.row[data-row="' + id + '"]');
+  if (!tr) return;
+  tr.classList.remove('moved');
+  void tr.offsetWidth;                                  // restart the animation
+  tr.classList.add('moved');
+  tr.addEventListener('animationend', () => tr.classList.remove('moved'), { once: true });
+}
 
 function render(){
   if (tg) { tg.rerender = true; return; }             // never rebuild the table under a thumb drag (see reposition)
@@ -418,7 +645,7 @@ function renderChips(){
   const filtering = ui.q.trim() || ui.status || ui.cat || ui.mat;
   $('clearFilters').classList.toggle('hidden', !filtering);
   const vis = visibleRows(), shown = vis.length;
-  const cats = ROWS.groupRows(vis, settings.categories).map(g => g.cat);
+  const cats = ROWS.groupRows(vis, settings.categories, progressOf).map(g => g.cat);
   $('catToggle').classList.toggle('hidden', !cats.length);
   $('catToggle').textContent = cats.every(c => collapsedCats.has(c)) ? '全部展开' : '全部收起';
   $('countLine').textContent = '共 ' + rows.length + ' 个产品' + (filtering ? ' · 显示 ' + shown + ' 个' : '');
@@ -426,7 +653,7 @@ function renderChips(){
 
 function renderBody(){
   const vis = visibleRows();
-  const groups = ROWS.groupRows(vis, settings.categories);
+  const groups = ROWS.groupRows(vis, settings.categories, progressOf);
   /* spacers (open row + a closing one): redrawn at their current animated height, then sent on to their target */
   const cur = {};
   $('tbody').querySelectorAll('.xp-gap').forEach(g => { cur[g.dataset.id] = g.offsetHeight; });
@@ -451,9 +678,10 @@ function renderBody(){
   xpSync(!!panelId && !(panelId in cur));
 }
 
-/* 类目 / 材质 cell: a type-to-filter dropdown (shared/combo.js, set up in comboConfig) */
+/* 工厂 / 类目 / 材质 cell: a type-to-filter dropdown (shared/combo.js, set up in comboConfig) */
 function comboCell(r, f, extra){
-  return '<input type="text" class="cell-in combo" data-combo="' + f + '" data-id="' + esc(r.id) + '" data-f="' + f + '" value="' +
+  const missing = f === 'category' && !r.category ? ' missing' : '';              // 类目 is required
+  return '<input type="text" class="cell-in combo' + missing + '" data-combo="' + f + '" data-id="' + esc(r.id) + '" data-f="' + f + '" value="' +
     esc(r[f]) + '" placeholder="—" autocomplete="off" spellcheck="false"' + (extra || '') + '>';
 }
 
@@ -468,10 +696,10 @@ function rowHtml(r){
   const steps = j.map((s, i) =>
     (i ? '<span class="ln' + (j[i - 1].state === 'done' ? ' on' : '') + '"></span>' : '') +
     '<button type="button" class="step ' + s.state + '" data-act="step" data-step="' + s.key + '" data-id="' + id +
-    '" title="' + (draft ? '请先添加图片和品名' : s.label + '：' + STEP_TIPS[s.state]) + '"' + (draft ? ' disabled' : '') + '>' +
+    '" title="' + (draft ? '请先添加图片和类目' : s.label + '：' + STEP_TIPS[s.state]) + '"' + (draft ? ' disabled' : '') + '>' +
     (s.state === 'done' ? '✓ ' : '') + s.label + '</button>'
   ).join('');
-  const missing = [r.thumb ? '' : '图片', r.name.trim() ? '' : '品名'].filter(Boolean);
+  const missing = [r.thumb ? '' : '图片', r.category ? '' : '类目'].filter(Boolean);
   const viewable = r.thumb && !draft;
 
   return '<tr class="row' + (r.id === expandedId ? ' open' : '') + (draft ? ' draft' : '') + '" data-row="' + id + '">' +
@@ -483,7 +711,7 @@ function rowHtml(r){
                  (imgCount(r) > 1 && !draft ? '<button type="button" class="clear" data-act="imgclr" data-id="' + id + '" title="删除主图（下一张成为主图）">×</button>' : '')
                : '<span>+ 图片</span>') +
     '</div></td>' +
-    '<td><input class="cell-in' + (r.name.trim() ? '' : ' missing') + '" data-id="' + id + '" data-f="name" value="' + esc(r.name) + '" placeholder="品名（必填）">' +
+    '<td>' + comboCell(r, 'factory') +
       (draft ? '<span class="draft-tag">未保存 · 请添加' + missing.join('和') + '</span>' : '') + '</td>' +
     '<td>' + comboCell(r, 'category', r.sku ? ' disabled title="由 SKU 前缀决定"' : '') + '</td>' +
     '<td>' + comboCell(r, 'material') + '</td>' +
@@ -504,14 +732,8 @@ $('tbody').addEventListener('change', e => {
   const el = e.target, r = byId(el.dataset.id);
   if (!r) return;
   switch (el.dataset.f) {
-    case 'name':
-      r.name = el.value.trim();
-      el.classList.toggle('missing', !r.name);
-      saveRow(r); renderSoon();
-      break;
     case 'status':
-      r.status = el.value;
-      saveRow(r); renderSoon();
+      moveRow(r, () => { r.status = el.value; });
       break;
     case 'sku':
       commitSku(r, el);
@@ -548,7 +770,7 @@ function commitSku(r, el){
   el.value = r.sku;
   saveRow(r);
   renderSoon();
-  if (clash) toast('注意：与「' + (clash.name || '未命名') + '」(' + clash.sku + ') 的 SKU 范围重叠', true);
+  if (clash) toast('注意：与「' + rowLabel(clash) + '」(' + clash.sku + ') 的 SKU 范围重叠', true);
 }
 
 $('tbody').addEventListener('keydown', e => {
@@ -557,7 +779,7 @@ $('tbody').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
   if (e.key === 'Escape') {
     const r = byId(el.dataset.id);
-    if (r) { el.value = el.dataset.f === 'sku' ? r.sku : r.name; el.classList.remove('bad'); el.blur(); }
+    if (r && el.dataset.f === 'sku') { el.value = r.sku; el.classList.remove('bad'); el.blur(); }
   }
 });
 
@@ -569,7 +791,7 @@ document.addEventListener('click', e => {
     case 'img': if (r && !skipThumbClick) thumbClick(r); break;
     case 'imgclr':
       e.stopPropagation();
-      if (r && confirm('删除「' + (r.name || '未命名') + '」的主图？下一张图片将成为主图。')) deleteMainImage(r);
+      if (r && confirm('删除「' + rowLabel(r) + '」的主图？下一张图片将成为主图。')) deleteMainImage(r);
       break;
     case 'date': if (r) openDate(r, t); break;
     case 'step': if (r) stepClick(r, t.dataset.step); break;
@@ -579,9 +801,15 @@ document.addEventListener('click', e => {
   }
 });
 
-const STEP_STAGE = { order: '下单（Step 2）将在 Stage 3 接入', live: '上架（Step 3）将在 Stage 4 接入' };
+const STEP_STAGE = { live: '上架（Step 3）将在 Stage 4 接入' };
 function stepClick(r, step){
   if (step === 'quote') return toggleExpand(r);
+  if (step === 'order') {
+    if (drafts.has(r.id)) return toast('请先选择类目并添加图片', true);
+    const s = ROWS.journey(r).find(x => x.key === 'order');
+    if (s && s.state === 'locked' && !confirm('前一步未完成，仍要打开？')) return;   // soft lock
+    return openOrder(r);
+  }
   toast(STEP_STAGE[step]);
 }
 
@@ -604,7 +832,7 @@ let pendTimer = null;
 const xpPanel = $('xpPanel'), xpFrame = $('xpFrame');
 
 function toggleExpand(r){
-  if (drafts.has(r.id)) return toast('请先添加图片和品名，产品才会保存', true);
+  if (drafts.has(r.id)) return toast('请先添加图片和类目，产品才会保存', true);
   if (expandedId === r.id) return collapse();
   const top0 = rowTop(r.id);
   clearPending();
@@ -627,6 +855,7 @@ function toggleExpand(r){
     xpFrame.src = 'tools/step1.html?row=' + encodeURIComponent(r.id);
   }
   expandedId = r.id;
+  if (!(r.id in held)) held[r.id] = ROWS.progress(r);
   if (xpHeights[r.id] || !fresh) gapT[r.id] = xpHeights[r.id] || XP_EST;
   else {                                                // first open: stay at 0 until the real height is known
     gapT[r.id] = 0;
@@ -679,6 +908,7 @@ function endClosing(){
     xpFrame.classList.remove('ready');
   }
   placePanel();
+  releaseProgress(id);
 }
 /* send the spacers and the panel to their target heights; CSS animates the change.
    fromZero: the panel's spacer is new (just opened, or shown again after a filter), so the panel grows from 0 too */
@@ -763,9 +993,7 @@ hubEmbed.listen((m, frame) => {
   } else if (m.type === 'step1-saved') {                 // 保存 in 报价 completes the step
     const r = byId(m.row);
     if (r && !r.step1Confirmed) {
-      r.step1Confirmed = true;
-      saveRow(r);
-      render();
+      moveRow(r, () => { r.step1Confirmed = true; });   // held while its panel is open: moves on close
       toast('报价已完成，下一步：下单');
     }
   }
@@ -816,9 +1044,9 @@ function closeIfCollapsed(){
   else render();
 }
 $('catToggle').addEventListener('click', () => {
-  const cats = ROWS.groupRows(visibleRows(), settings.categories).map(g => g.cat);
+  const cats = ROWS.groupRows(visibleRows(), settings.categories, progressOf).map(g => g.cat);
   if (cats.every(c => collapsedCats.has(c))) { collapsedCats.clear(); return render(); }
-  ROWS.groupRows(rows, settings.categories).forEach(g => collapsedCats.add(g.cat));
+  ROWS.groupRows(rows, settings.categories, progressOf).forEach(g => collapsedCats.add(g.cat));
   closeIfCollapsed();
 });
 /* clicking the grey page margins (outside the cards) collapses the open panel. Both press and release must be
@@ -837,8 +1065,8 @@ function openDate(r, btn){
   const est = estimateLiveDate(r);
   openDatePicker(btn, {
     value: r.liveDate, openMonth: est, hint: est,
-    onPick: v => { r.liveDate = v; saveRow(r); render(); },
-    onClear: () => { r.liveDate = ''; saveRow(r); render(); }
+    onPick: v => moveRow(r, () => { r.liveDate = v; }),
+    onClear: () => moveRow(r, () => { r.liveDate = ''; })
   });
 }
 /* 交货日期 + N days, as 'YYYY-MM-DD'; '' when there is no delivery date yet */
@@ -855,7 +1083,7 @@ async function deleteRow(r){
     rows = rows.filter(x => x !== r);
     return render();
   }
-  if (!confirm('确定永久删除「' + (r.name || '未命名') + '」及其全部数据？\n（已保存到 售价计算 / 下单计划 文件夹的文件不会被删除）')) return;
+  if (!confirm('确定永久删除「' + rowLabel(r) + '」及其全部数据？\n（已保存到 售价计算 / 下单计划 文件夹的文件不会被删除）')) return;
   clearTimeout(saveTimers[r.id]);
   delete saveTimers[r.id];
   try { await api.delRow(r.id); } catch (e) { return; }
@@ -863,7 +1091,7 @@ async function deleteRow(r){
   rows = rows.filter(x => x !== r);
   justAdded.delete(r.id);
   render();
-  toast('已删除「' + (r.name || '未命名') + '」');
+  toast('已删除「' + rowLabel(r) + '」');
 }
 
 $('addBtn').addEventListener('click', () => {
@@ -871,17 +1099,16 @@ $('addBtn').addEventListener('click', () => {
   showCat(r.category);
   rows.push(r);
   justAdded.add(r.id);
-  drafts.add(r.id);                 // saved once it has an image and 品名 (commitDraft)
+  drafts.add(r.id);                 // saved once it has an image and 类目 (commitDraft)
   render();
-  const el = $('tbody').querySelector('[data-id="' + r.id + '"][data-f="name"]');
+  const el = $('tbody').querySelector('[data-id="' + r.id + '"][data-f="img"]');
   if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus(); }
 });
 
 /* ============ images ============ */
-/* main image: step2.json products[0] (shared with Step 2) · up to 5 more: images.json (viewer only)
+/* images.json {main, extra: up to 8 more, each with its own square position crop}: the row's images (the viewer, the 下单计划 picker). Each 下单计划 keeps its own copies.
    meta keeps imgCount and a THUMB_SIZE square thumb cut by thumbCrop
    {x, y: fractions of the width / height, s: side as a fraction of the short edge} */
-const step2Path = r => 'rows/' + r.id + '/step2.json';
 const imagesPath = r => 'rows/' + r.id + '/images.json';
 
 function pickImage(cb, multiple){
@@ -915,60 +1142,37 @@ function readFile(file){
     fr.readAsDataURL(file);
   });
 }
-/* the largest centred square */
-function centerCrop(w, h){
-  const m = Math.min(w, h);
-  return { x: (w - m) / 2 / w, y: (h - m) / 2 / h, s: 1 };
-}
-function makeThumb(img, c){
-  const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
-  const k = THUMB_SIZE / (c.s * Math.min(W, H));      // frame → canvas; white where the image doesn't reach
-  const cv = document.createElement('canvas'); cv.width = cv.height = THUMB_SIZE;
-  const cx = cv.getContext('2d');
-  cx.fillStyle = '#fff'; cx.fillRect(0, 0, THUMB_SIZE, THUMB_SIZE);
-  cx.imageSmoothingQuality = 'high';
-  cx.drawImage(img, -c.x * W * k, -c.y * H * k, W * k, H * k);
-  return cv.toDataURL('image/jpeg', 0.8);
-}
+/* square positions (thumbCrop) live in shared/crop.js, shared with Step 2 */
+const { centerCrop, clampCrop, panCrop, zoomCrop, wheelFactor, layoutFrame } = CROP;
+const makeThumb = (img, c) => CROP.renderSquare(img, c, THUMB_SIZE, 0.8);
 /* file → {full:{url,w,h}, thumb, crop} ; full matches Step 2's loadImageData (1400px, JPEG 0.85) */
 async function processImage(file){
   const img = await loadImg(await readFile(file));
   const crop = centerCrop(img.width, img.height);
   return { full: drawScaled(img, IMG_STORE_MAX, 0.85), thumb: makeThumb(img, crop), crop };
 }
-/* the full image lives in step2.json products[0] (shared with Step 2); meta keeps only the thumb */
-async function updateStep2Image(r, full){
-  const path = step2Path(r);
-  let s2 = await api.get(path);
-  if (!s2 || typeof s2 !== 'object') s2 = {};
-  if (!Array.isArray(s2.products)) s2.products = [];
-  if (!s2.products.length) {
-    if (!full) return;
-    s2.products.push({ id: Math.random().toString(36).slice(2, 10), code: '', productName: r.name,
-      material: '', plant: '不含', image: null, imgNat: null, frame: null, variants: [] });
-  }
-  const p = s2.products[0];
-  p.image = full ? full.url : null;
-  p.imgNat = full ? { w: full.w, h: full.h } : null;
-  p.frame = full ? { w: full.w, h: full.h } : null;
-  await api.put(path, s2);
+/* set (or clear) the row's main image in images.json; the extras stay */
+async function updateMainImage(r, full){
+  const im = await api.get(imagesPath(r)) || {};
+  await api.put(imagesPath(r), { main: full ? { url: full.url, w: full.w, h: full.h } : null,
+                                 extra: Array.isArray(im.extra) ? im.extra : [] });
 }
 
-/* row id → [main, ...extras] as {url,w,h}; loaded when the viewer opens, kept in step with every write */
+/* row id → [main, ...extras] as {url,w,h} (extras also crop: their square position); loaded when the viewer opens, kept in step with every write */
 const imgCache = new Map();
 async function loadRowImages(r){
   if (imgCache.has(r.id)) return imgCache.get(r.id);
-  const [s2, im] = await Promise.all([api.get(step2Path(r)), api.get(imagesPath(r))]);
-  const p = s2 && Array.isArray(s2.products) ? s2.products[0] : null;
-  const list = [];
-  if (p && p.image) list.push({ url: p.image, w: (p.imgNat && p.imgNat.w) || 0, h: (p.imgNat && p.imgNat.h) || 0 });
-  ((im && Array.isArray(im.extra)) ? im.extra : []).forEach(x => { if (x && x.url) list.push(x); });
+  const im = await api.get(imagesPath(r)) || {};
+  const extra = (Array.isArray(im.extra) ? im.extra : []).filter(x => x && x.url);
+  const main = im.main && im.main.url ? im.main : null;
+  if (imgCache.has(r.id)) return imgCache.get(r.id);    // another call finished first
+  const list = main ? [main].concat(extra) : extra;
   imgCache.set(r.id, list);
   return list;
 }
-const saveExtras = (r, list) => api.put(imagesPath(r), { extra: list.slice(1) });
+const saveExtras = (r, list) => api.put(imagesPath(r), { main: list[0] || null, extra: list.slice(1) });   // main + extras
 
-/* replace the main image (row thumb click / paste / drop, or 替换主图 in the viewer) */
+/* replace the main image (row thumb click / paste / drop, or the viewer's 主图 tile) */
 async function setRowImage(r, file){
   if (!file || !/^image\//.test(file.type)) return toast('请选择图片文件', true);
   try {
@@ -977,12 +1181,12 @@ async function setRowImage(r, file){
     r.thumb = d.thumb; r.thumbCrop = d.crop; r.imgCount = Math.max(1, imgCount(r));
     if (drafts.has(r.id)) {
       draftImg.set(r.id, d.full);
-      saveRow(r); render();                               // saves the draft if 品名 is already filled
-      if (drafts.has(r.id)) toast('填写品名后自动保存');
+      saveRow(r); render();                               // saves the draft if 类目 is already chosen
+      if (drafts.has(r.id)) toast('选择类目后自动保存');
       return;
     }
     saveRow(r); render();
-    await updateStep2Image(r, d.full);
+    await updateMainImage(r, d.full);
     const c = imgCache.get(r.id);
     if (c) { if (c.length) c[0] = d.full; else c.push(d.full); }
     viewerChanged(r);
@@ -999,10 +1203,10 @@ async function deleteMainImage(r){
     const next = list[1];
     const img = await loadImg(next.url);
     next.w = next.w || img.naturalWidth; next.h = next.h || img.naturalHeight;
-    await updateStep2Image(r, next);
     list.splice(0, 1);
-    await saveExtras(r, list);
-    r.thumbCrop = centerCrop(img.naturalWidth, img.naturalHeight);
+    r.thumbCrop = roundCrop(CROP.cropOf(next.crop, img.naturalWidth, img.naturalHeight));   // keeps its own position
+    delete next.crop;
+    await saveExtras(r, list);                           // the next image becomes main
     r.thumb = makeThumb(img, r.thumbCrop);
     r.imgCount = list.length;
     saveRow(r); render();
@@ -1041,8 +1245,15 @@ document.addEventListener('mouseover', e => {
 document.addEventListener('paste', e => {
   const files = [...((e.clipboardData || {}).items || [])]
     .filter(it => it.type.indexOf('image/') === 0).map(it => it.getAsFile()).filter(Boolean);
-  if (viewer) {                                         // the viewer is open: paste adds an image
-    if (files.length) { e.preventDefault(); viewerAdd(files); }
+  if (viewer) {                                         // the viewer is open: paste adds an image (over the 主图 tile: replaces it)
+    if (!files.length) return;
+    e.preventDefault();
+    if (document.querySelector('#ivGrid .iv-tile.main:hover')) viewerReplaceMain(files[0]);
+    else viewerAdd(files);
+    return;
+  }
+  if (order) {                                          // the 下单 pop-up: only its picker takes images
+    if (order.view === 'pick' && files.length) { e.preventDefault(); pickAdd(files, slotOf(document.querySelector('#pkGrid .pk-slot:hover'))); }
     return;
   }
   const a = document.activeElement;
@@ -1054,20 +1265,36 @@ document.addEventListener('paste', e => {
 });
 document.addEventListener('dragover', e => {
   e.preventDefault();                                   // never let a stray drop navigate away
-  if (viewer) return $('iv').classList.add('over');
+  if (viewer) {
+    const m = e.target.closest && e.target.closest('#ivGrid .iv-tile.main');
+    document.querySelectorAll('#ivGrid .iv-tile.over').forEach(x => { if (x !== m) x.classList.remove('over'); });
+    if (m) m.classList.add('over');
+    return $('iv').classList.toggle('over', !m);
+  }
+  if (order) return $('pkCard').classList.toggle('over', order.view === 'pick');
   const t = e.target.closest && e.target.closest('.thumb');
   document.querySelectorAll('.thumb.over').forEach(x => { if (x !== t) x.classList.remove('over'); });
   if (t) t.classList.add('over');
 });
 document.addEventListener('dragleave', e => {
-  if (viewer && !e.relatedTarget) $('iv').classList.remove('over');
+  if (viewer && !e.relatedTarget) { $('iv').classList.remove('over'); document.querySelectorAll('#ivGrid .iv-tile.over').forEach(x => x.classList.remove('over')); }
+  if (order && !e.relatedTarget) $('pkCard').classList.remove('over');
 });
 document.addEventListener('drop', e => {
   e.preventDefault();
-  if (viewer) {                                         // the viewer is open: drop adds images
+  if (viewer) {                                         // the viewer is open: drop adds images (on the 主图 tile: replaces it)
     $('iv').classList.remove('over');
+    document.querySelectorAll('#ivGrid .iv-tile.over').forEach(x => x.classList.remove('over'));
     const files = [...(e.dataTransfer.files || [])];
-    if (files.length) viewerAdd(files);
+    if (!files.length) return;
+    if (e.target.closest && e.target.closest('#ivGrid .iv-tile.main')) viewerReplaceMain(files[0]);
+    else viewerAdd(files);
+    return;
+  }
+  if (order) {                                          // the 下单 pop-up: the picker adds the dropped images
+    $('pkCard').classList.remove('over');
+    const files = [...(e.dataTransfer.files || [])];
+    if (order.view === 'pick' && files.length) pickAdd(files, slotOf(e.target));
     return;
   }
   const t = e.target.closest && e.target.closest('.thumb');
@@ -1087,63 +1314,31 @@ $('tbody').addEventListener('keydown', e => {
 });
 
 /* ============ reposition: the frame stays still, the image moves inside it (as in collage-app) ============ */
-/* thumbCrop = the frame as a window onto the full image: {x, y} its top-left as fractions of the image's
-   width / height, s its side as a fraction of the short edge. s < 1 zooms in; s up to long / short edge
-   zooms out until the whole image fits (white padding), so nothing is ever lost — the full image is never changed */
-const CROP_MIN = 0.1;                                   // 10× zoom
-function clampCrop(c, W, H){
-  const d = centerCrop(W, H);
-  ['x', 'y', 's'].forEach(k => { if (!Number.isFinite(c[k])) c[k] = d[k]; });   // repair a missing / broken value
-  const m = Math.min(W, H);
-  c.s = Math.min(Math.max(W, H) / m, Math.max(CROP_MIN, c.s));
-  const side = c.s * m;
-  /* frame inside the image when the image is bigger; image inside the frame when it's smaller */
-  const fit = (v, len) => Math.min(Math.max(0, len - side), Math.max(Math.min(0, len - side), v));
-  c.x = fit(c.x * W, W) / W;
-  c.y = fit(c.y * H, H) / H;
-  return c;
-}
-const cropFor = (r, W, H) => clampCrop(Object.assign({}, r.thumbCrop || centerCrop(W, H)), W, H);
-/* drag by (dx, dy) frame widths: the image follows the pointer */
-function panCrop(c, W, H, dx, dy){
-  const side = c.s * Math.min(W, H);
-  c.x -= dx * side / W;
-  c.y -= dy * side / H;
-  return clampCrop(c, W, H);
-}
-/* zoom by k (> 1 = in) keeping the image point under (fx, fy) — frame fractions — still */
-function zoomCrop(c, W, H, k, fx, fy){
-  const m = Math.min(W, H), side = c.s * m;
-  const px = c.x * W + fx * side, py = c.y * H + fy * side;
-  c.s /= k;
-  clampCrop(c, W, H);
-  c.x = (px - fx * c.s * m) / W;
-  c.y = (py - fy * c.s * m) / H;
-  return clampCrop(c, W, H);
-}
-const wheelFactor = e => Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.013 : 0.0004));   // ≈ 4% per wheel notch
-/* place the full image inside a square frame of `size` px */
-function layoutFrame(im, size, f, c){
-  if (im.getAttribute('src') !== f.main.url) im.src = f.main.url;
-  const k = size / (c.s * Math.min(f.W, f.H)), s = im.style;
-  s.position = 'absolute'; s.maxWidth = 'none'; s.objectFit = 'fill';
-  s.width = f.W * k + 'px'; s.height = f.H * k + 'px';
-  s.left = -c.x * f.W * k + 'px'; s.top = -c.y * f.H * k + 'px';
-}
+/* thumbCrop = the frame as a window onto the full image (see shared/crop.js). A new 下单计划 starts the main image here */
+const cropFor = (r, W, H) => CROP.cropOf(r.thumbCrop, W, H);
 /* the decoded main image of a row → {main, img, W, H}; null when the row has none.
    A draft's image isn't saved yet: it comes from draftImg */
 const decoded = new WeakMap();
 async function openFrame(r){
   const main = drafts.has(r.id) ? draftImg.get(r.id) : (await loadRowImages(r))[0];
-  if (!main) return null;
-  if (!decoded.has(main)) decoded.set(main, loadImg(main.url));
-  const img = await decoded.get(main);
-  return { main, img, W: img.naturalWidth, H: img.naturalHeight };
+  return main ? decodeImg(main) : null;
+}
+/* any image {url,w,h} → {main: that image, img, W, H} */
+async function decodeImg(im){
+  if (!decoded.has(im)) decoded.set(im, loadImg(im.url));
+  const img = await decoded.get(im);
+  return { main: im, img, W: img.naturalWidth, H: img.naturalHeight };
+}
+const roundCrop = c => { const rd = v => Math.round(v * 1e4) / 1e4; return { x: rd(c.x), y: rd(c.y), s: rd(c.s) }; };
+/* a tile <img> at the image's own square position (percentages of the tile); plain cover without a known size */
+function tileStyle(im){
+  if (!im.w || !im.h) return '';
+  const c = CROP.cropOf(im.crop, im.w, im.h), k = 100 / (c.s * Math.min(im.w, im.h));
+  return ' class="pos" style="width:' + im.w * k + '%;height:' + im.h * k + '%;left:' + (-c.x * im.w * k) + '%;top:' + (-c.y * im.h * k) + '%"';
 }
 /* save a new position: rebuild the 320 thumb from the full image; false when nothing changed */
 function commitCrop(r, f, c){
-  const rd = v => Math.round(v * 1e4) / 1e4, o = r.thumbCrop;
-  const n = { x: rd(c.x), y: rd(c.y), s: rd(c.s) };
+  const o = r.thumbCrop, n = roundCrop(c);
   if (![n.x, n.y, n.s].every(Number.isFinite)) return false;
   if (o && o.x === n.x && o.y === n.y && o.s === n.s) return false;
   r.thumbCrop = n;
@@ -1167,7 +1362,7 @@ $('tbody').addEventListener('pointerdown', e => {
   const r = byId(t.dataset.id);
   if (!r) return;
   if (wz) wheelEnd(true);                               // save a zoom still in progress so the drag starts from it
-  const g = tg = { r, el: t, size: t.clientWidth || 96, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, moved: false, f: null };
+  const g = tg = { r, el: t, size: t.clientWidth || 110, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, moved: false, f: null };
   t.setPointerCapture(e.pointerId);
   openFrame(r).then(f => {
     if (tg !== g || !f) return;
@@ -1216,7 +1411,7 @@ $('tbody').addEventListener('wheel', e => {
       wheelFlush();
     }).catch(() => { if (wz === z) wz = null; });
   }
-  const b = t.getBoundingClientRect(), size = t.clientWidth || 96;
+  const b = t.getBoundingClientRect(), size = t.clientWidth || 110;
   wz.q.push([wheelFactor(e), (e.clientX - b.left - t.clientLeft) / size, (e.clientY - b.top - t.clientTop) / size]);
   wheelFlush();
   clearTimeout(wz.timer);
@@ -1239,18 +1434,19 @@ function wheelEnd(noRender){
 }
 
 /* ============ image viewer ============ */
-/* {id, idx, list: null while loading | [{url,w,h}], ver, f: main image frame | null, c: its crop, drag, saveTimer} */
+/* {id, idx, list: null while loading | [{url,w,h,crop?}], ver, f: the shown image's frame | null, c: its crop, drag, saveTimer} */
 let viewer = null;
 let viewerBusy = false;     // one add / delete at a time
 let gridKey = '';
 
-/* ← → order = the table's visible order (groups + sort, collapsed groups skipped); saved rows with an image only */
-function viewerOrder(){
-  return ROWS.groupRows(visibleRows(), settings.categories)
+/* ← → order = the table's visible order (groups + sort, collapsed groups skipped); saved rows only (drafts skipped) */
+function tableOrder(){
+  return ROWS.groupRows(visibleRows(), settings.categories, progressOf)
     .filter(g => !collapsedCats.has(g.cat))
     .reduce((a, g) => a.concat(g.rows), [])
-    .filter(r => r.thumb && !drafts.has(r.id));
+    .filter(r => !drafts.has(r.id));
 }
+const viewerOrder = () => tableOrder().filter(r => r.thumb);   // the image viewer: rows with an image
 
 function openViewer(r){
   viewerSaveNow();
@@ -1273,7 +1469,6 @@ function closeViewer(){
   viewer = null; gridKey = '';
   $('ivBack').classList.add('hidden');
   $('iv').classList.remove('over');
-  $('ivImg').removeAttribute('src');
   $('ivFrameImg').removeAttribute('src');
   const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
   if (tr) tr.scrollIntoView({ block: 'nearest' });
@@ -1283,8 +1478,15 @@ function viewerChanged(r){
   if (!viewer || viewer.id !== r.id) return;
   viewer.list = imgCache.get(r.id) || viewer.list;
   viewer.idx = Math.max(0, Math.min(viewer.idx, (viewer.list || []).length - 1));
-  if (viewer.f && (!viewer.list || viewer.f.main !== viewer.list[0])) viewer.f = null;   // the main image changed
+  viewer.f = null;                                      // images (and their positions) may have moved: start again
   viewer.ver++;
+  renderViewer();
+}
+/* show image i (a pending position is saved first) */
+function viewerShow(i){
+  if (!viewer || !viewer.list || i < 0 || i >= viewer.list.length) return;
+  viewerSaveNow();
+  viewer.idx = i;
   renderViewer();
 }
 
@@ -1293,76 +1495,86 @@ function renderViewer(){
   const r = byId(viewer.id);
   if (!r) return closeViewer();
   const list = viewer.list, cur = list && list[viewer.idx];
-  const onMain = !!(cur && viewer.idx === 0);
   const order = viewerOrder(), pos = order.indexOf(r);
   const ids = [r.sku, r.parentAsin].filter(Boolean).map(esc).join(' · ');
-  $('ivTitle').textContent = r.name || '未命名';
-  $('ivMeta').innerHTML = ids + (pos > -1 ? (ids ? '<br>' : '') + '产品 ' + (pos + 1) + ' / ' + order.length + ' · 按 ← → 切换' : '');
+  $('ivTitle').textContent = rowLabel(r);
+  $('ivMeta').innerHTML = ids + (pos > -1 ? (ids ? '<br>' : '') + '产品 ' + (pos + 1) + ' / ' + order.length : '');
   $('ivCount').textContent = !list ? '加载中…' : list.length ? '图片 ' + (viewer.idx + 1) + ' / ' + list.length : '没有找到原图';
   $('ivPrev').disabled = !list || viewer.idx <= 0;
   $('ivNext').disabled = !list || viewer.idx >= list.length - 1;
 
-  /* main image: the square frame (what the table shows); other images: whole */
-  $('ivFrame').classList.toggle('hidden', !onMain);
-  $('ivImg').classList.toggle('hidden', onMain);
-  if (onMain) {
-    layoutViewerFrame();
-    if (!viewer.f) {
-      const want = cur;
-      openFrame(r).then(f => {
-        if (!viewer || viewer.id !== r.id || !f || f.main !== want || viewer.f) return;
-        viewer.f = f; viewer.c = cropFor(r, f.W, f.H);
-        layoutViewerFrame();
-      }).catch(() => {});
-    }
-  } else {
-    const img = $('ivImg'), src = cur ? cur.url : r.thumb;
-    if (img.getAttribute('src') !== src) img.src = src;
-    img.classList.toggle('soft', !cur);
+  /* every image sits in the square frame; the main image's square is the table thumb */
+  if (viewer.f && viewer.f.main !== cur) viewer.f = null;
+  layoutViewerFrame();
+  if (cur && !viewer.f) {
+    const id = r.id, isMain = viewer.idx === 0;
+    decodeImg(cur).then(f => {
+      if (!viewer || viewer.id !== id || viewer.f || !viewer.list || viewer.list[viewer.idx] !== cur) return;
+      viewer.f = f; viewer.c = isMain ? cropFor(r, f.W, f.H) : CROP.cropOf(cur.crop, f.W, f.H);
+      layoutViewerFrame();
+    }).catch(() => {});
   }
 
   const key = viewer.id + '#' + viewer.ver + '#' + (list ? list.length : -1);
   if (key !== gridKey) {                                // rebuild only when the images change
     gridKey = key;
     $('ivGrid').innerHTML = !list ? '' : list.map((x, i) =>
-      '<div class="iv-tile" data-iv="pick" data-i="' + i + '" title="' + (i ? '图片 ' + (i + 1) : '主图（表格中显示）') + '">' +
-        '<img src="' + (i ? x.url : r.thumb) + '" alt="" draggable="false">' + (i ? '' : '<span class="tag">主图</span>') +
+      '<div class="iv-tile' + (i ? '' : ' main') + '" data-iv="pick" data-i="' + i + '" title="' +
+        (i ? '图片 ' + (i + 1) : '主图（表格中显示）· 选中后再次点击可更换主图，也可把图片粘贴或拖到这里') + '">' +
+        (i ? '<img src="' + x.url + '" alt="" draggable="false"' + tileStyle(x) + '>'
+           : '<img src="' + r.thumb + '" alt="" draggable="false"><span class="tag">主图</span>') +
         (list.length > 1 ? '<button type="button" class="del" data-iv="del" data-i="' + i + '" title="删除这张图片">×</button>' : '') +
       '</div>').join('') +
       (list.length < IMG_LIMIT ? '<button type="button" class="iv-tile add" data-iv="add" title="添加图片（可多选，最多 ' + IMG_LIMIT + ' 张）">+</button>' : '');
   }
   $('ivGrid').querySelectorAll('.iv-tile[data-i]').forEach(t => t.classList.toggle('on', +t.dataset.i === viewer.idx));
-  $('ivActions').classList.toggle('hidden', !list || !list.length);
-  $('ivReset').classList.toggle('hidden', !onMain);
-  $('ivFrameHint').classList.toggle('hidden', !onMain);
+  $('ivActions').classList.toggle('hidden', !cur || viewer.idx === 0);
+  $('ivHint').textContent = '粘贴或拖入图片即可添加（拖到主图上即替换主图），每个产品最多 ' + IMG_LIMIT + ' 张。';
 }
-/* size the square to the stage and place the image in it (the thumb stands in while the full image loads) */
+/* size the square to the stage and place the image in it (a stand-in shows while the full image decodes) */
 function layoutViewerFrame(){
   if (!viewer) return;
   const st = $('ivStage'), fr = $('ivFrame'), im = $('ivFrameImg'), r = byId(viewer.id);
   const size = Math.max(120, Math.floor(Math.min(st.clientWidth - 176, st.clientHeight - 64)));
   fr.style.width = fr.style.height = size + 'px';
-  if (viewer.f) layoutFrame(im, fr.clientWidth, viewer.f, viewer.c);
-  else if (r) { im.style.cssText = ''; if (im.getAttribute('src') !== r.thumb) im.src = r.thumb; }
+  if (viewer.f) return layoutFrame(im, fr.clientWidth, viewer.f, viewer.c);
+  const cur = viewer.list && viewer.list[viewer.idx];
+  const src = cur && viewer.idx ? cur.url : r && r.thumb;
+  im.style.cssText = '';
+  if (src && im.getAttribute('src') !== src) im.src = src;
 }
 window.addEventListener('resize', layoutViewerFrame);
 
-/* save the viewer's position: table thumb and the 主图 tile follow at once */
+/* save the viewer's position. The main image: the table thumb and the 主图 tile follow at once;
+   any other image: its crop in images.json and its tile */
 function viewerSave(){
   if (!viewer) return;
   clearTimeout(viewer.saveTimer);
   viewer.saveTimer = null;
-  const r = byId(viewer.id);
-  if (!r || !viewer.f || !commitCrop(r, viewer.f, viewer.c)) return;
-  render();
-  const tile = $('ivGrid').querySelector('.iv-tile[data-i="0"] img');
-  if (tile) tile.src = r.thumb;
+  const r = byId(viewer.id), f = viewer.f, list = viewer.list;
+  if (!r || !f || !list) return;
+  const i = list.indexOf(f.main);
+  if (i === 0) {
+    if (!commitCrop(r, f, viewer.c)) return;
+    render();
+    const tile = $('ivGrid').querySelector('.iv-tile[data-i="0"] img');
+    if (tile) tile.src = r.thumb;
+    return;
+  }
+  if (i < 0) return;
+  const n = roundCrop(viewer.c), o = f.main.crop;
+  if (![n.x, n.y, n.s].every(Number.isFinite) || (o && o.x === n.x && o.y === n.y && o.s === n.s)) return;
+  f.main.crop = n;
+  saveExtras(r, list).catch(() => {});
+  const tile = $('ivGrid').querySelector('.iv-tile[data-i="' + i + '"] img');
+  if (tile) tile.outerHTML = '<img src="' + f.main.url + '" alt="" draggable="false"' + tileStyle(f.main) + '>';
 }
 function viewerSaveNow(){ if (viewer && viewer.saveTimer) viewerSave(); }
 
 $('ivFrame').addEventListener('pointerdown', e => {
   if (!viewer || !viewer.f || e.button !== 0) return;
   e.preventDefault();
+  viewerSaveNow();                                      // a zoom still waiting to save
   $('ivFrame').setPointerCapture(e.pointerId);
   $('ivFrame').classList.add('dragging');
   viewer.drag = { x0: e.clientX, y0: e.clientY, c0: Object.assign({}, viewer.c) };
@@ -1380,11 +1592,11 @@ $('ivFrame').addEventListener('pointermove', e => {
   viewer.drag = null;
   viewerSave();
 }));
-/* Ctrl + wheel anywhere in the viewer: zoom the main image around the pointer; never the browser page */
+/* Ctrl + wheel anywhere in the viewer: zoom the shown image around the pointer; never the browser page */
 $('ivBack').addEventListener('wheel', e => {
   if (!e.ctrlKey && !e.metaKey) return;
   e.preventDefault();
-  if (!viewer || !viewer.f || $('ivFrame').classList.contains('hidden')) return;
+  if (!viewer || !viewer.f || viewer.drag) return;
   const fr = $('ivFrame'), b = fr.getBoundingClientRect(), size = fr.clientWidth;
   const at = v => Math.min(1, Math.max(0, v));
   zoomCrop(viewer.c, viewer.f.W, viewer.f.H, wheelFactor(e),
@@ -1393,21 +1605,9 @@ $('ivBack').addEventListener('wheel', e => {
   clearTimeout(viewer.saveTimer);
   viewer.saveTimer = setTimeout(viewerSave, 300);
 }, { passive: false });
-$('ivReset').addEventListener('click', () => {
-  if (!viewer || !viewer.f) return;
-  viewer.c = centerCrop(viewer.f.W, viewer.f.H);
-  layoutViewerFrame();
-  viewerSave();
-});
 
 /* < > : images within the row · ← → : rows */
-function viewerStep(d){
-  if (!viewer || !viewer.list) return;
-  const i = viewer.idx + d;
-  if (i < 0 || i >= viewer.list.length) return;
-  viewer.idx = i;
-  renderViewer();
-}
+function viewerStep(d){ if (viewer) viewerShow(viewer.idx + d); }
 function viewerRow(d){
   if (!viewer) return;
   const order = viewerOrder();
@@ -1416,35 +1616,52 @@ function viewerRow(d){
   if (n) openViewer(n);
 }
 
+/* add image files to row r's images (list = its imgCache entry; the first becomes main when there is none);
+   the row's image limit applies. Resolves to the number added */
+async function addRowImages(r, list, files){
+  const imgs = files.filter(f => f && /^image\//.test(f.type));
+  if (!imgs.length) { toast('请选择图片文件', true); return 0; }
+  const room = IMG_LIMIT - list.length;
+  if (room <= 0) { toast('每个产品最多 ' + IMG_LIMIT + ' 张图片', true); return 0; }
+  const take = imgs.slice(0, room);
+  for (const f of take) {
+    const d = await processImage(f);
+    if (!list.length) { r.thumb = d.thumb; r.thumbCrop = d.crop; }   // no main image yet: this one becomes main
+    list.push(d.full);
+  }
+  await saveExtras(r, list);
+  r.imgCount = list.length;
+  saveRow(r); render();
+  toast(imgs.length > room
+    ? '已添加 ' + take.length + ' 张；每个产品最多 ' + IMG_LIMIT + ' 张，其余 ' + (imgs.length - room) + ' 张未添加'
+    : '已添加 ' + take.length + ' 张图片', imgs.length > room);
+  return take.length;
+}
 async function viewerAdd(files){
   const r = viewer && byId(viewer.id), list = viewer && viewer.list;
   if (!r || !list) return;
   if (viewerBusy) return toast('正在处理上一张图片…');
-  const imgs = files.filter(f => f && /^image\//.test(f.type));
-  if (!imgs.length) return toast('请选择图片文件', true);
-  const room = IMG_LIMIT - list.length;
-  if (room <= 0) return toast('每个产品最多 ' + IMG_LIMIT + ' 张图片', true);
-  const take = imgs.slice(0, room);
   viewerBusy = true;
   try {
-    for (const f of take) {
-      const d = await processImage(f);
-      if (!list.length) {                               // no main image yet: this one becomes main
-        await updateStep2Image(r, d.full);
-        r.thumb = d.thumb; r.thumbCrop = d.crop;
-      }
-      list.push(d.full);
-    }
-    await saveExtras(r, list);
-    r.imgCount = list.length;
-    saveRow(r); render();
-    if (viewer && viewer.id === r.id) { viewer.idx = list.length - 1; viewerChanged(r); }
-    toast(imgs.length > room
-      ? '已添加 ' + take.length + ' 张；每个产品最多 ' + IMG_LIMIT + ' 张，其余 ' + (imgs.length - room) + ' 张未添加'
-      : '已添加 ' + take.length + ' 张图片', imgs.length > room);
+    viewerSaveNow();
+    if (await addRowImages(r, list, files) && viewer && viewer.id === r.id) { viewer.idx = list.length - 1; viewerChanged(r); }
   } catch (e) {
     imgCache.delete(r.id);
     if (!e.offline) toast(e.message, true);
+  } finally {
+    viewerBusy = false;
+  }
+}
+/* a new main image from a file (the 主图 tile: second click, paste or drop); the other images stay as they are */
+async function viewerReplaceMain(file){
+  const r = viewer && byId(viewer.id);
+  if (!r || !viewer.list) return;
+  if (viewerBusy) return toast('正在处理上一张图片…');
+  viewerBusy = true;
+  try {
+    viewerSaveNow();
+    await setRowImage(r, file);
+    if (viewer && viewer.id === r.id) { viewer.idx = 0; viewerChanged(r); }
   } finally {
     viewerBusy = false;
   }
@@ -1455,6 +1672,7 @@ async function viewerDelete(i){
   if (!confirm(i ? '删除这张图片？' : '删除主图？下一张图片将成为主图。')) return;
   viewerBusy = true;
   try {
+    viewerSaveNow();
     if (i === 0) { viewer.idx = 0; return await deleteMainImage(r); }   // show the new main image
     list.splice(i, 1);
     await saveExtras(r, list);
@@ -1469,22 +1687,51 @@ async function viewerDelete(i){
     viewerBusy = false;
   }
 }
+/* 设为主图: image i and the main image swap places, each keeping its own position (the main one's is thumbCrop) */
+async function viewerMakeMain(i){
+  const r = viewer && byId(viewer.id), list = viewer && viewer.list;
+  if (!r || !list || !(i > 0) || !list[i] || viewerBusy) return;
+  viewerBusy = true;
+  try {
+    viewerSaveNow();
+    const old = list[0], im = list[i];
+    const f = await decodeImg(im);
+    if (!viewer || viewer.id !== r.id || viewer.list !== list || list[i] !== im) return;
+    const c = roundCrop(CROP.cropOf(im.crop, f.W, f.H));
+    if (r.thumbCrop) old.crop = Object.assign({}, r.thumbCrop); else delete old.crop;
+    delete im.crop;
+    list[0] = im; list[i] = old;
+    r.thumbCrop = c;
+    r.thumb = makeThumb(f.img, c);
+    await saveExtras(r, list);
+    saveRow(r); render();
+    viewer.idx = 0;
+    viewerChanged(r);
+    toast('已设为主图');
+  } catch (e) {
+    imgCache.delete(r.id);
+    if (!e.offline) toast(e.message, true);
+  } finally {
+    viewerBusy = false;
+  }
+}
 
 $('ivGrid').addEventListener('click', e => {
   const t = e.target.closest('[data-iv]');
   if (!t || !viewer) return;
-  if (t.dataset.iv === 'del') viewerDelete(+t.dataset.i);
-  else if (t.dataset.iv === 'pick') { viewer.idx = +t.dataset.i; renderViewer(); }
+  const i = +t.dataset.i;
+  if (t.dataset.iv === 'del') viewerDelete(i);
+  else if (t.dataset.iv === 'pick') {
+    if (i === 0 && viewer.idx === 0 && viewer.list && viewer.list.length) pickImage(f => viewerReplaceMain(f));   // second click on 主图
+    else viewerShow(i);
+  }
   else if (t.dataset.iv === 'add') pickImage(files => viewerAdd(files), true);
 });
+$('ivMakeMain').addEventListener('click', () => { if (viewer) viewerMakeMain(viewer.idx); });
 $('ivPrev').addEventListener('click', () => viewerStep(-1));
 $('ivNext').addEventListener('click', () => viewerStep(1));
 $('ivClose').addEventListener('click', closeViewer);
 $('ivBack').addEventListener('mousedown', e => { if (e.target === $('ivBack')) closeViewer(); });
-$('ivReplace').addEventListener('click', () => {
-  const r = viewer && byId(viewer.id);
-  if (r) pickImage(f => setRowImage(r, f).then(() => { if (viewer && viewer.id === r.id) { viewer.idx = 0; renderViewer(); } }));
-});
 document.addEventListener('keydown', e => {
   if (!viewer) return;
   if (e.key === 'Escape') { e.preventDefault(); closeViewer(); }
@@ -1492,7 +1739,543 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowRight') { e.preventDefault(); viewerRow(1); }
 });
 
-/* ============ filters (at most one chip per group; rows are always newest first, see ROWS.sortRows) ============ */
+/* ============ 下单 pop-up (Step 2) ============
+   A row's 下单计划 are its Excel files: 下单计划/<r.orderFolder>/*.xlsx. The folder name is fixed the first time it is needed
+   (renaming the product never breaks the link), and the files are edited, renamed and deleted in Excel / Explorer, never here.
+   The form only makes new files: each row has at most one draft, rows/<id>/orders/draft.json, which 生成 deletes.
+   rows/<id>/order-files.json {files:{<file name>:{submitted, deliveryDate}}} holds the 已提交 ticks: any ticked file = 已下单,
+   and meta.deliveryDate = the earliest 交货日期 among them (recorded when the file was generated).
+   The pop-up has three views: the row's files, the picker for a new draft (selected images × ticked 报价 lines), and the
+   form itself: one tools/step2.html page that stays loaded and is switched with load-row {id, form, folder}
+   (ExcelJS makes it ~1 MB). Forms are independent of the row's images (never the table thumb).
+   ‹ (top left) goes back: form / picker → the list → the table */
+const s2Frame = $('s2Frame');
+let order = null;           // {id, view: 'list' | 'pick' | 'form', form: 'draft' in the form view, pick, file, list}
+let s2Ready = false;        // the tool page has loaded and listens for load-row
+const DRAFT = 'draft';
+const draftPath = r => 'rows/' + r.id + '/orders/' + DRAFT + '.json';
+const marksPath = r => 'rows/' + r.id + '/order-files.json';
+const newId = () => Math.random().toString(36).slice(2, 10);
+const stampOf = ms => { const d = new Date(ms);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' +
+    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+
+/* the row's folder under 下单计划/, named after the product the first time it is needed and never changed */
+function orderFolderOf(r){
+  if (r.orderFolder) return r.orderFolder;
+  const base = String(r.name || [r.category, r.factory].filter(Boolean).join('_') || r.sku || r.id).trim().replace(/[\\/:*?"<>|\x00-\x1f]/g, '_')
+    .replace(/^[.\s]+|[.\s]+$/g, '').slice(0, 80) || r.id;
+  const taken = new Set(rows.filter(x => x !== r && x.orderFolder).map(x => x.orderFolder.toLowerCase()));
+  let name = base, n = 2;
+  while (taken.has(name.toLowerCase())) name = base + ' ' + n++;
+  r.orderFolder = name;
+  saveRow(r);
+  return name;
+}
+/* {files: [{name, created, modified}] oldest first, draft: bool, marks: order-files.json} */
+async function loadOrderList(r){
+  const [res, m] = await Promise.all([api.orderFiles(orderFolderOf(r), r.id), api.get(marksPath(r))]);
+  return { files: res.files || [], draft: !!res.draft, marks: m && m.files ? m : { files: {} } };
+}
+/* 已下单 = at least one 已提交 file in the folder; meta.deliveryDate = the earliest 交货日期 among them.
+   Unticking the last one goes back to 未下单 (已上架 never moves back) */
+function applySubmitted(r, l){
+  const on = l.files.map(f => l.marks.files[f.name]).filter(x => x && x.submitted);
+  const dd = on.map(x => x.deliveryDate).filter(Boolean).sort()[0] || '';
+  const status = on.length ? (ROWS.statusRank(r.status) < ROWS.statusRank('已下单') ? '已下单' : r.status)
+                           : (r.status === '已下单' ? '未下单' : r.status);
+  if (status === r.status && dd === (r.deliveryDate || '')) return;
+  moveRow(r, () => { r.status = status; r.deliveryDate = dd; });
+  renderOrderHead();
+}
+/* a re-read of the folder (window focus) must not land on top of a newer tick or a draft deletion: it waits for the
+   writes in progress (listWrites), and one started before a write is dropped (listSeq) */
+let listSeq = 0, listWrites = Promise.resolve();
+const queueListWrite = p => { listWrites = listWrites.then(() => p).catch(() => {}); };
+async function toggleSubmitted(r, l, name){
+  const m = l.marks, e = m.files[name] || (m.files[name] = { submitted: false, deliveryDate: '' });
+  ++listSeq;
+  e.submitted = !e.submitted;
+  renderOrderList();
+  const save = api.put(marksPath(r), m);
+  queueListWrite(save);
+  try { await save; }
+  catch (err) { e.submitted = !e.submitted; renderOrderList(); return; }
+  applySubmitted(r, l);
+}
+/* the 草稿 tile's × → 删除: the tile goes at once; a failed delete puts it back */
+async function deleteDraft(r){
+  ++listSeq;
+  if (order.list) { order.list.draft = false; renderOrderList(); }
+  const del = api.del(draftPath(r));
+  queueListWrite(del);
+  try { await del; }
+  catch (err) {                                         // api.onError has shown the toast
+    if (order && order.id === r.id && order.view === 'list' && order.list) { order.list.draft = true; renderOrderList(); }
+  }
+}
+
+function openOrder(r){
+  if (viewer) closeViewer();
+  order = { id: r.id, view: null, form: null, pick: null, file: null, list: null };
+  $('s2Back').classList.remove('hidden');
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  if (!s2Frame.getAttribute('src')) s2Frame.src = 'tools/step2.html';   // loads in the background while the list shows
+  showOrder(true);
+}
+/* the current product's files; with autoPick, a product without any file or draft goes straight to the picker.
+   flash = a file name to highlight (just generated) */
+function showOrder(autoPick, flash){
+  const r = order && byId(order.id);
+  if (!r) return;
+  setView('list');
+  order.list = null;
+  renderOrderList();
+  const seq = ++listSeq;
+  listWrites.then(() => loadOrderList(r)).then(l => {
+    if (seq !== listSeq || !order || order.id !== r.id || order.view !== 'list') return;
+    if (autoPick && !l.files.length && !l.draft) return openPicker(r);
+    order.list = l;
+    renderOrderList(flash);
+  }).catch(() => {});
+}
+/* re-read the folder in place: the window regains focus (back from Excel / Explorer), or a clicked file was gone */
+function refreshOrderList(){
+  const r = order && order.view === 'list' && order.list && byId(order.id);
+  if (!r) return;
+  const seq = ++listSeq;
+  listWrites.then(() => loadOrderList(r)).then(l => {
+    if (seq === listSeq && order && order.id === r.id && order.view === 'list') { order.list = l; renderOrderList(); }
+  }).catch(() => {});
+}
+window.addEventListener('focus', refreshOrderList);
+function setView(v){
+  if (order.view === 'form' && v !== 'form') hubEmbed.send(s2Frame, 'unload');   // the tool saves and forgets the form
+  order.view = v;
+  if (v !== 'form') order.form = null;
+  if (v !== 'pick') order.pick = null;
+  $('s2List').classList.toggle('hidden', v !== 'list');
+  $('s2Pick').classList.toggle('hidden', v !== 'pick');
+  s2Frame.classList.toggle('hidden', v !== 'form');
+  $('pkCard').classList.remove('over');
+  $('s2Ask').classList.add('hidden');
+  $('s2Del').classList.add('hidden');
+  renderOrderHead();
+}
+function closeOrder(){
+  if (!order) return;
+  const id = order.id;
+  $('s2Ask').classList.add('hidden');
+  $('s2Del').classList.add('hidden');
+  if (order.view === 'form') hubEmbed.send(s2Frame, 'unload');
+  order = null;
+  $('s2Back').classList.add('hidden');
+  const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
+  if (tr) tr.scrollIntoView({ block: 'nearest' });
+}
+function renderOrderHead(){
+  const r = order && byId(order.id);
+  if (!r) return;
+  if (r.thumb) $('s2Thumb').src = r.thumb; else $('s2Thumb').removeAttribute('src');
+  $('s2Title').innerHTML = '<span class="step-tag">' + (order.view === 'form' ? '下单计划 · 草稿' : '下单计划') + '</span>' + esc(rowLabel(r));
+  $('s2Meta').textContent = [r.sku, r.parentAsin, r.material].filter(Boolean).join(' · ') || '未填写 SKU';
+  $('s2Warn').classList.toggle('hidden', !!r.step1Confirmed);
+  $('s2ToList').title = order.view === 'list' ? '返回表格' : order.view === 'form' ? '返回全部下单计划（草稿自动保存）' : '返回全部下单计划';
+}
+
+/* ---- the form view (the row's draft) ---- */
+function openForm(r, file){
+  setView('form');
+  order.form = DRAFT;
+  order.file = file || null;
+  renderOrderHead();
+  sendLoad();
+}
+function sendLoad(){
+  const r = order && byId(order.id);
+  if (!s2Ready || !r || order.view !== 'form' || !order.form) return;
+  const d = { id: r.id, form: order.form, folder: orderFolderOf(r) };
+  if (order.file) d.file = order.file;                  // 从 Excel 导入: the tool reads it into the new draft
+  order.file = null;
+  hubEmbed.send(s2Frame, 'load-row', d);
+}
+/* a new draft replaces the row's old one: ask first */
+async function okToReplaceDraft(r){
+  let has = order && order.list ? order.list.draft : null;
+  if (has == null) {
+    try { has = (await api.orderFiles(orderFolderOf(r), r.id)).draft; } catch (e) { return false; }
+  }
+  return !has || confirm('已有草稿，将被替换？');
+}
+
+/* ---- the files ---- */
+const XLSX_ICON = '<svg viewBox="0 0 48 56" aria-hidden="true"><path d="M8 2h22l14 14v36a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#fff" stroke="#cbd5e1" stroke-width="2"/>' +
+  '<path d="M30 2v12a2 2 0 0 0 2 2h12" fill="none" stroke="#cbd5e1" stroke-width="2"/><rect x="2" y="24" width="26" height="24" rx="3" fill="#107c41"/>' +
+  '<path d="M9 30l12 12M21 30L9 42" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>' +
+  '<path d="M32 26h8M32 32h8M32 38h8M32 44h8" stroke="#9ccfb1" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const DRAFT_ICON = '<svg viewBox="0 0 48 56" aria-hidden="true"><path d="M8 2h22l14 14v36a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#f8fafc" stroke="#a5b4fc" stroke-width="2" stroke-dasharray="4 3"/>' +
+  '<path d="M16 40l2-7 14-14 5 5-14 14z" fill="#e0e7ff" stroke="#4f46e5" stroke-width="2" stroke-linejoin="round"/></svg>';
+function renderOrderList(flash){
+  const el = $('olList'), l = order && order.list;
+  if (!l) { el.innerHTML = '<div class="hint">加载中…</div>'; return; }
+  if (!l.files.length && !l.draft) {
+    el.innerHTML = '<div class="empty-box"><b>还没有下单计划文件</b>点击「+ 新下单计划」选择图片和报价行，或「从 Excel 导入」已有文件；生成的 Excel 会出现在这里。</div>';
+    return;
+  }
+  el.innerHTML = '<div class="of-grid">' +
+    (l.draft ? '<div class="of-tile draft" data-of="draft" title="继续编辑草稿（生成 Excel 后草稿自动删除）">' +
+      '<span class="of-icon">' + DRAFT_ICON + '<button type="button" class="of-del" data-of="del" title="删除草稿">×</button></span>' +
+      '<span class="of-name">草稿 · 继续编辑</span></div>' : '') +
+    l.files.map((f, i) => {
+      const on = !!(l.marks.files[f.name] && l.marks.files[f.name].submitted);
+      return '<div class="of-tile' + (f.name === flash ? ' flash' : '') + '" data-of="file" data-i="' + i + '" title="' +
+          esc(f.name) + '&#10;修改于 ' + stampOf(f.modified) + '&#10;点击用 Excel 打开">' +
+        '<span class="of-icon">' + XLSX_ICON +
+          '<button type="button" class="of-tick' + (on ? ' on' : '') + '" data-of="tick" title="' +
+            (on ? '已提交（点击取消）' : '未提交（点击标记为已提交）') + '">✓</button></span>' +
+        '<span class="of-name">' + esc(f.name) + '</span></div>';
+    }).join('') + '</div>';
+}
+$('olList').addEventListener('click', async e => {
+  const t = e.target.closest('[data-of]'), r = order && byId(order.id), l = order && order.list;
+  if (!t || !r || !l) return;
+  if (t.dataset.of === 'del') return $('s2Del').classList.remove('hidden');   // asks in the pop-up (a native confirm refocuses the window → a re-read)
+  if (t.dataset.of === 'draft') return openForm(r);
+  const tile = t.closest('.of-tile'), f = tile && l.files[+tile.dataset.i];
+  if (!f) return;
+  if (t.dataset.of === 'tick') return toggleSubmitted(r, l, f.name);
+  try {
+    if (!(await api.openOrderFile(orderFolderOf(r), f.name))) { toast('文件已不存在', true); refreshOrderList(); }
+  } catch (err) {}
+});
+$('olFolder').addEventListener('click', () => {
+  const r = order && byId(order.id);
+  if (r) api.openOrderFile(orderFolderOf(r)).catch(() => {});
+});
+$('olNew').addEventListener('click', async () => {
+  const r = order && byId(order.id);
+  if (r && await okToReplaceDraft(r) && order && order.id === r.id) openPicker(r);
+});
+$('olImport').addEventListener('click', async () => {
+  const r = order && byId(order.id);
+  if (r && await okToReplaceDraft(r)) $('olFile').click();
+});
+$('olFile').addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0], r = order && byId(order.id);
+  e.target.value = '';
+  if (!file || !r) return;
+  try { await api.del(draftPath(r)); } catch (err) { return; }   // the import starts a fresh draft
+  if (order && order.id === r.id) openForm(r, file);
+});
+/* ‹ : the list closes the pop-up; the form saves on its own; a picker with any 色号 asks 保存草稿 / 不保存 / 取消 */
+function orderBack(){
+  if (!order) return;
+  if (order.view === 'list') return closeOrder();
+  const pk = order.view === 'pick' && order.pick;
+  if (pk && pickedSlots(pk).length) return $('s2Ask').classList.remove('hidden');
+  showOrder(false);
+}
+$('s2ToList').addEventListener('click', orderBack);
+$('s2AskStay').addEventListener('click', () => $('s2Ask').classList.add('hidden'));
+$('s2AskDrop').addEventListener('click', () => showOrder(false));
+$('s2AskSave').addEventListener('click', async () => {
+  const pk = order && order.pick;
+  if (!pk || pickBusy) return;
+  $('s2AskSave').disabled = true;
+  try { if (await savePick(pk) && order && order.pick === pk) showOrder(false); }
+  finally { $('s2AskSave').disabled = false; }
+});
+$('s2Ask').addEventListener('mousedown', e => { if (e.target === $('s2Ask')) $('s2Ask').classList.add('hidden'); });
+$('s2DelCancel').addEventListener('click', () => $('s2Del').classList.add('hidden'));
+$('s2DelOk').addEventListener('click', () => {
+  const r = order && order.view === 'list' && byId(order.id);
+  $('s2Del').classList.add('hidden');
+  if (r) deleteDraft(r);
+});
+$('s2Del').addEventListener('mousedown', e => { if (e.target === $('s2Del')) $('s2Del').classList.add('hidden'); });
+
+/* ---- the picker: 色号 slots × ticked 报价 lines ----
+   A slot = one 产品色号: an image (the row's own, main first, uploaded into the slot or duplicated from another slot) and / or
+   a name (this draft only). Every slot counts; × removes it (the image stays with the product). '+' adds an empty slot
+   (at most IMG_LIMIT slots); a slot with neither image nor name is skipped */
+function openPicker(r){
+  setView('pick');
+  renderPicker();
+  Promise.all([loadRowImages(r), api.get('rows/' + r.id + '/step1.json')]).then(([list, s1]) => {
+    if (!order || order.id !== r.id || order.view !== 'pick') return;
+    const lines = (s1 && Array.isArray(s1.rows) ? s1.rows : [])
+      .filter(x => ['sku', 'price', 'l', 'w', 'h'].some(k => String(x[k] == null ? '' : x[k]).trim()));
+    order.pick = { r, list, slots: list.map((im, i) => ({ im, name: '', main: !i })), lines, on: new Set(lines) };   // every image + every line
+    renderPicker();
+  }).catch(() => {});
+}
+const newSlot = () => ({ im: null, name: '' });
+const slotFilled = s => !!(s.im || s.name.trim());
+const pickedSlots = pk => pk.slots.filter(slotFilled);
+const slotOf = el => { const pk = order && order.pick, s = el && el.closest && el.closest('.pk-slot');
+  return pk && s ? pk.slots[+s.dataset.s] || null : null; };
+function renderPicker(){ renderPickGrid(); renderPickLines(); renderPickSum(); }
+function renderPickGrid(){
+  const pk = order && order.pick;
+  if (!pk) { $('pkGrid').innerHTML = '<div class="hint">加载中…</div>'; return; }
+  $('pkGrid').innerHTML = pk.slots.map((s, i) => {
+    const im = s.im, main = !!im && im === pk.list[0];
+    const tile = im
+      ? '<button type="button" class="pk-tile" data-pk="img" title="' + (main ? '主图' : '色号图片') +
+          '（双击并按住，拖到另一个色号上即可复制这张图片）">' +
+          (main && pk.r.thumb ? '<img src="' + pk.r.thumb + '" alt="" draggable="false">'
+                              : '<img src="' + im.url + '" alt="" draggable="false"' + (main ? '' : tileStyle(im)) + '>') +
+          (main && s.main ? '<span class="tag">主图</span>' : '') + '</button>'   // the tag stays on the original slot, not on copies
+      : '<button type="button" class="pk-tile empty" data-pk="up" title="点击上传图片（也可悬停后按 Ctrl+V 粘贴，或拖入）；没有图片时只填色号名即可">' +
+          '<span class="ph">图</span>点击上传图片</button>';
+    return '<div class="pk-slot" data-s="' + i + '">' + tile +
+      '<input class="pk-name" value="' + esc(s.name) + '" placeholder="色号 / 颜色名">' +
+      '<button type="button" class="del" data-pk="del" title="移除这个色号（图片仍保留在产品图片中）">×</button></div>';
+  }).join('') +
+    (pk.slots.length < IMG_LIMIT ? '<button type="button" class="pk-tile add" data-pk="add" title="添加一个空色号（最多 ' +
+      IMG_LIMIT + ' 个）">+</button>' : '');
+}
+const s1Val = x => String(x == null ? '' : x).trim();
+const s1Box = l => [l.l, l.w, l.h].every(x => s1Val(x)) ? l.l + 'x' + l.w + 'x' + l.h + 'cm' : '';
+function renderPickLines(){
+  const pk = order && order.pick;
+  if (!pk) { $('pkLines').innerHTML = ''; return; }
+  if (!pk.lines.length) { $('pkLines').innerHTML = '<div class="hint">报价暂无内容，每张图片将生成一个空行。</div>'; return; }
+  const P = PRICING.params(settings.step1);
+  const cell = v => v ? esc(v) : '<span class="none">—</span>';
+  $('pkLines').innerHTML = '<table class="pk"><thead><tr>' +
+      '<th style="width:44px"><input type="checkbox" data-pk="all" title="全选 / 全不选"' + (pk.on.size === pk.lines.length ? ' checked' : '') + '></th>' +
+      '<th>尺寸 / 规格</th><th>工厂价 (￥)</th><th>内盒尺寸</th><th>建议售价 ($)</th></tr></thead><tbody>' +
+    pk.lines.map((l, i) => {
+      const L = parseFloat(l.l), W = parseFloat(l.w), H = parseFloat(l.h), fp = parseFloat(l.price);   // as in the 报价 panel
+      const sale = L > 0 && W > 0 && H > 0 ? PRICING.computeRow(isNaN(fp) ? 0 : fp, L, W, H, P).price.toFixed(2) : '';
+      const on = pk.on.has(l);
+      return '<tr class="' + (on ? '' : 'off') + '" data-pk="line" data-i="' + i + '">' +
+        '<td><input type="checkbox"' + (on ? ' checked' : '') + '></td>' +
+        '<td>' + cell(s1Val(l.sku)) + '</td><td>' + cell(s1Val(l.price)) + '</td><td>' + cell(s1Box(l)) + '</td><td>' + cell(sale) + '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+function renderPickSum(){
+  const pk = order && order.pick;
+  const ni = pk ? pickedSlots(pk).length : 0, nl = pk ? pk.on.size : 0;
+  $('pkOk').disabled = !ni;
+  $('pkSum').textContent = !pk ? '' : !ni ? '请至少添加一个色号（图片或色号名）'
+    : '将生成 ' + (ni * Math.max(1, nl)) + ' 行（' + ni + ' 个色号 × ' + (nl ? nl + ' 个尺寸' : '1 个空行') + '）';
+}
+$('pkGrid').addEventListener('click', e => {
+  const t = e.target.closest('[data-pk]'), pk = order && order.pick;
+  if (!t || !pk) return;
+  if (t.dataset.pk === 'add') {
+    if (pk.slots.length >= IMG_LIMIT) return;
+    pk.slots.push(newSlot());
+    renderPickGrid(); renderPickSum();
+    return;
+  }
+  const s = slotOf(t);
+  if (!s) return;
+  if (t.dataset.pk === 'del') {                         // the slot only: its image stays with the product
+    pk.slots.splice(pk.slots.indexOf(s), 1);
+    renderPickGrid(); renderPickSum();
+    return;
+  }
+  if (t.dataset.pk === 'up') pickImage(f => pickAdd([f], s));   // a single click on an image does nothing
+});
+/* a name only updates the count (no re-render: it would drop the focus) */
+$('pkGrid').addEventListener('input', e => {
+  const s = e.target.classList.contains('pk-name') && slotOf(e.target);
+  if (!s) return;
+  s.name = e.target.value;
+  renderPickSum();
+});
+/* double-click + hold an image and drag it onto another slot: that slot gets a copy (same image and position; its name is
+   kept). As in the collage app: the second press within 300 ms starts the drag, the source dims, the target is outlined */
+let pkDrag = null, pkLastDown = { s: null, t: 0 };   // pkDrag: {src, target, ghost}
+$('pkGrid').addEventListener('mousedown', e => {
+  const t = e.button === 0 && e.target.closest('.pk-tile[data-pk="img"]'), s = t && slotOf(t);
+  if (!s) return;
+  const now = Date.now(), dbl = pkLastDown.s === s && now - pkLastDown.t < 300;
+  pkLastDown = dbl ? { s: null, t: 0 } : { s, t: now };
+  if (!dbl) return;
+  e.preventDefault();
+  const ghost = document.createElement('img');
+  ghost.className = 'pk-ghost';
+  ghost.src = t.querySelector('img').src;
+  document.body.appendChild(ghost);
+  pkDrag = { src: s, target: null, ghost };
+  t.classList.add('pk-src');
+  document.body.classList.add('pk-dragging');
+  pkDragMove(e);
+});
+function pkDragMove(e){
+  if (!pkDrag) return;
+  pkDrag.ghost.style.left = e.clientX + 'px';
+  pkDrag.ghost.style.top = e.clientY + 'px';
+  const el = document.elementFromPoint(e.clientX, e.clientY), s = slotOf(el && el.closest('#pkGrid .pk-slot'));
+  pkDrag.target = s && s !== pkDrag.src ? s : null;
+  document.querySelectorAll('#pkGrid .pk-tile.pk-target').forEach(x => x.classList.remove('pk-target'));
+  if (pkDrag.target) $('pkGrid').querySelector('.pk-slot[data-s="' + order.pick.slots.indexOf(pkDrag.target) + '"] .pk-tile').classList.add('pk-target');
+}
+function pkDragEnd(drop){
+  if (!pkDrag) return;
+  const { src, target, ghost } = pkDrag, pk = order && order.pick;
+  pkDrag = null;
+  ghost.remove();
+  document.body.classList.remove('pk-dragging');
+  if (drop && target && pk && pk.slots.includes(src) && pk.slots.includes(target)) target.im = src.im;
+  if (pk) { renderPickGrid(); renderPickSum(); }
+}
+window.addEventListener('mousemove', pkDragMove);
+window.addEventListener('mouseup', () => pkDragEnd(true));
+window.addEventListener('blur', () => pkDragEnd(false));
+$('pkLines').addEventListener('click', e => {
+  const pk = order && order.pick;
+  if (!pk) return;
+  const all = e.target.closest('[data-pk="all"]');
+  if (all) pk.on = all.checked ? new Set(pk.lines) : new Set();
+  else {
+    const tr = e.target.closest('tr[data-pk="line"]');
+    const l = tr && pk.lines[+tr.dataset.i];
+    if (!l) return;
+    if (pk.on.has(l)) pk.on.delete(l); else pk.on.add(l);
+  }
+  renderPickLines(); renderPickSum();
+});
+/* uploaded / pasted / dropped images join the row's images (as in the viewer) and fill slots:
+   the target slot (clicked, hovered or dropped on) if it has no image, then the other image-less slots, then new slots */
+let pickBusy = false;
+async function pickAdd(files, target){
+  const pk = order && order.view === 'pick' && order.pick, r = pk && byId(pk.r.id);
+  if (!pk || !r) return;
+  if (pickBusy) return toast('正在处理上一张图片…');
+  const imgs = files.filter(f => f && /^image\//.test(f.type));
+  if (!imgs.length) return toast('请选择图片文件', true);
+  const free = pk.slots.filter(s => !s.im && s !== target);
+  const dest = target && !target.im ? [target].concat(free) : free;
+  const room = dest.length + IMG_LIMIT - pk.slots.length;
+  if (room <= 0) return toast('最多 ' + IMG_LIMIT + ' 个色号', true);
+  pickBusy = true;
+  const before = pk.list.length;
+  try {
+    const n = await addRowImages(r, pk.list, imgs.slice(0, room));
+    pk.list.slice(before, before + n).forEach((im, k) => {
+      let s = dest[k];
+      if (!s || !pk.slots.includes(s)) {                // removed while the image was being read
+        if (pk.slots.length >= IMG_LIMIT) return;
+        pk.slots.push(s = newSlot());
+      }
+      s.im = im;
+      if (im === pk.list[0]) s.main = true;            // the row had no image: this one became the main image
+    });
+    if (imgs.length > room) toast('最多 ' + IMG_LIMIT + ' 个色号，其余 ' + (imgs.length - room) + ' 张图片未添加', true);
+    if (order && order.pick === pk) { renderPickGrid(); renderPickSum(); renderOrderHead(); }
+  } catch (e) {
+    imgCache.delete(r.id);
+    if (!e.offline) toast(e.message, true);
+  } finally {
+    pickBusy = false;
+  }
+}
+$('pkCancel').addEventListener('click', () => showOrder(false));
+/* 确认 (opens the form) / 保存草稿 (back to the list): the row's draft = one 货号 card;
+   rows = each filled selected slot (slot order) × each ticked line (报价 order). Resolves true once written */
+async function savePick(pk){
+  const r = byId(pk.r.id), slots = pickedSlots(pk);
+  if (!r || !slots.length) return false;
+  try {
+    const lines = pk.lines.filter(l => pk.on.has(l));
+    /* 图片 = the row's main image on every row (where the table thumb is); each slot = the 色号 image and / or name of its rows */
+    const main = pk.list[0] || null, mainId = main ? newId() : null, images = {}, variants = [];
+    if (main) images[mainId] = { url: main.url, w: main.w || 0, h: main.h || 0 };
+    const cropOf = im => im === main ? r.thumbCrop || (im.w && im.h ? centerCrop(im.w, im.h) : null)
+                                     : im.w && im.h ? CROP.cropOf(im.crop, im.w, im.h) : im.crop || null;
+    const copy = c => c ? Object.assign({}, c) : null;
+    slots.forEach(({ im, name }) => {
+      (lines.length ? lines : [null]).forEach(l => variants.push({
+        id: newId(), colorCode: name.trim(), colorImage: im ? im.url : null,
+        colorNat: im && im.w && im.h ? { w: im.w, h: im.h } : null, colorCrop: im ? copy(cropOf(im)) : null,
+        size: l ? s1Val(l.sku) : '', setQty: '', price: l ? s1Val(l.price) : '', boxSize: l ? s1Box(l) : '', qty: '',
+        img: mainId, imgCrop: main ? copy(cropOf(main)) : null, accImg: null, gRaw: '', pass: {} }));
+    });
+    await api.put(draftPath(r), { order: {}, images, hub: {},          // replaces the old draft (asked at + 新下单计划)
+      products: [{ id: newId(), code: '', image: null, imgNat: null, crop: null, variants }] });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+$('pkOk').addEventListener('click', async () => {
+  const pk = order && order.pick;
+  if (!pk || pickBusy) return;
+  $('pkOk').disabled = true;
+  if (await savePick(pk) && order && order.id === pk.r.id && order.pick === pk) openForm(byId(pk.r.id));
+  else renderPickSum();
+});
+
+$('s2Close').addEventListener('click', closeOrder);
+$('s2Back').addEventListener('mousedown', e => { if (e.target === $('s2Back')) closeOrder(); });
+/* Esc in the hub itself closes the pop-up (the tool forwards its own as 'key' messages) */
+function orderKey(key){
+  if (key === 'Escape') closeOrder();
+}
+document.addEventListener('keydown', e => {
+  if (!order || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    const ask = $('s2Back').querySelector('.s2-ask:not(.hidden)');   // Esc on 保存草稿？ / 删除草稿？ = 取消
+    if (ask) ask.classList.add('hidden');
+    else orderKey(e.key);
+  }
+});
+
+hubEmbed.listen((m, frame) => {
+  if (frame !== s2Frame) return;
+  const d = m.data || {}, r = byId(d.row || m.row);
+  switch (m.type) {
+    case 'ready':
+      s2Ready = true;
+      sendLoad();
+      break;
+    case 'loaded':                                      // focus the form, so its paste / keys work at once
+      if (order && order.view === 'form' && m.row === order.id) try { s2Frame.contentWindow.focus(); } catch (e) {}
+      break;
+    case 'key':
+      if (order) orderKey(d.key);
+      break;
+    case 'meta-changed': {                              // 品名 (only edited here; '' clears it) / 材质 edited in 订单信息
+      if (!r) break;
+      const name = String(d.name || '').trim(), mat = String(d.material || '');
+      let ch = false;
+      if (name !== (r.name || '')) { r.name = name; ch = true; }
+      if (mat !== (r.material || '') && (!mat || settings.materials.includes(mat))) { r.material = mat; ch = true; }
+      if (d.factory != null && String(d.factory) !== (r.factory || '')) { r.factory = String(d.factory); ch = true; }   // 工厂 is synced too
+      if (d.category && d.category !== r.category && !r.sku && settings.categories.includes(d.category)) {
+        r.category = d.category; showCat(d.category); ch = true;
+      }
+      if (ch) { saveRow(r); render(); renderOrderHead(); }
+      break;
+    }
+    case 'step2-generated':                             // a new Excel in the row's folder (the tool has deleted the draft)
+      if (!r || !d.file) break;
+      api.get(marksPath(r)).then(m => {                 // 未提交 until ticked; its 交货日期 counts once it is
+        m = m && m.files ? m : { files: {} };
+        m.files[d.file] = { submitted: false, deliveryDate: d.deliveryDate || '' };
+        return api.put(marksPath(r), m);
+      }).catch(() => {}).then(() => {
+        if (order && order.id === r.id && order.view === 'form') showOrder(false, d.file);
+      });
+      break;
+    case 'factory-used':                                // a 工厂 picked / added / imported in a 下单计划: added at the end if new
+      useFactory(d.name, d.taxRate, d.add, d.imported);
+      break;
+    case 'import-failed':                               // 从 Excel 导入 failed: drop the empty draft it started
+      if (!r) break;
+      api.del(draftPath(r)).catch(() => {});
+      if (order && order.id === r.id && order.view === 'form') showOrder(false);
+      break;
+  }
+});
+
+/* ============ filters (at most one chip per group; row order: see ROWS.sortRows) ============ */
 $('search').addEventListener('input', e => { ui.q = e.target.value; render(); });
 [['statusChips', 'status'], ['catChips', 'cat']].forEach(([el, k]) =>
   $(el).addEventListener('click', e => {
@@ -1510,12 +2293,25 @@ function comboConfig(el){
   };
   const r = byId(el.dataset.id), f = el.dataset.f;
   if (!r) return null;
+  if (f === 'factory') {                                        // optional; '+ 添加「X」' adds a factory to 设置 → 工厂
+    const list = settings.factories.map(x => x.name);
+    if (r.factory && facIndex(r.factory) < 0) list.push(r.factory);   // a factory since removed from settings
+    return {
+      value: r.factory, empty: '—', options: list.map(v => ({ value: v })),
+      onCreate: name => useFactory(name, '', true),
+      onPick: v => setRowFactory(r, v),
+      onReject: t => toast('没有工厂「' + t + '」，选择「+ 添加」新增', true)
+    };
+  }
   const list = (f === 'category' ? settings.categories : settings.materials).slice();
   if (r[f] && !list.includes(r[f])) list.push(r[f]);              // a value since removed from settings
   const what = f === 'category' ? '类目' : '材质';
   return {
     value: r[f], empty: '—', options: list.map(v => ({ value: v })),
-    onPick: v => { r[f] = v; if (f === 'category') showCat(v); saveRow(r); renderSoon(); },
+    onPick: v => {
+      if (f === 'category' && !v) { renderSoon(); return toast('类目为必填项', true); }
+      r[f] = v; if (f === 'category') showCat(v); saveRow(r); renderSoon();
+    },
     onReject: t => toast('没有' + what + '「' + t + '」，请从列表中选择；新' + what + '在 ⚙ 设置 中添加', true)
   };
 }
@@ -1543,7 +2339,19 @@ function renderSettings(){
     '<span class="tag">' + esc(m) + '<button type="button" data-i="' + i + '" title="删除材质">×</button></span>').join('') ||
     '<span class="hint" style="margin:0">暂无材质，请在下方添加。</span>';
   $('liveOffset').value = settings.liveOffsetDays;
+  const opts = (list, v) => '<option value="">—</option>' +
+    list.concat(v && !list.includes(v) ? [v] : []).map(x => '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
+  $('facNewCat').innerHTML = opts(settings.categories, $('facNewCat').value);
+  $('facNewMat').innerHTML = opts(settings.materials, $('facNewMat').value);
+  $('facList').innerHTML = settings.factories.map((f, i) =>
+    '<div class="fac-line"><input type="text" class="form-control" maxlength="30" data-fi="' + i + '" data-ff="name" value="' + esc(f.name) + '">' +
+    '<select class="form-control" data-fi="' + i + '" data-ff="category">' + opts(settings.categories, f.category || '') + '</select>' +
+    '<select class="form-control" data-fi="' + i + '" data-ff="material">' + opts(settings.materials, f.material || '') + '</select>' +
+    '<input type="text" class="form-control" list="dlFacTax" data-fi="' + i + '" data-ff="taxRate" value="' + esc(f.taxRate || '') +
+    '" placeholder="未设税率"><button type="button" class="del-btn" data-fi="' + i + '" title="删除工厂">×</button></div>').join('') ||
+    '<span class="hint" style="margin:0">暂无工厂，请在下方添加。</span>';
   document.querySelectorAll('[data-p]').forEach(el => { el.value = settings.step1[el.dataset.p]; });
+  document.querySelectorAll('[data-p2]').forEach(el => { el.value = settings.step2[el.dataset.p2]; });
   document.querySelectorAll('#peakToggle .toggle-btn').forEach(b =>
     b.classList.toggle('active', (b.dataset.peak === '1') === !!settings.step1.isPeak));
 }
@@ -1559,7 +2367,8 @@ document.querySelector('.tabs').addEventListener('click', e => {
 /* 设置 → 报价: global, live — every open 报价 panel recalculates */
 function saveStep1(){
   saveSettings();
-  hubEmbed.broadcast('settings-changed');
+  hubEmbed.broadcast('settings-changed', settings);       // sent with the message: the panel never reads a half-written file
+  if (panelId) toast('售价已按新参数更新');
 }
 document.querySelectorAll('[data-p]').forEach(el => el.addEventListener('change', () => {
   const v = parseFloat(el.value);
@@ -1579,6 +2388,13 @@ $('p1Reset').addEventListener('click', () => {
   saveStep1();
   toast('已恢复默认参数');
 });
+/* 设置 → 下单: 运营 / 店铺 + 国家, used by every 下单计划; an empty field goes back to its default */
+document.querySelectorAll('[data-p2]').forEach(el => el.addEventListener('change', () => {
+  const k = el.dataset.p2;
+  settings.step2[k] = el.value.trim() || api.DEFAULT_SETTINGS.step2[k];
+  el.value = settings.step2[k];
+  saveSettings().then(() => hubEmbed.broadcast('settings-changed', settings));   // the tool re-reads settings.json
+}));
 $('gearBtn').addEventListener('click', () => openSettings());
 $('setClose').addEventListener('click', closeSettings);
 $('setModal').addEventListener('mousedown', e => { if (e.target === $('setModal')) closeSettings(); });
@@ -1601,6 +2417,7 @@ $('catList').addEventListener('click', e => {
   const used = rows.filter(r => r.category === c).length;
   if (used) return toast('仍有 ' + used + ' 个产品使用类目「' + c + '」，无法删除', true);
   settings.categories.splice(+b.dataset.i, 1);
+  settings.factories.forEach(f => { if (f.category === c) f.category = ''; });
   if (ui.cat === c) ui.cat = '';
   saveSettings(); renderSettings();
 });
@@ -1619,8 +2436,75 @@ $('matList').addEventListener('click', e => {
   const used = rows.filter(r => r.material === m).length;
   if (used) return toast('仍有 ' + used + ' 个产品使用材质「' + m + '」，无法删除', true);
   settings.materials.splice(+b.dataset.i, 1);
+  settings.factories.forEach(f => { if (f.material === m) f.material = ''; });
   if (ui.mat === m) ui.mat = '';
   saveSettings(); renderSettings();
+});
+/* 设置 → 工厂: settings.factories [{name, taxRate, category, material}] in a fixed order (new ones at the end), shown the
+   same way in every 工厂 dropdown; names match ignoring case and spaces.
+   The 下单计划 tool reads the list and posts factory-used; renaming / deleting never changes saved forms */
+const facIndex = name => settings.factories.findIndex(f => api.factoryKey(f.name) === api.factoryKey(name));
+function saveFactories(){
+  saveSettings().then(() => hubEmbed.broadcast('settings-changed'));   // the tool re-reads settings.json
+}
+/* a row's 工厂 (optional): picking one sets the row's 类目 (unless its SKU prefix decides it) and 材质 from the factory.
+   The row's 工厂 is shown in all its 下单计划 (they fill 税率 from it) */
+function setRowFactory(r, name){
+  r.factory = name;
+  const i = name ? facIndex(name) : -1, f = i >= 0 ? settings.factories[i] : null;
+  if (f) {
+    if (f.category && !r.sku && settings.categories.includes(f.category)) { r.category = f.category; showCat(f.category); }
+    if (f.material && settings.materials.includes(f.material)) r.material = f.material;
+  }
+  saveRow(r); renderSoon();
+}
+function newFactory(name, taxRate){ return { name, taxRate: String(taxRate || '').trim(), category: '', material: '' }; }
+function useFactory(name, taxRate, add, imported){
+  name = String(name || '').trim();
+  if (!name) return;
+  if (!add || facIndex(name) >= 0) return;               // the list order never changes by use
+  settings.factories.push(newFactory(name, taxRate));
+  if (imported) toast('已新增工厂「' + name + '」');
+  saveFactories();
+  if (!$('setModal').classList.contains('hidden')) renderSettings();
+}
+$('facAdd').addEventListener('click', () => {
+  const name = $('facNew').value.trim();
+  if (!name) return toast('请输入工厂名称', true);
+  if (facIndex(name) >= 0) return toast('该工厂已存在', true);
+  settings.factories.push(Object.assign(newFactory(name, $('facNewTax').value),
+    { category: $('facNewCat').value, material: $('facNewMat').value }));
+  $('facNew').value = ''; $('facNewTax').value = ''; $('facNewCat').value = ''; $('facNewMat').value = '';
+  saveFactories(); renderSettings();
+  $('facNew').focus();
+});
+['facNew', 'facNewTax'].forEach(id => $(id).addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); $('facAdd').click(); }
+}));
+$('facList').addEventListener('change', e => {
+  const el = e.target.closest('[data-fi][data-ff]'); if (!el) return;
+  const f = settings.factories[+el.dataset.fi]; if (!f) return;
+  const v = el.value.trim();
+  if (el.dataset.ff === 'name') {
+    if (!v) { el.value = f.name; return toast('工厂名称不能为空', true); }
+    const j = facIndex(v);
+    if (j >= 0 && j !== +el.dataset.fi) { el.value = f.name; return toast('工厂「' + settings.factories[j].name + '」已存在', true); }
+    rows.filter(r => r.factory && api.factoryKey(r.factory) === api.factoryKey(f.name))   // rows follow the new name
+      .forEach(r => { r.factory = v; saveRow(r); });
+    f.name = v;
+  } else f[el.dataset.ff] = v;
+  el.value = v;
+  saveFactories();
+});
+$('facList').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.matches('input[data-fi]')) { e.preventDefault(); e.target.blur(); }
+});
+$('facList').addEventListener('click', e => {
+  const b = e.target.closest('button[data-fi]'); if (!b) return;
+  const f = settings.factories[+b.dataset.fi];
+  if (!f || !confirm('删除工厂「' + f.name + '」？已有的下单计划不受影响')) return;
+  settings.factories.splice(+b.dataset.fi, 1);
+  saveFactories(); renderSettings();
 });
 $('liveOffset').addEventListener('change', e => {
   const n = Math.max(0, Math.round(+e.target.value || 0));
@@ -1649,7 +2533,7 @@ $('liveOffset').addEventListener('change', e => {
       commitCrop(r, f, c);
       render();
     }).catch(() => {}));
-  /* ?expand=<id> (from the workspace's 报价 step): open that row's 报价 panel */
+  /* ?expand=<id>: open that row's 报价 panel */
   const want = new URLSearchParams(location.search).get('expand');
   const r = want && byId(want);
   if (r) {

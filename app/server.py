@@ -5,14 +5,18 @@ API (see docs/README.md):
   GET    /api/rows                   all data/rows/*/meta.json as one array
   GET    /api/data/<path>.json       file contents, or null if missing
   PUT    /api/data/<path>.json       write JSON (temp file + rename)
+  DELETE /api/data/<path>.json       remove one JSON file (e.g. a 下单计划 form)
   DELETE /api/rows/<id>              remove data/rows/<id>/
-  POST   /api/output?dir=&name=      write raw body into an allowed output folder
+  POST   /api/output?dir=&name=[&sub=]  write raw body into an allowed output folder (sub: one product folder in it)
+  GET    /api/orderfiles?folder=&row=   a product's 下单计划/<folder>/*.xlsx, and whether the row has a draft form
+  POST   /api/open?folder=[&name=]      open a 下单计划 file (or the product folder) in its Windows app
 """
 import json
 import os
 import re
 import shutil
 import sys
+import time
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -24,9 +28,27 @@ URL = f'http://{HOST}:{PORT}/'
 ROOT = Path(__file__).resolve().parent.parent          # project folder
 APP = ROOT / 'app'
 DATA = ROOT / 'data'
-OUTPUT_DIRS = {'售价计算 Price Calcs', '下单计划 Order Forms'}
+ORDERS = '下单计划'                                       # one folder per product; the Excel files are the record
+OUTPUT_DIRS = {'售价计算 Price Calcs', ORDERS}
 ROW_ID = re.compile(r'^[a-z0-9]{4,40}$')
 BAD_NAME_CHARS = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
+
+
+def safe_segment(name):
+    """One file or folder name, or None: no separators / reserved characters, not '.', '..' or hidden."""
+    name = (name or '').strip()
+    if not name or name.startswith('.') or BAD_NAME_CHARS.search(name):
+        return None
+    return name
+
+
+def order_path(folder, name=None):
+    """下单计划/<folder>[/<name>]; None if either part is not a plain name."""
+    folder = safe_segment(folder)
+    if not folder or (name is not None and not safe_segment(name)):
+        return None
+    p = ROOT / ORDERS / folder
+    return p / name.strip() if name is not None else p
 
 
 def data_path(rel):
@@ -39,11 +61,22 @@ def data_path(rel):
     return p if base in p.parents else None
 
 
+def retry(fn, tries=5, wait=0.02):
+    """Windows locks a file while another request reads or replaces it; wait briefly and try again."""
+    for i in range(tries):
+        try:
+            return fn()
+        except PermissionError:
+            if i == tries - 1:
+                raise
+            time.sleep(wait)
+
+
 def write_atomic(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + '.tmp')
     tmp.write_bytes(data)
-    os.replace(tmp, path)
+    retry(lambda: os.replace(tmp, path))
 
 
 def unique_name(folder, name):
@@ -95,11 +128,17 @@ class Handler(SimpleHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path == '/api/rows':
             return self.list_rows()
+        if path == '/api/orderfiles':
+            return self.list_order_files()
         if path.startswith('/api/data/'):
             p = data_path(path[len('/api/data/'):])
             if not p:
                 return self.fail(400, 'bad path')
-            return self.send_json(None, raw=p.read_bytes() if p.is_file() else b'null')
+            try:
+                raw = retry(p.read_bytes) if p.is_file() else b'null'
+            except PermissionError:
+                return self.fail(503, 'busy')
+            return self.send_json(None, raw=raw)
         if path.startswith('/api/'):
             return self.fail(404, 'unknown endpoint')
         return super().do_GET()
@@ -121,6 +160,18 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_DELETE(self):
         path = urlsplit(self.path).path
+        if path.startswith('/api/data/'):
+            p = data_path(path[len('/api/data/'):])
+            if not p:
+                return self.fail(400, 'bad path')
+            try:
+                if p.is_file():
+                    retry(p.unlink)
+            except FileNotFoundError:
+                pass
+            except PermissionError:
+                return self.fail(503, 'busy')
+            return self.send_json({'ok': True})
         m = re.fullmatch(r'/api/rows/([^/]+)', path)
         if not m or not ROW_ID.match(m.group(1)):
             return self.fail(400, 'bad row id')
@@ -131,20 +182,56 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         u = urlsplit(self.path)
+        if u.path == '/api/open':
+            return self.open_order_file(parse_qs(u.query))
         if u.path != '/api/output':
             return self.fail(404, 'unknown endpoint')
         q = parse_qs(u.query)
         folder_name = (q.get('dir') or [''])[0]
         name = BAD_NAME_CHARS.sub('_', os.path.basename((q.get('name') or [''])[0])).strip()
+        sub = (q.get('sub') or [None])[0]
         if folder_name not in OUTPUT_DIRS:
             return self.fail(400, 'folder not allowed')
         if not name or name.startswith('.'):
             return self.fail(400, 'bad file name')
-        folder = ROOT / folder_name
-        folder.mkdir(exist_ok=True)
+        if sub is not None and not safe_segment(sub):
+            return self.fail(400, 'bad folder name')
+        folder = ROOT / folder_name / sub.strip() if sub is not None else ROOT / folder_name
+        folder.mkdir(parents=True, exist_ok=True)
         final = unique_name(folder, name)
         write_atomic(folder / final, self.read_body())
         self.send_json({'ok': True, 'name': final})
+
+    def list_order_files(self):
+        q = parse_qs(urlsplit(self.path).query)
+        folder = order_path((q.get('folder') or [''])[0])
+        row = (q.get('row') or [''])[0]
+        if not folder or (row and not ROW_ID.match(row)):
+            return self.fail(400, 'bad folder name')
+        files = []
+        if folder.is_dir():
+            for p in folder.iterdir():
+                if p.is_file() and p.suffix.lower() == '.xlsx' and not p.name.startswith('~$'):
+                    st = p.stat()
+                    files.append({'name': p.name, 'created': st.st_ctime * 1000, 'modified': st.st_mtime * 1000})
+        files.sort(key=lambda f: (f['created'], f['name']))   # oldest first; st_ctime = creation time on Windows
+        draft = bool(row) and (DATA / 'rows' / row / 'orders' / 'draft.json').is_file()
+        self.send_json({'files': files, 'draft': draft})
+
+    def open_order_file(self, q):
+        name = (q.get('name') or [None])[0]
+        p = order_path((q.get('folder') or [''])[0], name)
+        if not p:
+            return self.fail(400, 'bad file name')
+        if name is None:
+            p.mkdir(parents=True, exist_ok=True)            # 打开文件夹 before the first file
+        elif not p.is_file():
+            return self.fail(404, 'missing')
+        try:
+            os.startfile(str(p))                            # Windows: Excel for .xlsx, Explorer for a folder
+        except OSError as e:
+            return self.fail(500, str(e))
+        self.send_json({'ok': True})
 
     def list_rows(self):
         out = []
