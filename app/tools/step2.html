@@ -1667,14 +1667,22 @@ function applySettings(st){
                                             factories: SETTINGS.factories.map(f => Object.assign({}, f))});
 }
 /* the row's defaults; they are shown but not written until the first edit */
+/* HUB: 交货日期 estimate = today + 2 months, moved to the nearest 1st / 15th / last day of a month (a tie goes to the
+   later date). Local Y-M-D: toISOString() is UTC and can be a day early in China time */
+function estimateDate(today){
+  const y = today.getFullYear(), m = today.getMonth() + 2;
+  const last = new Date(y, m + 1, 0).getDate();
+  const days = d => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5;   // whole days (no DST hour)
+  const base = days(new Date(y, m, Math.min(today.getDate(), last)));   // 12-31 + 2 months = end of Feb, not 3 Mar
+  const pick = [new Date(y, m, 1), new Date(y, m, 15), new Date(y, m, last), new Date(y, m + 1, 1)]
+    .reduce((best, c) => Math.abs(days(c) - base) <= Math.abs(days(best) - base) ? c : best);   // <= : later on a tie
+  return pick.getFullYear()+'-'+String(pick.getMonth()+1).padStart(2,'0')+'-'+String(pick.getDate()).padStart(2,'0');
+}
 function applyDefaults(){
   /* HUB: 品名 / 材质 are read from the hub row (META), so nothing product-level is copied in */
   if(!S.products.length) S.products.push({id:uid(), code:'', image:null, imgNat:null, crop:null, variants:[]});
   if(!S.order.sku && META.category) S.order.sku = META.category+'_';
-  if(!S.order.date){
-    const d = new Date(); d.setMonth(d.getMonth()+2);
-    S.order.date = d.toISOString().slice(0,10);
-  }
+  if(!S.order.date) S.order.date = estimateDate(new Date());   /* HUB: a new form only; picked dates are kept */
   if(S.order.plant !== '含') S.order.plant = '不含';
   S.products.forEach(p=>{ if(!p.variants.length) p.variants.push(newVariant(p)); });
 }

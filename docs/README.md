@@ -75,6 +75,7 @@ rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, 
 rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
 rows/<id>/images.json { main:{url,w,h}, extra:[{url,w,h,crop}] }  the row's images: main + up to 8 more (image viewer,
                       下单计划 picker)
+rows/<id>/order-qty.json { qty:{<尺寸 / 规格, lower-case>: 下单数量} }  the picker's remembered 下单数量 per 报价 line (hub writes it)
 rows/<id>/order-files.json { files:{<file name>:{submitted, deliveryDate}} }  the 已下单 marks of the row's Excel files (hub
                       writes it); deliveryDate = the form's 交货日期 when that file was generated. Keyed by name: a file
                       renamed in Explorer loses its mark. 更新 Excel over the same file keeps it

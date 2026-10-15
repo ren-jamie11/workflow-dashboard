@@ -262,6 +262,10 @@ table.pk tbody tr:hover td{background:#fafbff}
 table.pk tr.off td{color:#94a3b8}
 table.pk input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--primary);vertical-align:middle}
 table.pk .none{color:#cbd5e1}
+/* 下单数量 per 报价 line (optional): every row built from the line gets it; remembered per product (order-qty.json) */
+table.pk tbody tr td.qty{cursor:default}
+table.pk .pk-qty{width:110px;box-sizing:border-box;border:1px solid var(--line);border-radius:6px;padding:.3rem .45rem;font:inherit;font-size:.85rem;text-align:right;color:var(--dark)}
+table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(79,70,229,.15)}
 .pk-foot{display:flex;align-items:center;gap:.75rem;margin-top:1.4rem;padding-top:1rem;border-top:1px solid var(--line)}
 .pk-foot .hint{margin:0 auto 0 0;font-size:.82rem}
 </style>
@@ -2032,15 +2036,20 @@ $('s2Del').addEventListener('mousedown', e => { if (e.target === $('s2Del')) $('
 /* ---- the picker: 色号 slots × ticked 报价 lines ----
    A slot = one 产品色号: an image (the row's own, main first, uploaded into the slot or duplicated from another slot) and / or
    a name (this draft only). Every slot counts; × removes it (the image stays with the product). '+' adds an empty slot
-   (at most IMG_LIMIT slots); a slot with neither image nor name is skipped */
+   (at most IMG_LIMIT slots); a slot with neither image nor name is skipped.
+   Each 报价 line may get a 下单数量 (pk.qty: line → text), remembered per product by 尺寸 / 规格 in order-qty.json */
+const qtyPath = r => 'rows/' + r.id + '/order-qty.json';
+const qtyKey = l => s1Val(l.sku).toLowerCase();         // '' = an unlabelled line: used for this form, not remembered
 function openPicker(r){
   setView('pick');
   renderPicker();
-  Promise.all([loadRowImages(r), api.get('rows/' + r.id + '/step1.json')]).then(([list, s1]) => {
+  Promise.all([loadRowImages(r), api.get('rows/' + r.id + '/step1.json'), api.get(qtyPath(r))]).then(([list, s1, mq]) => {
     if (!order || order.id !== r.id || order.view !== 'pick') return;
     const lines = (s1 && Array.isArray(s1.rows) ? s1.rows : [])
       .filter(x => ['sku', 'price', 'l', 'w', 'h'].some(k => String(x[k] == null ? '' : x[k]).trim()));
-    order.pick = { r, list, slots: list.map((im, i) => ({ im, name: '', main: !i })), lines, on: new Set(lines) };   // every image + every line
+    const known = mq && mq.qty ? mq.qty : {};
+    const qty = new Map(lines.map(l => [l, qtyKey(l) && known[qtyKey(l)] != null ? String(known[qtyKey(l)]) : '']));
+    order.pick = { r, list, slots: list.map((im, i) => ({ im, name: '', main: !i })), lines, on: new Set(lines), qty };   // every image + every line
     renderPicker();
   }).catch(() => {});
 }
@@ -2081,15 +2090,16 @@ function renderPickLines(){
   const cell = v => v ? esc(v) : '<span class="none">—</span>';
   $('pkLines').innerHTML = '<table class="pk"><thead><tr>' +
       '<th style="width:44px"><input type="checkbox" data-pk="all" title="全选 / 全不选"' + (pk.on.size === pk.lines.length ? ' checked' : '') + '></th>' +
-      '<th>尺寸 / 规格</th><th>工厂价 (￥)</th><th>内盒尺寸</th><th>建议售价 ($)</th></tr></thead><tbody>' +
+      '<th>尺寸 / 规格</th><th>工厂价 (￥)</th><th>内盒尺寸</th><th>建议售价 ($)</th><th style="width:130px">下单数量</th></tr></thead><tbody>' +
     pk.lines.map((l, i) => {
       const L = parseFloat(l.l), W = parseFloat(l.w), H = parseFloat(l.h), fp = parseFloat(l.price);   // as in the 报价 panel
       const r = L > 0 && W > 0 && H > 0 ? PRICING.computeRow(isNaN(fp) ? 0 : fp, L, W, H, P) : null;
       const sale = r && r.price != null ? r.price.toFixed(2) : '';   // oversize: no price
       const on = pk.on.has(l);
       return '<tr class="' + (on ? '' : 'off') + '" data-pk="line" data-i="' + i + '">' +
-        '<td><input type="checkbox"' + (on ? ' checked' : '') + '></td>' +
-        '<td>' + cell(s1Val(l.sku)) + '</td><td>' + cell(s1Val(l.price)) + '</td><td>' + cell(s1Box(l)) + '</td><td>' + cell(sale) + '</td></tr>';
+        '<td><input type="checkbox" tabindex="-1"' + (on ? ' checked' : '') + '></td>' +   // Tab: 下单数量 → next 下单数量
+        '<td>' + cell(s1Val(l.sku)) + '</td><td>' + cell(s1Val(l.price)) + '</td><td>' + cell(s1Box(l)) + '</td><td>' + cell(sale) + '</td>' +
+        '<td class="qty"><input class="pk-qty" inputmode="numeric" placeholder="选填" value="' + esc(pk.qty.get(l) || '') + '"></td></tr>';
     }).join('') + '</tbody></table>';
 }
 function renderPickSum(){
@@ -2164,9 +2174,15 @@ function pkDragEnd(drop){
 window.addEventListener('mousemove', pkDragMove);
 window.addEventListener('mouseup', () => pkDragEnd(true));
 window.addEventListener('blur', () => pkDragEnd(false));
+/* 下单数量: stored as typed (no re-render, it would drop the focus) */
+$('pkLines').addEventListener('input', e => {
+  const pk = order && order.pick, tr = e.target.classList.contains('pk-qty') && e.target.closest('tr[data-pk="line"]');
+  const l = pk && tr && pk.lines[+tr.dataset.i];
+  if (l) pk.qty.set(l, e.target.value);
+});
 $('pkLines').addEventListener('click', e => {
   const pk = order && order.pick;
-  if (!pk) return;
+  if (!pk || e.target.closest('td.qty')) return;        // the 下单数量 cell never toggles the line
   const all = e.target.closest('[data-pk="all"]');
   if (all) pk.on = all.checked ? new Set(pk.lines) : new Set();
   else {
@@ -2230,15 +2246,29 @@ async function savePick(pk){
       (lines.length ? lines : [null]).forEach(l => variants.push({
         id: newId(), colorCode: name.trim(), colorImage: im ? im.url : null,
         colorNat: im && im.w && im.h ? { w: im.w, h: im.h } : null, colorCrop: im ? copy(cropOf(im)) : null,
-        size: l ? s1Val(l.sku) : '', setQty: '', price: l ? s1Val(l.price) : '', boxSize: l ? s1Box(l) : '', qty: '',
+        size: l ? s1Val(l.sku) : '', setQty: '', price: l ? s1Val(l.price) : '', boxSize: l ? s1Box(l) : '',
+        qty: l ? s1Val(pk.qty.get(l)) : '',
         img: mainId, imgCrop: main ? copy(cropOf(main)) : null, accImg: null, gRaw: '', pass: {} }));
     });
     await api.put(draftPath(r), { order: {}, images, hub: {},          // replaces the old draft (asked at + 新下单计划)
       products: [{ id: newId(), code: '', image: null, imgNat: null, crop: null, variants }] });
+    saveQty(r, pk);
     return true;
   } catch (e) {
     return false;
   }
+}
+/* remember the 下单数量 of the labelled lines for this product's next 新下单计划 (an emptied box forgets it) */
+async function saveQty(r, pk){
+  try {
+    const m = await api.get(qtyPath(r)), qty = Object.assign({}, m && m.qty);
+    pk.lines.forEach(l => {
+      const k = qtyKey(l), v = s1Val(pk.qty.get(l));
+      if (!k) return;
+      if (v) qty[k] = v; else delete qty[k];
+    });
+    await api.put(qtyPath(r), { qty });
+  } catch (e) {}                                        // only a convenience: never blocks the form
 }
 $('pkOk').addEventListener('click', async () => {
   const pk = order && order.pick;

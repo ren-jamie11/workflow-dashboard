@@ -95,6 +95,8 @@ only go stale. This supersedes **M1, M3, M13, M15, M16** and the storage notes b
 | Y4 | The form has a read-only **总价 (￥)** column after 下单数量 = 下单数量 × 单价 when both are numbers, else `—` |
 | Y5 | A **合计** row (`tfoot`, always dark red #991b1b) sums 下单数量 and 总价; rows that are not numbers are left out and counted in the cell's title (`N 行未计入…`). Updated while typing (`renderTotals()` from `softRefresh()`). Form only: the Excel layout is unchanged |
 | Y6 | In the picker, Tab moves from one `色号 / 颜色名` box to the next: the image tiles and × are out of the tab order (`tabindex="-1"`) |
+| Y7 | The 交货日期 estimate of a new form = today + 2 months moved to the nearest 1st / 15th / last day of a month (a tie goes to the later date; `estimateDate()`). A picked, saved or imported date is never moved |
+| Y8 | The picker's 报价 lines have an optional **下单数量** box (Tab goes box to box); every row built from a line gets it. Remembered per product by 尺寸 / 规格 in `rows/<id>/order-qty.json {qty:{<尺寸 lower-case>: value}}` (written by the hub at 确认 / 保存草稿; an emptied box forgets it; unlabelled lines are not remembered) |
 
 ## Hub: the pop-up (`index.html`, section `下单 pop-up`)
 - `#s2Back` (the `.iv-back` backdrop) > `.s2`: the header, then one of three views: `#s2List` (the row's list),
@@ -154,7 +156,7 @@ only go stale. This supersedes **M1, M3, M13, M15, M16** and the storage notes b
   工厂 on load, 清空全部 and import (README F10); `taxRate` defaults to `''` and an empty one leaves the Excel cell blank. 品名 / 材质 are read from `META`
   and posted with `meta-changed`; `autoDesc`, the file name and the Excel 产品材质 column use them. `buildRows()` writes
   T/U/W from `S.order` and Y from `META.material` on every row; `latestDate()` = `S.order.date`.
-- **Defaults (`applyDefaults`)**: an empty order SKU = `<category>_`, an empty order date = today + 2 months,
+- **Defaults (`applyDefaults`)**: an empty order SKU = `<category>_`, an empty order date = today + 2 months rounded to a 1st / 15th / month-end (Y7),
   `plant` = 不含, and every 货号 has at least one variant. `foldOldDraft()` applies S7 before that.
 - **Settings:** `S.settings.operator/store` from `settings.step2`; `skuPrefixes = categories.map(c => c+'_')`. An
   imported SKU prefix that isn't a category only shows in that form's dropdowns; import never changes the global
