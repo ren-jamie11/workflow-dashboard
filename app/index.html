@@ -203,7 +203,7 @@ tr.xp-spacer td{padding:0;border:0}
 .s2-card-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding-bottom:.9rem;margin-bottom:1rem;border-bottom:1px solid var(--line)}
 .s2-card-head h2{font-size:1rem;margin:0}
 .s2-card-head .acts{display:flex;gap:.5rem}
-/* the files, as in Explorer: icon + wrapped name; the corner tick = 已提交 */
+/* the files, as in Explorer: icon + wrapped name; the pill under the name = 已下单; ✎ 编辑表单 on the file the form made */
 .of-grid{display:flex;flex-wrap:wrap;gap:.5rem}
 .of-tile{width:132px;display:flex;flex-direction:column;align-items:center;gap:.45rem;padding:.7rem .45rem .6rem;border:1px solid transparent;
   border-radius:8px;cursor:pointer;user-select:none}
@@ -213,10 +213,15 @@ tr.xp-spacer td{padding:0;border:0}
 .of-name{font-size:.76rem;line-height:1.35;text-align:center;word-break:break-all;color:var(--dark);
   display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .of-tile.draft .of-name{color:var(--primary);font-weight:600}
-.of-tick{position:absolute;top:-6px;right:-10px;width:20px;height:20px;border-radius:50%;border:1.5px solid #cbd5e1;background:#fff;
-  color:transparent;font-size:.7rem;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}
-.of-tick:hover{border-color:#16a34a;color:#86efac}
-.of-tick.on{background:#16a34a;border-color:#16a34a;color:#fff}
+.of-tile.done{background:#f0fdf4;border-color:#bbf7d0}
+.of-tile.done:hover{background:#dcfce7;border-color:#86efac}
+.of-mark,.of-edit{font:inherit;font-size:.72rem;line-height:1.2;padding:.22rem .6rem;border-radius:999px;cursor:pointer;white-space:nowrap}
+.of-mark{border:1px solid #cbd5e1;background:#fff;color:#64748b}
+.of-mark:hover{border-color:#16a34a;color:#15803d}
+.of-mark.on{background:#16a34a;border-color:#16a34a;color:#fff;font-weight:600}
+.of-mark.on:hover{background:#15803d;border-color:#15803d;color:#fff}
+.of-edit{border:1px solid #c7d2fe;background:#eef2ff;color:var(--primary);margin-top:-.15rem}
+.of-edit:hover{background:var(--primary);border-color:var(--primary);color:#fff}
 .of-del{position:absolute;top:-6px;left:-10px;width:20px;height:20px;border-radius:50%;border:1px solid var(--line);background:#fff;color:#64748b;
   font-size:.8rem;line-height:1;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}
 .of-del:hover{color:#dc2626;border-color:#fca5a5}
@@ -1763,15 +1768,16 @@ document.addEventListener('keydown', e => {
 /* ============ 下单 pop-up (Step 2) ============
    A row's 下单计划 are its Excel files: 下单计划/<r.orderFolder>/*.xlsx. The folder name is fixed the first time it is needed
    (renaming the product never breaks the link), and the files are edited, renamed and deleted in Excel / Explorer, never here.
-   The form only makes new files: each row has at most one draft, rows/<id>/orders/draft.json, which 生成 deletes.
-   rows/<id>/order-files.json {files:{<file name>:{submitted, deliveryDate}}} holds the 已提交 ticks: any ticked file = 已下单,
+   Each row has one form, rows/<id>/orders/draft.json. 生成 keeps it and records the Excel it made (hub.file): that file's
+   tile gets ✎ 编辑表单, and 更新 Excel writes over it. Until then (or once that file is renamed / deleted) it is a 草稿 tile.
+   rows/<id>/order-files.json {files:{<file name>:{submitted, deliveryDate}}} holds the 已下单 marks: any marked file = 已下单,
    and meta.deliveryDate = the earliest 交货日期 among them (recorded when the file was generated).
    The pop-up has three views: the row's files, the picker for a new draft (selected images × ticked 报价 lines), and the
    form itself: one tools/step2.html page that stays loaded and is switched with load-row {id, form, folder}
    (ExcelJS makes it ~1 MB). Forms are independent of the row's images (never the table thumb).
    ‹ (top left) goes back: form / picker → the list → the table */
 const s2Frame = $('s2Frame');
-let order = null;           // {id, view: 'list' | 'pick' | 'form', form: 'draft' in the form view, pick, file, list}
+let order = null;           // {id, view: 'list' | 'pick' | 'form', form: 'draft' in the form view, linked, pick, file, list}
 let s2Ready = false;        // the tool page has loaded and listens for load-row
 const DRAFT = 'draft';
 const draftPath = r => 'rows/' + r.id + '/orders/' + DRAFT + '.json';
@@ -1793,12 +1799,14 @@ function orderFolderOf(r){
   saveRow(r);
   return name;
 }
-/* {files: [{name, created, modified}] oldest first, draft: bool, marks: order-files.json} */
+/* {files: [{name, created, modified}] oldest first, draft: bool, draftFile: the Excel the form made, marks: order-files.json} */
 async function loadOrderList(r){
   const [res, m] = await Promise.all([api.orderFiles(orderFolderOf(r), r.id), api.get(marksPath(r))]);
-  return { files: res.files || [], draft: !!res.draft, marks: m && m.files ? m : { files: {} } };
+  return { files: res.files || [], draft: !!res.draft, draftFile: res.draftFile || '', marks: m && m.files ? m : { files: {} } };
 }
-/* 已下单 = at least one 已提交 file in the folder; meta.deliveryDate = the earliest 交货日期 among them.
+/* the file the row's form made, if it is still in the folder ('' = the form is a 草稿) */
+const linkedFile = l => l.draft && l.draftFile && l.files.some(f => f.name === l.draftFile) ? l.draftFile : '';
+/* 已下单 = at least one file marked 已下单 in the folder; meta.deliveryDate = the earliest 交货日期 among them.
    Unticking the last one goes back to 未下单 (已上架 never moves back) */
 function applySubmitted(r, l){
   const on = l.files.map(f => l.marks.files[f.name]).filter(x => x && x.submitted);
@@ -1838,7 +1846,7 @@ async function deleteDraft(r){
 
 function openOrder(r){
   if (viewer) closeViewer();
-  order = { id: r.id, view: null, form: null, pick: null, file: null, list: null };
+  order = { id: r.id, view: null, form: null, linked: false, pick: null, file: null, list: null };
   $('s2Back').classList.remove('hidden');
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   if (!s2Frame.getAttribute('src')) s2Frame.src = 'tools/step2.html';   // loads in the background while the list shows
@@ -1898,16 +1906,17 @@ function renderOrderHead(){
   const r = order && byId(order.id);
   if (!r) return;
   if (r.thumb) $('s2Thumb').src = r.thumb; else $('s2Thumb').removeAttribute('src');
-  $('s2Title').innerHTML = '<span class="step-tag">' + (order.view === 'form' ? '下单计划 · 草稿' : '下单计划') + '</span>' + esc(rowLabel(r));
+  $('s2Title').innerHTML = '<span class="step-tag">' + (order.view === 'form' ? (order.linked ? '下单计划 · 编辑表单' : '下单计划 · 草稿') : '下单计划') + '</span>' + esc(rowLabel(r));
   $('s2Meta').textContent = [r.sku, r.parentAsin, r.material].filter(Boolean).join(' · ') || '未填写 SKU';
   $('s2Warn').classList.toggle('hidden', !!r.step1Confirmed);
-  $('s2ToList').title = order.view === 'list' ? '返回表格' : order.view === 'form' ? '返回全部下单计划（草稿自动保存）' : '返回全部下单计划';
+  $('s2ToList').title = order.view === 'list' ? '返回表格' : order.view === 'form' ? '返回全部下单计划（表单自动保存）' : '返回全部下单计划';
 }
 
-/* ---- the form view (the row's draft) ---- */
-function openForm(r, file){
+/* ---- the form view (the row's draft, or the form behind its last Excel: linked) ---- */
+function openForm(r, file, linked){
   setView('form');
   order.form = DRAFT;
+  order.linked = !!linked;
   order.file = file || null;
   renderOrderHead();
   sendLoad();
@@ -1920,13 +1929,14 @@ function sendLoad(){
   order.file = null;
   hubEmbed.send(s2Frame, 'load-row', d);
 }
-/* a new draft replaces the row's old one: ask first */
+/* a new draft replaces the row's form (a draft, or the one behind its last Excel): ask first */
 async function okToReplaceDraft(r){
-  let has = order && order.list ? order.list.draft : null;
-  if (has == null) {
-    try { has = (await api.orderFiles(orderFolderOf(r), r.id)).draft; } catch (e) { return false; }
+  let l = order && order.list;
+  if (!l) {
+    try { l = await loadOrderList(r); } catch (e) { return false; }
   }
-  return !has || confirm('已有草稿，将被替换？');
+  if (!l.draft) return true;
+  return confirm(linkedFile(l) ? '将替换最近的下单表单（已生成的 Excel 不受影响），继续？' : '已有草稿，将被替换？');
 }
 
 /* ---- the files ---- */
@@ -1939,22 +1949,25 @@ const DRAFT_ICON = '<svg viewBox="0 0 48 56" aria-hidden="true"><path d="M8 2h22
 function renderOrderList(flash){
   const el = $('olList'), l = order && order.list;
   if (!l) { el.innerHTML = '<div class="hint">加载中…</div>'; return; }
+  const linked = linkedFile(l);
   if (!l.files.length && !l.draft) {
     el.innerHTML = '<div class="empty-box"><b>还没有下单计划文件</b>点击「+ 新下单计划」选择图片和报价行，或「从 Excel 导入」已有文件；生成的 Excel 会出现在这里。</div>';
     return;
   }
   el.innerHTML = '<div class="of-grid">' +
-    (l.draft ? '<div class="of-tile draft" data-of="draft" title="继续编辑草稿（生成 Excel 后草稿自动删除）">' +
+    (l.draft && !linked ? '<div class="of-tile draft" data-of="draft" title="继续编辑草稿">' +
       '<span class="of-icon">' + DRAFT_ICON + '<button type="button" class="of-del" data-of="del" title="删除草稿">×</button></span>' +
       '<span class="of-name">草稿 · 继续编辑</span></div>' : '') +
     l.files.map((f, i) => {
       const on = !!(l.marks.files[f.name] && l.marks.files[f.name].submitted);
-      return '<div class="of-tile' + (f.name === flash ? ' flash' : '') + '" data-of="file" data-i="' + i + '" title="' +
+      return '<div class="of-tile' + (on ? ' done' : '') + (f.name === flash ? ' flash' : '') + '" data-of="file" data-i="' + i + '" title="' +
           esc(f.name) + '&#10;修改于 ' + stampOf(f.modified) + '&#10;点击用 Excel 打开">' +
-        '<span class="of-icon">' + XLSX_ICON +
-          '<button type="button" class="of-tick' + (on ? ' on' : '') + '" data-of="tick" title="' +
-            (on ? '已提交（点击取消）' : '未提交（点击标记为已提交）') + '">✓</button></span>' +
-        '<span class="of-name">' + esc(f.name) + '</span></div>';
+        '<span class="of-icon">' + XLSX_ICON + '</span>' +
+        '<span class="of-name">' + esc(f.name) + '</span>' +
+        '<button type="button" class="of-mark' + (on ? ' on' : '') + '" data-of="tick" title="' +
+          (on ? '点击取消已下单' : '点击标记为已下单') + '">' + (on ? '✓ 已下单' : '标记已下单') + '</button>' +
+        (f.name === linked ? '<button type="button" class="of-edit" data-of="edit" title="打开生成这个 Excel 的表单，修改后「更新 Excel」覆盖此文件">✎ 编辑表单</button>' : '') +
+        '</div>';
     }).join('') + '</div>';
 }
 $('olList').addEventListener('click', async e => {
@@ -1965,6 +1978,7 @@ $('olList').addEventListener('click', async e => {
   const tile = t.closest('.of-tile'), f = tile && l.files[+tile.dataset.i];
   if (!f) return;
   if (t.dataset.of === 'tick') return toggleSubmitted(r, l, f.name);
+  if (t.dataset.of === 'edit') return openForm(r, null, true);
   try {
     if (!(await api.openOrderFile(orderFolderOf(r), f.name))) { toast('文件已不存在', true); refreshOrderList(); }
   } catch (err) {}
@@ -2276,16 +2290,21 @@ hubEmbed.listen((m, frame) => {
       if (ch) { saveRow(r); render(); renderOrderHead(); }
       break;
     }
-    case 'step2-generated':                             // a new Excel in the row's folder (the tool has deleted the draft)
+    case 'step2-generated': {                           // an Excel in the row's folder (the tool keeps the form, linked to it)
       if (!r || !d.file) break;
-      api.get(marksPath(r)).then(m => {                 // 未提交 until ticked; its 交货日期 counts once it is
+      let marked = false;
+      api.get(marksPath(r)).then(m => {                 // a new file: 未下单 until marked; its 交货日期 counts once it is
         m = m && m.files ? m : { files: {} };
-        m.files[d.file] = { submitted: false, deliveryDate: d.deliveryDate || '' };
+        const e = d.replaced && m.files[d.file];        // 更新 Excel over the same file: keeps its 已下单 mark
+        marked = !!(e && e.submitted);
+        m.files[d.file] = { submitted: marked, deliveryDate: d.deliveryDate || '' };
         return api.put(marksPath(r), m);
-      }).catch(() => {}).then(() => {
-        if (order && order.id === r.id && order.view === 'form') showOrder(false, d.file);
-      });
+      }).then(() => marked && loadOrderList(r).then(l => applySubmitted(r, l)))   // 交货日期 may have changed
+        .catch(() => {}).then(() => {
+          if (order && order.id === r.id && order.view === 'form') showOrder(false, d.file);
+        });
       break;
+    }
     case 'factory-used':                                // a 工厂 picked / added / imported in a 下单计划: added at the end if new
       useFactory(d.name, d.taxRate, d.add, d.imported);
       break;

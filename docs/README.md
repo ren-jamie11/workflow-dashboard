@@ -53,8 +53,8 @@ Updated Pricing.html   ORIGINAL: the Step 1 pricing reference since 2026-10-14 (
 | GET / PUT | `/api/data/<path>` | read or write any JSON under `data/` (write = temp file + rename); a missing file returns `null` |
 | DELETE | `/api/rows/<id>` | delete the `data/rows/<id>/` folder |
 | DELETE | `/api/data/<path>` | delete one JSON file under `data/` (a 下单计划 draft) |
-| POST | `/api/output?dir=<d>&name=<f>[&sub=<folder>]` | write the raw body to one of the two output folders (whitelist: `售价计算 Price Calcs`, `下单计划`), optionally into one subfolder (a product's); if the name is taken, add ` (1)` |
-| GET | `/api/orderfiles?folder=<f>&row=<id>` | `{files:[{name, created, modified}], draft}`: the `.xlsx` files in `下单计划/<f>/` (no `~$` lock files), oldest first by creation time; `draft` = `rows/<id>/orders/draft.json` exists |
+| POST | `/api/output?dir=<d>&name=<f>[&sub=<folder>][&replace=<old>]` | write the raw body to one of the two output folders (whitelist: `售价计算 Price Calcs`, `下单计划`), optionally into one subfolder (a product's); if the name is taken, add ` (1)`. `replace` = an existing file to write over (更新 Excel); if it is gone, `name` is used as usual. `409` when the file is open in Excel |
+| GET | `/api/orderfiles?folder=<f>&row=<id>` | `{files:[{name, created, modified}], draft, draftFile}`: the `.xlsx` files in `下单计划/<f>/` (no `~$` lock files), oldest first by creation time; `draft` = `rows/<id>/orders/draft.json` exists; `draftFile` = its `hub.file` (the Excel it made, `''` if none) |
 | POST | `/api/open?folder=<f>[&name=<n>]` | open `下单计划/<f>/<n>` in its Windows app (`os.startfile`), or the folder in Explorer when there is no name (created first); a missing file returns 404 |
 
 Binds to `127.0.0.1` only and rejects `..` in paths; folder / file names for `下单计划` must be single plain names. If the port is already in use, it just opens the
@@ -75,10 +75,11 @@ rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, 
 rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
 rows/<id>/images.json { main:{url,w,h}, extra:[{url,w,h,crop}] }  the row's images: main + up to 8 more (image viewer,
                       下单计划 picker)
-rows/<id>/order-files.json { files:{<file name>:{submitted, deliveryDate}} }  the 已提交 ticks of the row's Excel files (hub
+rows/<id>/order-files.json { files:{<file name>:{submitted, deliveryDate}} }  the 已下单 marks of the row's Excel files (hub
                       writes it); deliveryDate = the form's 交货日期 when that file was generated. Keyed by name: a file
-                      renamed in Explorer loses its tick
-rows/<id>/orders/draft.json  the row's one draft 下单计划 (Step 2 writes it; 生成 deletes it): {order, products:[ONE 货号 card],
+                      renamed in Explorer loses its mark. 更新 Excel over the same file keeps it
+rows/<id>/orders/draft.json  the row's one 下单计划 form (Step 2 writes it; 生成 keeps it and sets hub.file = the Excel it
+                      made, so 编辑表单 → 更新 Excel writes over that file): {order, products:[ONE 货号 card],
                       images:{<imgId>:{url,w,h}}, hub}.
                       Each row: variants[j].img = an id in `images` (each picture stored once) + its own square position
                       variants[j].imgCrop; 色号 variants[j].colorImage / colorCrop. order = {factory, date, sku, plant, taxRate,
@@ -103,8 +104,8 @@ Before 2026-09-29 each 下单计划 was a saved form (`orders.json` + `orders/<f
 were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel files are now the only record.
 
 ### Status and journey rules
-- Status order: `未下单 < 已下单 < 已上架`. It changes automatically: ticking a 下单计划 file 已提交 → 已下单
-  (生成 alone does not), unticking the last one → back to 未下单 (the one step back; 已上架 is never changed by
+- Status order: `未下单 < 已下单 < 已上架`. It changes automatically: marking a 下单计划 file 已下单 → 已下单
+  (生成 alone does not), unmarking the last one → back to 未下单 (the one step back; 已上架 is never changed by
   ticks), first sales in the row's SKU range → 已上架. `deliveryDate` = the earliest 交货日期 among the ticked files
   ('' when none). The dropdown can always override the status. (生产中 was removed on 2026-09-29; a stored 生产中 loads as 已下单.)
 - Journey steps are **报价 — 下单 — 上架**. A step is:

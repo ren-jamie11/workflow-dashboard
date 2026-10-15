@@ -64,7 +64,14 @@ textarea.form-control{resize:vertical;min-height:64px;line-height:1.5}
 .prod-rows{flex:1;min-width:0}
 .prod-rows .vwrap{margin-top:0;border-top:none;padding:0 0 .25rem}
 /* HUB: one card per 下单计划; every row has its own square 图片 (evenly spaced fixed columns) */
-table.vt{table-layout:fixed;min-width:1140px}   /* HUB: keeps each shared column ≥ ~140px (内盒尺寸 fits) */
+table.vt{table-layout:fixed;min-width:1280px}   /* HUB: keeps each shared column ≥ ~140px (内盒尺寸 fits) */
+/* HUB: 总价 = 下单数量 × 单价 (read-only) and the 合计 row under the table (form only, not in the Excel) */
+table.vt td.total{text-align:right;padding-right:.8rem;color:var(--dark);font-variant-numeric:tabular-nums;white-space:nowrap}
+table.vt td.total.none{color:#cbd5e1}
+table.vt tfoot td{padding:.6rem .3rem;border-top:2px solid var(--line);background:#f8fafc;font-weight:600;font-variant-numeric:tabular-nums}
+table.vt tfoot td.sum{text-align:right;padding-right:.8rem;white-space:nowrap}
+table.vt tfoot td.sum.part{color:#b45309}
+table.vt tfoot td.label{text-align:right;color:var(--muted);font-size:.82rem;padding-right:.8rem}
 table.vt .colorcell{gap:.75rem}
 table.vt .colorcell .cell-input{flex:none;width:148px}
 td.imgcell{padding:.4rem .3rem}
@@ -381,8 +388,8 @@ let S = JSON.parse(JSON.stringify(DEFAULTS));
 const uid = ()=> Math.random().toString(36).slice(2,10);
 
 /* ============ HUB: 自动保存到 data/rows/<id>/orders/draft.json ============
-   The Excel files in 下单计划/<product folder>/ are the record; this page only makes new ones. A row has at most one draft
-   (FORM = 'draft'), deleted once its Excel is generated. Only user actions call
+   The Excel files in 下单计划/<product folder>/ are the record. A row has at most one form (FORM = 'draft'); 生成 keeps it
+   and records the Excel it made in hub.file, so 编辑表单 → 更新 Excel writes over that same file. Only user actions call
    save(): the defaults filled in when a form opens are not written, so opening one without editing it changes nothing on disk.
    The suggestion lists (memory) are shared by the row's forms: rows/<id>/order-memory.json.
    settings are global (hub ⚙ 设置 → 下单), never saved here */
@@ -451,7 +458,42 @@ function autoDesc(p,v){
   const parts = [S.order.factory, (v.colorCode||'')+(v.size||''), META.name];   /* HUB: 品名 = the hub row's */
   return parts.map(x=>(x||'').trim()).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
 }
-function descOf(p,v){ return autoDesc(p,v); }   /* HUB: always automatic (the column is hidden, no hand edits) */
+function descOf(p,v){ return autoDesc(p,v); }
+const genLabel = () => S.hub.file ? '更新 Excel' : '生成 Excel';   /* HUB */
+/* HUB: 总价 = 下单数量 × 单价 when both are numbers (form only) */
+const numOf = x => { const t = String(x==null?'':x).trim(); return t==='' ? NaN : Number(t); };
+const fmtNum = n => n.toLocaleString('zh-CN', {maximumFractionDigits:2});
+function rowTotal(v){ const q = numOf(v.qty), pr = numOf(v.price); return isFinite(q) && isFinite(pr) ? q*pr : NaN; }
+function totalCell(v){ const t = rowTotal(v); return isFinite(t) ? fmtNum(t) : '—'; }
+/* 合计 of one 货号 card: rows whose 下单数量 / 总价 is not a number are left out (and counted in the title) */
+function sums(p){
+  let qty = 0, total = 0, qMiss = 0, tMiss = 0;
+  p.variants.forEach(v => {
+    const q = numOf(v.qty), t = rowTotal(v);
+    if(isFinite(q)) qty += q; else qMiss++;
+    if(isFinite(t)) total += t; else tMiss++;
+  });
+  return {qty, total, qMiss, tMiss};
+}
+function sumCells(p){
+  const s = sums(p), note = n => n ? ' part" title="'+n+' 行未计入（数量或单价不是数字）' : '';
+  return '<td class="sum'+note(s.qMiss)+'">'+fmtNum(s.qty)+'</td>'+
+         '<td class="sum'+note(s.tMiss)+'">￥'+fmtNum(s.total)+'</td>';
+}
+/* while typing: only the 总价 cells and the 合计 row change (rebuilding the table would drop the caret) */
+function renderTotals(){
+  document.querySelectorAll('.prod').forEach((card,pi)=>{
+    const p = S.products[pi]; if(!p) return;
+    p.variants.forEach(v=>{
+      const td = card.querySelector('tr[data-vid="'+v.id+'"] td.total');
+      if(!td) return;
+      td.textContent = totalCell(v);
+      td.classList.toggle('none', !isFinite(rowTotal(v)));
+    });
+    const tr = card.querySelector('tfoot tr');
+    if(tr){ tr.querySelectorAll('td.sum').forEach(td=>td.remove()); tr.querySelector('td.label').insertAdjacentHTML('afterend', sumCells(p)); }
+  });
+}   /* HUB: always automatic (the column is hidden, no hand edits) */
 /* HUB: Excel file name = 日期_工厂[_品名]_下单计划_运营.xlsx (品名 is optional) */
 function fileName(){
   const clean = s => String(s||'').trim().replace(/[\\/:*?"<>|]/g,'_');
@@ -578,7 +620,9 @@ function renderOrder(){
   const fac = findFactory(S.order.factory);                 /* HUB */
   $('ofTax').placeholder = fac && !fac.taxRate ? '该工厂未设税率' : '例 专票13%';
   $('ofFreight').value = S.order.freight || '';
-  $('fnHint').textContent = '文件名：'+fileName();
+  /* HUB: a form that already made an Excel updates that file (same name) */
+  $('fnHint').textContent = S.hub.file ? '文件：'+S.hub.file+'（将覆盖原文件）' : '文件名：'+fileName();
+  if(!$('genBtn').disabled) $('genBtn').textContent = genLabel();
   $('syncBtn').style.display = step1Rows.length ? '' : 'none';
 }
 function renderProducts(){
@@ -606,6 +650,7 @@ function renderProducts(){
         '<td><input class="cell-input num'+(String(v.price).trim()?'':' missing')+'" data-f="price" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.price)+'" placeholder="28"></td>'+
         '<td><input class="cell-input'+((v.boxSize||'').trim()?'':' missing')+'" data-f="boxSize" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.boxSize)+'" placeholder="25.5x25.5x12cm"></td>'+
         '<td><input class="cell-input num'+(String(v.qty==null?'':v.qty).trim()?'':' missing')+'" data-f="qty" data-pi="'+pi+'" data-vi="'+vi+'" value="'+esc(v.qty)+'" placeholder="200"></td>'+
+        '<td class="total'+(isFinite(rowTotal(v))?'':' none')+'">'+totalCell(v)+'</td>'+   /* HUB: 总价 (read-only) */
         /* HUB: 交货日期 / SKU are in 订单信息; 产品描述 is written automatically at 生成 */
         '<td style="text-align:center">'+
           '<button class="del-btn" data-act="vdup" data-pi="'+pi+'" data-vi="'+vi+'" title="复制此行">⧉</button>'+
@@ -622,12 +667,14 @@ function renderProducts(){
       '<div class="prod-body">'+
         '<div class="prod-rows">'+
           '<div class="vwrap"><table class="vt"><colgroup>'+
-            /* HUB: 图片 / 产品色号 fixed; 尺寸 · 套数 · 单价 · 内盒尺寸 · 下单数量 share the rest evenly */
-            '<col style="width:40px"><col style="width:86px"><col style="width:236px"><col><col><col><col><col><col style="width:72px">'+
+            /* HUB: 图片 / 产品色号 fixed; 尺寸 · 套数 · 单价 · 内盒尺寸 · 下单数量 · 总价 share the rest evenly */
+            '<col style="width:40px"><col style="width:86px"><col style="width:236px"><col><col><col><col><col><col><col style="width:72px">'+
           '</colgroup><thead><tr>'+
             '<th class="gutter"></th><th>图片</th><th>产品色号</th><th>产品尺寸</th><th>套数</th>'+
-            '<th>单价 (￥)</th><th>预估内盒尺寸</th><th>下单数量</th><th></th>'+
-          '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
+            '<th>单价 (￥)</th><th>预估内盒尺寸</th><th>下单数量</th><th style="text-align:right;padding-right:.8rem">总价 (￥)</th><th></th>'+
+          '</tr></thead><tbody>'+rows+'</tbody>'+
+          /* HUB: 合计 of 下单数量 and 总价 */
+          '<tfoot><tr><td colspan="7" class="label">合计</td>'+sumCells(p)+'<td></td></tr></tfoot></table></div>'+
           '<div class="actions tight">'+
             '<button class="btn btn-ghost sm" data-act="vadd" data-pi="'+pi+'">+ 添加一行</button>'+
           '</div>'+
@@ -1114,6 +1161,7 @@ function softRefresh(){
       const sub = card.querySelector('.prod-head .sub');
       if(sub) sub.textContent = p.variants.length+' 行';
     });
+    renderTotals();                       /* HUB: 总价 / 合计 */
     renderPreview(); renderAlert(); renderOrder();
   },260);
 }
@@ -1184,10 +1232,10 @@ $('ofTax').addEventListener('input',e=>{ S.order.taxRate=e.target.value; save();
 $('ofFreight').addEventListener('input',e=>{ S.order.freight=e.target.value; save(); softRefresh(); });
 $('clearBtn').addEventListener('click',()=>{
   if(!confirm('清空这个下单计划？第一行的图片会保留。')) return;   /* HUB */
-  const keep = S.settings, mem = S.memory, images = S.images;
+  const keep = S.settings, mem = S.memory, images = S.images, hub = S.hub;
   const v0 = S.products[0] && S.products[0].variants[0];
   S = JSON.parse(JSON.stringify(DEFAULTS));
-  S.settings = keep; S.memory = mem; S.images = images;
+  S.settings = keep; S.memory = mem; S.images = images; S.hub = hub;   /* HUB: still updates the same Excel */
   /* HUB: one blank row, keeping the first row's image and its position */
   const p = {id:uid(), code:'', image:null, imgNat:null, crop:null, variants:[]};
   const v = newVariant(p);
@@ -1471,7 +1519,8 @@ async function generate(){
   if(!rows.length) return toast('还没有可导出的内容');
   const miss = validate();
   if(miss.length && !confirm('还有 '+miss.length+' 项必填未完成。仍然生成？')) return;   /* HUB: 生成 */
-  const row = ROW, form = FORM, seq = loadSeq, delivery = latestDate();   /* HUB */
+  const row = ROW, form = FORM, seq = loadSeq, delivery = latestDate(), old = S.hub.file || '';   /* HUB */
+  const pid = S.products[0] && S.products[0].id;   /* HUB: tells this form from a newer one */
 
   const wb = new ExcelJS.Workbook();
   wb.creator = S.settings.operator||'Jamie';
@@ -1589,19 +1638,24 @@ async function generate(){
   const folder = FOLDER || META.orderFolder;
   if(!folder) throw new Error('产品文件夹未知，请从产品总览打开');
 
-  /* HUB: straight into 下单计划/<product folder> (no dialog); the draft has served its purpose */
-  const saved = await api.output('下单计划', fname, blob, folder);
-  if(seq === loadSeq && ROW === row){
-    clearTimeout(saveTimer); saveTimer = null; pendingPath = null;   // nothing may write the draft again
-    FORM = null;
+  /* HUB: straight into 下单计划/<product folder> (no dialog). A form that made an Excel before writes over it
+     (the server falls back to a new name if that file was renamed or deleted); 409 = it is open in Excel */
+  const saved = await api.output('下单计划', fname, blob, folder, old || undefined);
+  /* HUB: the form is kept and remembers its Excel, for 编辑表单 → 更新 Excel */
+  if(seq === loadSeq && ROW === row && FORM === form){
+    S.hub.file = saved;
+    pendingPath = 'rows/'+row+'/orders/'+form+'.json'; pendingRow = row;
+    await saveNow();
+  } else if(form){                          // the user left the form meanwhile: record it in the saved copy
+    const d = await api.get('rows/'+row+'/orders/'+form+'.json').catch(()=>null);
+    if(d && d.products && d.products[0] && d.products[0].id === pid){ d.hub = Object.assign({}, d.hub, {file: saved}); await api.put('rows/'+row+'/orders/'+form+'.json', d).catch(()=>{}); }
   }
-  await api.del('rows/'+row+'/orders/'+form+'.json').catch(()=>{});
-  embed.post('step2-generated', {row, file: saved, deliveryDate: delivery});   /* HUB: back to the list, the file shows */
+  embed.post('step2-generated', {row, file: saved, deliveryDate: delivery, replaced: !!old && saved === old});   /* HUB: back to the list */
 }
 $('genBtn').addEventListener('click',()=>{
   const b = $('genBtn'); b.disabled=true; b.textContent='生成中…';
   generate().catch(err=>{ console.error(err); if(!err.offline) toast('生成失败：'+err.message); })
-    .finally(()=>{ b.disabled=false; b.textContent='生成 Excel'; });
+    .finally(()=>{ b.disabled=false; b.textContent=genLabel(); });
 });
 
 /* ============ HUB: 启动 — the hub keeps this page loaded and sends load-row {id} for each product ============ */

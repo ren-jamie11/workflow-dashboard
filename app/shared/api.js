@@ -56,14 +56,16 @@ const api = {
     } catch (e) {}
   },
   delRow(id) { return api.req('DELETE', '/api/rows/' + encodeURIComponent(id)); },
-  /* write a file into 售价计算 Price Calcs / 下单计划 (sub: the product's folder in it); resolves to the final file name */
-  async output(dir, name, blob, sub) {
+  /* write a file into 售价计算 Price Calcs / 下单计划 (sub: the product's folder in it); resolves to the final file name.
+     replace: a file in that folder to write over (if it is gone, `name` is used as usual) */
+  async output(dir, name, blob, sub, replace) {
     const q = '?dir=' + encodeURIComponent(dir) + '&name=' + encodeURIComponent(name) +
-      (sub ? '&sub=' + encodeURIComponent(sub) : '');
+      (sub ? '&sub=' + encodeURIComponent(sub) : '') + (replace ? '&replace=' + encodeURIComponent(replace) : '');
     const r = await api.req('POST', '/api/output' + q, blob);
     return r.name;
   },
-  /* a product's 下单计划/<folder>/*.xlsx (oldest first) → {files:[{name, created, modified}], draft} */
+  /* a product's 下单计划/<folder>/*.xlsx (oldest first) → {files:[{name, created, modified}], draft, draftFile}
+     draftFile = the Excel the row's form last made ('' while it is only a draft) */
   orderFiles(folder, rowId) {
     return api.req('GET', '/api/orderfiles?folder=' + encodeURIComponent(folder) + '&row=' + encodeURIComponent(rowId));
   },

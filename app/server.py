@@ -7,8 +7,9 @@ API (see docs/README.md):
   PUT    /api/data/<path>.json       write JSON (temp file + rename)
   DELETE /api/data/<path>.json       remove one JSON file (e.g. a 下单计划 form)
   DELETE /api/rows/<id>              remove data/rows/<id>/
-  POST   /api/output?dir=&name=[&sub=]  write raw body into an allowed output folder (sub: one product folder in it)
-  GET    /api/orderfiles?folder=&row=   a product's 下单计划/<folder>/*.xlsx, and whether the row has a draft form
+  POST   /api/output?dir=&name=[&sub=][&replace=]  write raw body into an allowed output folder (sub: one product folder
+                                 in it); replace = an existing file to write over (else a new name); 409 if Excel has it open
+  GET    /api/orderfiles?folder=&row=   a product's 下单计划/<folder>/*.xlsx, whether the row has a form, and the file it made
   POST   /api/open?folder=[&name=]      open a 下单计划 file (or the product folder) in its Windows app
 """
 import json
@@ -198,8 +199,17 @@ class Handler(SimpleHTTPRequestHandler):
             return self.fail(400, 'bad folder name')
         folder = ROOT / folder_name / sub.strip() if sub is not None else ROOT / folder_name
         folder.mkdir(parents=True, exist_ok=True)
-        final = unique_name(folder, name)
-        write_atomic(folder / final, self.read_body())
+        replace = safe_segment((q.get('replace') or [None])[0])
+        final = replace if replace and (folder / replace).is_file() else unique_name(folder, name)
+        body = self.read_body()
+        try:
+            write_atomic(folder / final, body)
+        except PermissionError:                          # the file being replaced is open in Excel
+            try:
+                (folder / (final + '.tmp')).unlink()
+            except OSError:
+                pass
+            return self.fail(409, '文件正在 Excel 中打开，请关闭后重试')
         self.send_json({'ok': True, 'name': final})
 
     def list_order_files(self):
@@ -215,8 +225,16 @@ class Handler(SimpleHTTPRequestHandler):
                     st = p.stat()
                     files.append({'name': p.name, 'created': st.st_ctime * 1000, 'modified': st.st_mtime * 1000})
         files.sort(key=lambda f: (f['created'], f['name']))   # oldest first; st_ctime = creation time on Windows
-        draft = bool(row) and (DATA / 'rows' / row / 'orders' / 'draft.json').is_file()
-        self.send_json({'files': files, 'draft': draft})
+        draft_path = DATA / 'rows' / row / 'orders' / 'draft.json'
+        draft = bool(row) and draft_path.is_file()
+        draft_file = ''                                  # the Excel the form last made (hub.file), for 编辑表单
+        if draft:
+            try:
+                hub = json.loads(retry(draft_path.read_bytes).decode('utf-8')).get('hub') or {}
+                draft_file = str(hub.get('file') or '')
+            except (OSError, ValueError, AttributeError):
+                pass
+        self.send_json({'files': files, 'draft': draft, 'draftFile': draft_file})
 
     def open_order_file(self, q):
         name = (q.get('name') or [None])[0]
