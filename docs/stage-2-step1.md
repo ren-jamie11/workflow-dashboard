@@ -2,6 +2,9 @@
 
 Context: [README.md](README.md). This assumes Stage 1 (hub, server, `api.js`, `rows.js`) works.
 
+> **2026-10-14:** the calculation, columns, Settings → 报价 fields and 导入 changed — see *报价 = Updated Pricing*
+> (P1–P5) in [README.md](README.md). The text below describes the original build.
+
 ## Goal
 Clicking **报价** in a row's journey (or expanding the row) shows that product's price table inline.
 It is the same table and the same calculation as `Step 1 - Price Quotes.html`. Confirming the price

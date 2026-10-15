@@ -23,6 +23,7 @@ app/
   server.py            static files + JSON API (below)
   index.html           Hub: main table, 报价 panel, 下单 pop-up, image viewer, Settings modal (tabs 通用 / 报价 / 下单 / 工厂 / 上架)
   tools/step1..3.html  copies of the original tools, adapted for embedded mode   (stages 2–4)
+  tools/pricing-detail.html  copy of Updated Pricing.html: the 报价 → 查看详情 pop-up (what-if, never saves)
   tools/vendor/        exceljs.min.js, moved out of the Step 2 original unchanged
   shared/
     theme.css          tokens and components copied from the existing tools' :root
@@ -31,7 +32,8 @@ app/
     rows.js            status order, journey state, stage() sort tier, filter + sort (hub and sidebar)
     embed.js           iframe ↔ parent postMessage (resize, settings-changed, load-row, events)
     crop.js            square image positions (thumbCrop / crop): pan, zoom, render — hub and Step 2
-    pricing.js         报价 price calculation (computeRow, moved unchanged from Step 1) — Step 1 and the 下单计划 picker
+    pricing.js         报价 price calculation (Updated Pricing.html's fee / minimum-price logic, copied unchanged;
+                       computeRow wraps it) — Step 1 and the 下单计划 picker
     datepicker.js      small popover calendar that can open on a given month
     combo.js           type-to-filter dropdown on a text input (existing values only; optional '+ 添加「X」' for 工厂)
     pinyin.js          pinyin matching for combo.js (shi / shimu / sm → 实木), ~5 KB, no dictionary
@@ -40,6 +42,8 @@ data/                  the saved data; back up this folder to back up everything
 下单计划/<product>/      Step 2 outputs: one folder per product (meta.orderFolder); the files are the record
 下单计划 Order Forms/    examples from before 2026-09-29; no longer used
 Step 1/2/3 - *.html    ORIGINALS: never edit; they are the reference implementation
+Updated Pricing.html   ORIGINAL: the Step 1 pricing reference since 2026-10-14 (Step 1 - Price Quotes (outdated).html
+                       is kept for history only)
 ```
 
 ### Server API
@@ -61,7 +65,8 @@ browser.
 settings.json         { categories:["XK","MUG"], materials:["树脂","金属","实木","陶瓷","塑料"], liveOffsetDays:45,
                         factories:[{name, taxRate, category, material}]   (工厂 list in a fixed order, new ones at the end; '' = not set),
                         rowFactoriesFilled   (the one-time 工厂 fill of existing rows ran; no longer used)
-                        step1:{shippingPrice,exchangeRate,profitMargin,storageFee,isPeak},
+                        step1:{fx,shipRmbKg,comm,ads,wh,target}   (Updated Pricing's Assumptions; older
+                          {exchangeRate,shippingPrice,…} loads as fx / shipRmbKg, the rest dropped — api.settings()),
                         step2:{operator,store}, step3:{targetDays:90, invTargetDays:180} }
 rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, status, liveDate,
                         step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt, orderFolder }
@@ -145,7 +150,7 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
 | E3 | Seasonality curve per **row** (starts flat, presets available); target days global in Settings |
 | F1 | `启动.bat` + Python server; all data saved as files |
 | F2 | Step 1 保存 → `售价计算 Price Calcs/<品名>_<SKU>_售价.json`; Step 2 生成 → `下单计划/<product folder>/` (no dialog) *(Changed 2026-09-29: was one shared `下单计划 Order Forms/`)* *(2026-10-01: without a 品名 the 售价 file and a new product folder are named `<类目>_<工厂>`)* |
-| F3 | Files load back per row (Step 1 导入 JSON; 下单计划 → 从 Excel 导入 fills a new draft, and 生成 always writes a new file) |
+| F3 | Files load back per row (~~Step 1 导入 JSON~~ *(removed 2026-10-14; 查看详情 took its place)*; 下单计划 → 从 Excel 导入 fills a new draft, and 生成 always writes a new file) |
 | F4 | Migrate only Step 3 history (old backup JSON → Settings → 上架) |
 | G1 | Search + 状态 / 类目 chips, at most one per group (click the active chip again to clear it) + a 材质 dropdown; categories always grouped; no column sorting. *(Changed 2026-09-29: within a group rows sort by stage 待报价 → 报价✓ → 已下单 → 已上架 (within a stage, 报价 skipped first), then 上架时间 earliest first (blank last), then newest first (`createdAt`))* |
 | G2 | Hub UI in Chinese |
@@ -197,6 +202,15 @@ a new one is built in a picker (images × 报价 lines) as one 货号 card with 
 | F10 | Row ↔ 下单计划 synced both ways: a row with a 工厂 shows it in all its forms (a form saved with another one takes it and that factory's 税率, in memory until the next edit); picking one in a form sets the row's 工厂 / 类目 / 材质 (`meta-changed`). A row without 工厂 leaves its forms' own. 从 Excel 导入: the row's 工厂 wins; an empty row takes the file's |
 | F11 | Renaming a factory renames it in every row using it; deleting leaves the rows' text. Deleting a 类目 / 材质 clears it from the factories |
 | F12 | ~~One-time fill: each row without 工厂 takes it from its most recent 下单计划 (or old `step2.json`), 'Huazhi' → 华智; 类目 / 材质 unchanged~~ *(Ran once; removed 2026-09-29 with the saved forms)* |
+
+### 报价 = Updated Pricing (2026-10-14)
+| # | Decision |
+|---|---|
+| P1 | The 报价 table prices with `Updated Pricing.html`: 建议售价 = its minimum price for the target margin, equal to the cent (same assumptions, unit weight never entered → dimensional weight). Verified on 32k cases with strict equality |
+| P2 | Columns: 尺寸/规格 · 工厂价 · 长宽高 · 计费重量 (lb, dimensional) · 头程运费 (L×W×H ÷ 5000 kg × ￥/kg ÷ 汇率) · 尾程运费 (FBA fee) · 成本 (工厂价$ + 头程 + 尾程) · 建议售价. 入库配置费 and 旺季 removed |
+| P3 | Outside small / large standard: `⚠ 超出标准尺寸`, no 尾程 / 成本 / 售价. 佣金 + 广告 + 仓储 + 目标 ≥ 100%: `无解` |
+| P4 | Settings → 报价 = Updated Pricing's Assumptions: 汇率 · 头程 ￥/kg · 佣金 % · 广告 % · 仓储/退货 % · 目标毛利率 % (6.7 / 6 / 15 / 12 / 5 / 18) |
+| P5 | **查看详情** (where 导入 was) opens `tools/pricing-detail.html` over the hub for the table's lines with L/W/H, ‹ › between lines (buttons only; ← → in the tool step tiers). A what-if sandbox: it starts from the line and 设置 → 报价; edits (inputs, ⚙ assumptions) stay in the pop-up and are kept across ‹ ›, gone on close. × / Esc / backdrop close |
 
 **Out of scope for now:** Amazon upload templates, price preview in the collapsed row, bundling
 several rows into one Excel, Step 3 numbers in the main table.

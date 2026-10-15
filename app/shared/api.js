@@ -9,7 +9,8 @@ const DEFAULT_SETTINGS = {
   factories: [{ name: '博罗', taxRate: '专票13%' }, { name: '华智', taxRate: '专票1%' }, { name: '合兴', taxRate: '专票13%' },
               { name: '莱伯特', taxRate: '专票13%' }, { name: '佰利源', taxRate: '' }],
   liveOffsetDays: 45,
-  step1: { shippingPrice: 6, exchangeRate: 6.7, profitMargin: 50, storageFee: 0, isPeak: false },
+  /* 报价 assumptions, as in Updated Pricing.html: 汇率 · 头程 ￥/kg · 佣金 / 广告 / 仓储退货 / 目标毛利率 (%) */
+  step1: { fx: 6.7, shipRmbKg: 6, comm: 15, ads: 12, wh: 5, target: 18 },
   step2: { operator: 'Jamie', store: 'Arborus-US（店铺+国家）' },
   step3: { targetDays: 90, invTargetDays: 180 }
 };
@@ -92,7 +93,7 @@ const api = {
     }
     const d = clone(DEFAULT_SETTINGS);
     return Object.assign(d, s, {
-      step1: Object.assign(d.step1, s.step1),
+      step1: step1Of(d.step1, s.step1),
       step2: Object.assign(d.step2, s.step2),
       step3: Object.assign(d.step3, s.step3),
       categories: Array.isArray(s.categories) ? s.categories : d.categories,
@@ -108,6 +109,16 @@ const api = {
 };
 
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
+/* saved step1 over the defaults, current keys only. Settings from before Updated Pricing (2026-10-14) keep their
+   汇率 (exchangeRate) and 头程 (shippingPrice); 毛利率 / 入库配置费 / 旺季 are dropped (target starts at the default) */
+function step1Of(def, saved) {
+  const s = Object.assign({}, saved);
+  if (s.fx == null && s.exchangeRate != null) s.fx = s.exchangeRate;
+  if (s.shipRmbKg == null && s.shippingPrice != null) s.shipRmbKg = s.shippingPrice;
+  const out = {};
+  for (const k in def) out[k] = typeof s[k] === 'number' && isFinite(s[k]) ? s[k] : def[k];
+  return out;
+}
 function encodePath(p) { return String(p).split('/').map(encodeURIComponent).join('/'); }
 
 window.api = api;
