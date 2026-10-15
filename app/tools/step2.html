@@ -69,9 +69,8 @@ table.vt{table-layout:fixed;min-width:1280px}   /* HUB: keeps each shared column
 table.vt td.total{text-align:right;padding-right:.8rem;color:var(--dark);font-variant-numeric:tabular-nums;white-space:nowrap}
 table.vt td.total.none{color:#cbd5e1}
 table.vt tfoot td{padding:.6rem .3rem;border-top:2px solid var(--line);background:#f8fafc;font-weight:600;font-variant-numeric:tabular-nums}
-table.vt tfoot td.sum{text-align:right;padding-right:.8rem;white-space:nowrap}
-table.vt tfoot td.sum.part{color:#b45309}
-table.vt tfoot td.label{text-align:right;color:var(--muted);font-size:.82rem;padding-right:.8rem}
+table.vt tfoot td.sum{text-align:right;padding-right:.8rem;white-space:nowrap;color:#991b1b}   /* dark red, always */
+table.vt tfoot td.label{text-align:right;color:#991b1b;font-size:.82rem;padding-right:.8rem}
 table.vt .colorcell{gap:.75rem}
 table.vt .colorcell .cell-input{flex:none;width:148px}
 td.imgcell{padding:.4rem .3rem}
@@ -476,7 +475,7 @@ function sums(p){
   return {qty, total, qMiss, tMiss};
 }
 function sumCells(p){
-  const s = sums(p), note = n => n ? ' part" title="'+n+' 行未计入（数量或单价不是数字）' : '';
+  const s = sums(p), note = n => n ? '" title="'+n+' 行未计入（数量或单价不是数字）' : '';
   return '<td class="sum'+note(s.qMiss)+'">'+fmtNum(s.qty)+'</td>'+
          '<td class="sum'+note(s.tMiss)+'">￥'+fmtNum(s.total)+'</td>';
 }

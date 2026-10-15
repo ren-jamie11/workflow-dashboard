@@ -2053,19 +2053,20 @@ function renderPicker(){ renderPickGrid(); renderPickLines(); renderPickSum(); }
 function renderPickGrid(){
   const pk = order && order.pick;
   if (!pk) { $('pkGrid').innerHTML = '<div class="hint">加载中…</div>'; return; }
+  /* Tab goes from one 色号 name box to the next: the image tiles and × are skipped (tabindex -1) */
   $('pkGrid').innerHTML = pk.slots.map((s, i) => {
     const im = s.im, main = !!im && im === pk.list[0];
     const tile = im
-      ? '<button type="button" class="pk-tile" data-pk="img" title="' + (main ? '主图' : '色号图片') +
+      ? '<button type="button" class="pk-tile" data-pk="img" tabindex="-1" title="' + (main ? '主图' : '色号图片') +
           '（双击并按住，拖到另一个色号上即可复制这张图片）">' +
           (main && pk.r.thumb ? '<img src="' + pk.r.thumb + '" alt="" draggable="false">'
                               : '<img src="' + im.url + '" alt="" draggable="false"' + (main ? '' : tileStyle(im)) + '>') +
           (main && s.main ? '<span class="tag">主图</span>' : '') + '</button>'   // the tag stays on the original slot, not on copies
-      : '<button type="button" class="pk-tile empty" data-pk="up" title="点击上传图片（也可悬停后按 Ctrl+V 粘贴，或拖入）；没有图片时只填色号名即可">' +
+      : '<button type="button" class="pk-tile empty" data-pk="up" tabindex="-1" title="点击上传图片（也可悬停后按 Ctrl+V 粘贴，或拖入）；没有图片时只填色号名即可">' +
           '<span class="ph">图</span>点击上传图片</button>';
     return '<div class="pk-slot" data-s="' + i + '">' + tile +
       '<input class="pk-name" value="' + esc(s.name) + '" placeholder="色号 / 颜色名">' +
-      '<button type="button" class="del" data-pk="del" title="移除这个色号（图片仍保留在产品图片中）">×</button></div>';
+      '<button type="button" class="del" data-pk="del" tabindex="-1" title="移除这个色号（图片仍保留在产品图片中）">×</button></div>';
   }).join('') +
     (pk.slots.length < IMG_LIMIT ? '<button type="button" class="pk-tile add" data-pk="add" title="添加一个空色号（最多 ' +
       IMG_LIMIT + ' 个）">+</button>' : '');

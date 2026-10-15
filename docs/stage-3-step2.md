@@ -93,7 +93,8 @@ only go stale. This supersedes **M1, M3, M13, M15, M16** and the storage notes b
 | Y2 | The tile of `hub.file` has **✎ 编辑表单** (the tile click still opens Excel). The form's header reads `下单计划 · 编辑表单` and the button **更新 Excel**; it writes over that same file (`/api/output … &replace=`), keeping its name and its 已下单 mark, and `meta.deliveryDate` follows a changed 交货日期. Open in Excel → `409` → toast `文件正在 Excel 中打开，请关闭后重试`, nothing changes. If the file was renamed / deleted in Explorer, the form shows as the 草稿 tile again and its next 生成 writes a new file. 清空全部 keeps the link |
 | Y3 | The corner tick is replaced by a pill under the file name: grey `标记已下单` ↔ green `✓ 已下单`, and the tile is tinted green. Stored as before (`order-files.json`, key `submitted`); X6 unchanged |
 | Y4 | The form has a read-only **总价 (￥)** column after 下单数量 = 下单数量 × 单价 when both are numbers, else `—` |
-| Y5 | A **合计** row (`tfoot`) sums 下单数量 and 总价; rows that are not numbers are left out and counted in the cell's title (`N 行未计入…`). Updated while typing (`renderTotals()` from `softRefresh()`). Form only: the Excel layout is unchanged |
+| Y5 | A **合计** row (`tfoot`, always dark red #991b1b) sums 下单数量 and 总价; rows that are not numbers are left out and counted in the cell's title (`N 行未计入…`). Updated while typing (`renderTotals()` from `softRefresh()`). Form only: the Excel layout is unchanged |
+| Y6 | In the picker, Tab moves from one `色号 / 颜色名` box to the next: the image tiles and × are out of the tab order (`tabindex="-1"`) |
 
 ## Hub: the pop-up (`index.html`, section `下单 pop-up`)
 - `#s2Back` (the `.iv-back` backdrop) > `.s2`: the header, then one of three views: `#s2List` (the row's list),
