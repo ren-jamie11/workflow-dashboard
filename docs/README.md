@@ -62,7 +62,7 @@ browser.
 
 ### Data model (`data/`)
 ```
-settings.json         { categories:["XK","MUG"], materials:["树脂","金属","实木","陶瓷","塑料"], liveOffsetDays:45,
+settings.json         { categories:["XK","MUG"], materials:["树脂","金属","实木","陶瓷","塑料"],
                         factories:[{name, taxRate, category, material}]   (工厂 list in a fixed order, new ones at the end; '' = not set),
                         rowFactoriesFilled   (the one-time 工厂 fill of existing rows ran; no longer used)
                         step1:{fx,shipRmbKg,comm,ads,wh,target}   (Updated Pricing's Assumptions; older
@@ -118,8 +118,11 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
   is `ROWS.progress(r)` = stage × 2 + (报价 done ? 1 : 0).
 - Soft lock: clicking a locked step shows `confirm('前一步未完成，仍要打开？')` and then opens it. The 下单
   pop-up's ← → don't ask; its header shows `报价未完成` instead.
-- The 上架时间 date is always typed by hand. The picker opens on `deliveryDate + liveOffsetDays`, or
-  the current month if there's no delivery date.
+- ~~The 上架时间 date is always typed by hand. The picker opens on `deliveryDate + liveOffsetDays`, or
+  the current month if there's no delivery date.~~ *(Changed 2026-10-16: the table column is 交货日期 = `deliveryDate`,
+  filled from the ticked files as above and editable in the table; a picked date holds until the next tick / untick
+  (or 更新 Excel of a ticked file) recomputes it. Rows within a tier sort by it. `liveDate` stays in meta.json but is no
+  longer shown; 上架预估天数 / `liveOffsetDays` was removed.)*
 
 ### Conventions
 - The tools in `app/tools/` are **copies**. Change as little as possible and mark each change with

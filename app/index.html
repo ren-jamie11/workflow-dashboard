@@ -126,7 +126,6 @@ tr.xp-spacer td{padding:0;border:0}
 .fac-line + .fac-line{margin-top:.35rem}
 .fac-line .form-control{padding:.4rem .6rem;font-size:.9rem}
 #facAddRow{grid-template-columns:1fr 84px 92px 116px auto;margin-top:.8rem}
-#liveOffset{max-width:140px}
 
 /* image viewer */
 .iv-back{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:120;display:flex;align-items:center;justify-content:center;padding:4vh 3vw}
@@ -310,10 +309,10 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
   <div class="card table-card">
     <table class="hub">
       <colgroup>
-        <!-- 图片 · 工厂 类目 材质 SKU 状态 上架时间 (share the rest evenly) · 流程 · × -->
+        <!-- 图片 · 工厂 类目 材质 SKU 状态 交货日期 (share the rest evenly) · 流程 · × -->
         <col style="width:142px"><col><col><col><col><col><col><col style="width:250px"><col style="width:48px">
       </colgroup>
-      <thead id="thead"><tr><th>图片</th><th>工厂</th><th>类目</th><th>材质</th><th>SKU</th><th>状态</th><th>上架时间</th><th>流程</th><th></th></tr></thead>
+      <thead id="thead"><tr><th>图片</th><th>工厂</th><th>类目</th><th>材质</th><th>SKU</th><th>状态</th><th>交货日期</th><th>流程</th><th></th></tr></thead>
       <tbody id="tbody"></tbody>
     </table>
     <div id="emptyBox" class="empty-box hidden"></div>
@@ -394,11 +393,6 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
           <input type="text" id="matNew" class="form-control" maxlength="10" placeholder="新增材质，例 玻璃">
           <button type="button" class="btn btn-ghost btn-sm" id="matAdd">添加</button>
         </div>
-      </div>
-      <div class="set-sec">
-        <label class="form-label" for="liveOffset">上架预估天数</label>
-        <input type="number" id="liveOffset" class="form-control" min="0" step="1">
-        <div class="hint">选择上架时间时，日历会打开在「交货日期 + N 天」所在的月份。</div>
       </div>
     </div>
   </div>
@@ -612,7 +606,7 @@ function around(id){
   const i = o.indexOf(id);
   return i < 0 ? '' : o[i - 1] + '|' + o[i + 1];
 }
-/* change a sort key (stage / 上架时间), save, re-render; a row that lands somewhere new flashes */
+/* change a sort key (stage / 交货日期), save, re-render; a row that lands somewhere new flashes */
 function moveRow(r, change){
   const before = around(r.id);
   change();
@@ -661,11 +655,11 @@ function restoreFocus(f){
 
 function renderChips(){
   /* 状态 / 类目: at most one chip per group; clicking the active chip again clears it (= all). 材质: a dropdown */
-  const chips = (key, cur, values) => values.map(v =>
+  const chips = (match, cur, values) => values.map(v =>
     '<button type="button" class="chip' + (v === cur ? ' active' : '') + '" data-v="' + esc(v) + '">' +
-    esc(v) + '<span class="n">' + rows.filter(r => r[key] === v).length + '</span></button>').join('');
-  $('statusChips').innerHTML = chips('status', ui.status, ROWS.STATUSES);
-  $('catChips').innerHTML = chips('category', ui.cat, settings.categories);
+    esc(v) + '<span class="n">' + rows.filter(r => match(r, v)).length + '</span></button>').join('');
+  $('statusChips').innerHTML = chips(ROWS.matchesStatus, ui.status, ROWS.STATUSES);
+  $('catChips').innerHTML = chips((r, v) => r.category === v, ui.cat, settings.categories);
   const mf = $('matFilter');
   if (document.activeElement !== mf) mf.value = ui.mat;
   mf.classList.toggle('on', !!ui.mat);
@@ -747,8 +741,8 @@ function rowHtml(r){
     '<td><select class="st-sel ' + (ST_CLASS[r.status] || 'st0') + '" data-id="' + id + '" data-f="status">' +
       ROWS.STATUSES.map(s => '<option' + (s === r.status ? ' selected' : '') + '>' + s + '</option>').join('') +
     '</select></td>' +
-    '<td><button type="button" class="date-btn' + (r.liveDate ? '' : ' empty') + '" data-act="date" data-id="' + id + '" data-f="liveDate">' +
-      (r.liveDate ? esc(r.liveDate) : '选择日期') + '</button></td>' +
+    '<td><button type="button" class="date-btn' + (r.deliveryDate ? '' : ' empty') + '" data-act="date" data-id="' + id + '" data-f="deliveryDate">' +
+      (r.deliveryDate ? esc(r.deliveryDate) : '选择日期') + '</button></td>' +
     '<td><div class="jr">' + steps + '</div></td>' +
     '<td><button type="button" class="del-btn" data-act="del" data-id="' + id + '" title="删除该产品">×</button></td>' +
   '</tr>';
@@ -1091,20 +1085,13 @@ document.addEventListener('click', e => {
   downOnMargin = false;
 });
 
+/* 交货日期: filled from the ticked 下单计划 (applySubmitted); a date picked here holds until the next tick / untick */
 function openDate(r, btn){
-  const est = estimateLiveDate(r);
   openDatePicker(btn, {
-    value: r.liveDate, openMonth: est, hint: est,
-    onPick: v => moveRow(r, () => { r.liveDate = v; }),
-    onClear: () => moveRow(r, () => { r.liveDate = ''; })
+    value: r.deliveryDate,
+    onPick: v => moveRow(r, () => { r.deliveryDate = v; }),
+    onClear: () => moveRow(r, () => { r.deliveryDate = ''; })
   });
-}
-/* 交货日期 + N days, as 'YYYY-MM-DD'; '' when there is no delivery date yet */
-function estimateLiveDate(r){
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(r.deliveryDate || '')) return '';
-  const d = new Date(r.deliveryDate + 'T00:00:00');
-  d.setDate(d.getDate() + (+settings.liveOffsetDays || 0));
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 async function deleteRow(r){
@@ -2410,7 +2397,6 @@ function renderSettings(){
   $('matList').innerHTML = settings.materials.map((m, i) =>
     '<span class="tag">' + esc(m) + '<button type="button" data-i="' + i + '" title="删除材质">×</button></span>').join('') ||
     '<span class="hint" style="margin:0">暂无材质，请在下方添加。</span>';
-  $('liveOffset').value = settings.liveOffsetDays;
   const opts = (list, v) => '<option value="">—</option>' +
     list.concat(v && !list.includes(v) ? [v] : []).map(x => '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
   $('facNewCat').innerHTML = opts(settings.categories, $('facNewCat').value);
@@ -2626,12 +2612,6 @@ $('facList').addEventListener('click', e => {
   if (!f || !confirm('删除工厂「' + f.name + '」？已有的下单计划不受影响')) return;
   settings.factories.splice(+b.dataset.fi, 1);
   saveFactories(); renderSettings();
-});
-$('liveOffset').addEventListener('change', e => {
-  const n = Math.max(0, Math.round(+e.target.value || 0));
-  e.target.value = n;
-  settings.liveOffsetDays = n;
-  saveSettings();
 });
 
 /* ============ start ============ */

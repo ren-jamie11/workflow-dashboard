@@ -11,6 +11,9 @@ const STEPS = [
 
 function statusRank(s) { const i = STATUSES.indexOf(s); return i < 0 ? 0 : i; }
 
+/* status chip / filter match: 已下单 includes 已上架 (a listed product has been ordered) */
+function matchesStatus(r, s) { return s === '已下单' ? statusRank(r.status) >= 1 : r.status === s; }
+
 function newId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
@@ -49,7 +52,7 @@ function filterRows(rows, ui, always) {
   const q = (ui.q || '').trim().toLowerCase();
   return rows.filter(r => {
     if (always && always.has(r.id)) return true;
-    if (ui.status && r.status !== ui.status) return false;
+    if (ui.status && !matchesStatus(r, ui.status)) return false;
     if (ui.cat && r.category !== ui.cat) return false;
     if (ui.mat && r.material !== ui.mat) return false;
     if (q && ![r.name, r.factory, r.sku, r.parentAsin].join(' ').toLowerCase().includes(q)) return false;
@@ -65,13 +68,13 @@ function stage(r) {
 /* sort key: stage, and within a stage a row that skipped 报价 first (e.g. 已下单 without 报价 before 已下单 with it) */
 function progress(r) { return stage(r) * 2 + (r.step1Confirmed ? 1 : 0); }
 
-/* least progress first; then 上架时间 earliest first (blank last); then newest first.
+/* least progress first; then 交货日期 earliest first (blank last); then newest first.
    progressOf lets the hub hold a row's progress while its 报价 panel is open */
 function sortRows(list, progressOf) {
   const st = progressOf || progress;
   return list.slice().sort((a, b) =>
     st(a) - st(b) ||
-    (!a.liveDate - !b.liveDate) || (a.liveDate < b.liveDate ? -1 : a.liveDate > b.liveDate ? 1 : 0) ||
+    (!a.deliveryDate - !b.deliveryDate) || (a.deliveryDate < b.deliveryDate ? -1 : a.deliveryDate > b.deliveryDate ? 1 : 0) ||
     (b.createdAt || 0) - (a.createdAt || 0) || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
 }
 
@@ -89,5 +92,5 @@ function groupRows(list, categories, progressOf) {
     .map(c => ({ cat: c, label: c || '未分类', rows: sortRows(by.get(c), progressOf) }));
 }
 
-window.ROWS = { STATUSES, STEPS, statusRank, stage, progress, newRow, normalize, journey, filterRows, sortRows, groupRows };
+window.ROWS = { STATUSES, STEPS, statusRank, matchesStatus, stage, progress, newRow, normalize, journey, filterRows, sortRows, groupRows };
 })();

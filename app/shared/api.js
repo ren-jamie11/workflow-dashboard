@@ -8,7 +8,6 @@ const DEFAULT_SETTINGS = {
   /* 工厂 list (设置 → 工厂), in a fixed order; taxRate '' = unknown */
   factories: [{ name: '博罗', taxRate: '专票13%' }, { name: '华智', taxRate: '专票1%' }, { name: '合兴', taxRate: '专票13%' },
               { name: '莱伯特', taxRate: '专票13%' }, { name: '佰利源', taxRate: '' }],
-  liveOffsetDays: 45,
   /* 报价 assumptions, as in Updated Pricing.html: 汇率 · 头程 ￥/kg · 佣金 / 广告 / 仓储退货 / 目标毛利率 (%) */
   step1: { fx: 6.7, shipRmbKg: 6, comm: 15, ads: 12, wh: 5, target: 18 },
   step2: { operator: 'Jamie', store: 'Arborus-US（店铺+国家）' },

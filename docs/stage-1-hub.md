@@ -52,7 +52,7 @@ Columns: **图片 · 工厂 · 类目 · 材质 · SKU (父ASIN sub-line) · 状
 - **状态:** a select with the 4 values.
 - **上架时间:** click to open the datepicker. It opens on the stored value's month, or on
   `deliveryDate + liveOffsetDays` (in this stage `deliveryDate` is always empty, so the current month).
-  It has a 清除 option.
+  It has a 清除 option. *(Changed 2026-10-16: the column is now 交货日期 (`deliveryDate`), see README "Status and journey rules")*
 - **流程:** `报价 — 下单 — 上架` pills connected by a line (done = filled, next = outlined in primary,
   locked = muted). In this stage clicking a step shows the toast "Stage 2/3/4 实现".
 - **×:** `confirm('确定永久删除「品名」及其全部数据？')` → `api.delRow`. Output files in
@@ -62,6 +62,7 @@ Columns: **图片 · 工厂 · 类目 · 材质 · SKU (父ASIN sub-line) · 状
 (未下单 / 已下单 / 已上架) · category chips · 材质 dropdown (type to filter; 全部 + each 材质 with its count;
 highlighted while set) · search (品名/SKU/父ASIN) · ⚙ at the top right.
 Each chip group allows at most one active chip; clicking the active chip again clears that filter.
+*(2026-10-16: the 已下单 chip's count and filter include 已上架 rows — `ROWS.matchesStatus` — since 已上架 implies 已下单)*
 `ui = {q, status, cat, mat}`, `''` = no filter.
 
 **Grouping and order:** rows are always grouped by category, each group with a header row
@@ -79,7 +80,7 @@ re-opens a group when a row is added to it or moved into it (added 2026-09-29, R
   is blocked with the toast `仍有 N 个产品使用该类目`.
 - **材质:** (added 2026-09-29) chips with × and an add input (any text up to 10 characters, no duplicates).
   Removing a 材质 used by any row is blocked with the toast `仍有 N 个产品使用材质「…」，无法删除`.
-- **上架预估天数** (`liveOffsetDays`, default 45).
+- ~~**上架预估天数** (`liveOffsetDays`, default 45).~~ *(Removed 2026-10-16 with the 上架时间 column)*
 - Tabs 报价/下单/上架 appear greyed out ("后续阶段").
 
 ## Gotchas
