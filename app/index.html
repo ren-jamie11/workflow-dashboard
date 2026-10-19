@@ -219,6 +219,16 @@ tr.xp-spacer td{padding:0;border:0}
   box-shadow:0 2px 10px rgba(15,23,42,.08);cursor:grab;touch-action:none;user-select:none}
 .iv-frame.dragging{cursor:grabbing}
 .iv-frame img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-user-drag:none}
+/* 样品 viewer → 原型图 compare: the sample (left) and a prototype 图片 (right, view only), each labelled */
+.iv-frame.proto{cursor:default}
+.iv-flabel{position:absolute;z-index:1;left:8px;top:8px;max-width:calc(100% - 52px);font-size:.75rem;line-height:1.5;background:rgba(15,23,42,.72);
+  color:#fff;border-radius:4px;padding:.05rem .45rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.iv-pclose{position:absolute;z-index:1;top:8px;right:8px;width:30px;height:30px;border:1px solid var(--line);border-radius:7px;background:#fff;
+  color:var(--dark);font-size:1.05rem;line-height:1;cursor:pointer;padding:0;font-family:inherit}
+.iv-pclose:hover{border-color:var(--primary);color:var(--primary)}
+.iv-protos{display:flex;flex-direction:column;gap:.45rem;margin-top:.6rem;padding-top:.8rem;border-top:1px solid var(--line)}
+.iv-protos .form-label{margin:0;font-size:.78rem}
+.iv-protos .form-label .note{font-weight:400;color:#94a3b8;margin-left:.3rem}
 
 /* 下单 pop-up (Step 2): a compact header over the tool; ‹ (top left) goes back a view, × / Esc / backdrop close */
 .s2{background:#f1f5f9;border-radius:var(--radius);box-shadow:0 20px 40px rgba(15,23,42,.3);width:100%;height:100%;max-width:1700px;
@@ -480,7 +490,10 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
 <div class="iv-back hidden" id="ivBack">
   <div class="iv" id="iv" role="dialog" aria-modal="true" aria-labelledby="ivTitle">
     <div class="iv-stage" id="ivStage">
-      <div class="iv-frame" id="ivFrame" title="按住拖动调整位置，Ctrl+滚轮缩放"><img id="ivFrameImg" alt="" draggable="false"></div>
+      <div class="iv-frame" id="ivFrame" title="按住拖动调整位置，Ctrl+滚轮缩放"><img id="ivFrameImg" alt="" draggable="false"><span class="iv-flabel hidden" id="ivFrameLabel"></span></div>
+      <!-- 样品 mode: a prototype 图片 next to the sample (view only) -->
+      <div class="iv-frame proto hidden" id="ivProto" title="原型图（只读，在「图片」中修改）"><img id="ivProtoImg" alt="" draggable="false"><span class="iv-flabel" id="ivProtoLabel"></span>
+        <button type="button" class="iv-pclose" id="ivProtoClose" title="关闭对比（Esc）">×</button></div>
       <button type="button" class="iv-nav prev" id="ivPrev" title="上一张">‹</button>
       <button type="button" class="iv-nav next" id="ivNext" title="下一张">›</button>
     </div>
@@ -500,6 +513,11 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
         <label class="form-label" for="ivNote" id="ivNoteLabel">样品备注</label>
         <textarea id="ivNote" class="form-control" spellcheck="false" placeholder="这张样品的备注"></textarea>
         <button type="button" class="btn btn-sm" id="ivOk"></button>
+      </div>
+      <!-- 样品 mode: the row's 图片 = the prototype; click one to compare side by side -->
+      <div class="iv-protos hidden" id="ivProtoBox">
+        <span class="form-label">原型图<span class="note">点击并排对比</span></span>
+        <div class="iv-grid" id="ivProtoGrid"></div>
       </div>
     </div>
   </div>
@@ -1620,7 +1638,10 @@ const viewerOrder = () => tableOrder().filter(r => r.thumb);   // the image view
 function openViewer(r, kind, idx){
   viewerSaveNow();
   const sample = kind === 'sample';
-  const v = viewer = { id: r.id, kind: sample ? 'sample' : 'img', idx: sample && idx || 0, list: null, ver: 0, f: null, c: null, drag: null, saveTimer: null };
+  /* sample mode also has protos: the row's 图片 (null until loaded), proto: the one compared (index | null), pf: its decoded frame */
+  const v = viewer = { id: r.id, kind: sample ? 'sample' : 'img', idx: sample && idx || 0, list: null, ver: 0, f: null, c: null, drag: null, saveTimer: null,
+                       protos: null, proto: null, pf: null };
+  protoKey = '';
   $('ivBack').classList.remove('hidden');
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   renderViewer();
@@ -1631,13 +1652,22 @@ function openViewer(r, kind, idx){
     renderViewer();
     if (!sample && list.length && !r.thumbCrop) upgradeThumb(r, list[0]);
   });
+  if (sample) loadRowImages(r).catch(() => []).then(list => {
+    if (viewer !== v) return;
+    viewer.protos = list;
+    renderViewer();
+  });
 }
 function closeViewer(){
   if (!viewer) return;
   viewerSaveNow();
   const id = viewer.id, wasSample = viewer.kind === 'sample';
-  viewer = null; gridKey = '';
+  viewer = null; gridKey = ''; protoKey = '';
   $('ivBack').classList.add('hidden');
+  $('ivProto').classList.add('hidden');
+  $('ivProtoImg').removeAttribute('src');
+  $('ivFrameLabel').classList.add('hidden');
+  ['left', 'right', 'marginLeft', 'marginRight'].forEach(k => { $('ivFrame').style[k] = ''; });
   const sr = wasSample && panelKind === 'sample' && panelId === id && byId(id);
   if (sr) renderSample(sr);                            // the panel shows the photo the viewer was on
   $('iv').classList.remove('over');
@@ -1740,13 +1770,58 @@ function renderViewer(){
     fillField($('ivNote'), s, 'note');
     okButton($('ivOk'), s, viewer.idx);
   }
+  renderProtos(r, s);
+}
+/* 样品 mode: the 原型图 grid (the row's 图片, at their positions; view only) and, in compare, the two frames' labels */
+let protoKey = '';
+function renderProtos(r, s){
+  const sample = viewer.kind === 'sample', protos = sample && viewer.protos;
+  $('ivProtoBox').classList.toggle('hidden', !(protos && protos.length));
+  if (!sample) return;
+  const key = viewer.id + '#' + (protos ? protos.length : -1) + '#' + r.thumb;
+  if (protos && key !== protoKey) {
+    protoKey = key;
+    $('ivProtoGrid').innerHTML = protos.map((x, i) =>
+      '<div class="iv-tile" data-pv="' + i + '" title="' + (i ? '图片 ' + (i + 1) : '主图') + ' · 点击并排对比">' +
+        (i ? '<img src="' + x.url + '" alt="" draggable="false"' + tileStyle(x) + '>'
+           : '<img src="' + r.thumb + '" alt="" draggable="false"><span class="tag">主图</span>') +
+      '</div>').join('');
+  }
+  if (viewer.proto != null && !(protos && protos[viewer.proto])) viewer.proto = null;
+  $('ivProtoGrid').querySelectorAll('.iv-tile').forEach(t => t.classList.toggle('on', +t.dataset.pv === viewer.proto));
+  const on = viewer.proto != null;
+  $('ivProto').classList.toggle('hidden', !on);
+  $('ivFrameLabel').classList.toggle('hidden', !on || !s);
+  if (on) {
+    $('ivFrameLabel').textContent = '样品 ' + (viewer.idx + 1) + (s && s.title ? ' · ' + s.title : '');
+    $('ivProtoLabel').textContent = '原型 · ' + (viewer.proto ? '图片 ' + (viewer.proto + 1) : '主图');
+  }
+  layoutViewerFrame();
+}
+/* compare with prototype i (again = stop comparing) */
+function toggleProto(i){
+  if (!viewer || viewer.kind !== 'sample') return;
+  viewer.proto = viewer.proto === i ? null : i;
+  viewer.pf = null;
+  renderViewer();
 }
 /* size the square to the stage and place the image in it (a stand-in shows while the full image decodes) */
 function layoutViewerFrame(){
   if (!viewer) return;
   const st = $('ivStage'), fr = $('ivFrame'), im = $('ivFrameImg'), r = byId(viewer.id);
-  const size = Math.max(120, Math.floor(Math.min(st.clientWidth - 176, st.clientHeight - 64)));
+  const pair = viewer.kind === 'sample' && viewer.proto != null && viewer.protos && viewer.protos[viewer.proto];
+  const GAP = 24;
+  const size = Math.max(120, Math.floor(pair ? Math.min((st.clientWidth - 176 - GAP) / 2, st.clientHeight - 64)
+                                             : Math.min(st.clientWidth - 176, st.clientHeight - 64)));
   fr.style.width = fr.style.height = size + 'px';
+  /* a pair is centred as one block (each frame keeps margin:auto vertically) */
+  const left = Math.round((st.clientWidth - 2 * size - GAP) / 2);
+  [[fr, left], [$('ivProto'), left + size + GAP]].forEach(([el, x]) => {
+    el.style.left = pair ? x + 'px' : '';
+    el.style.right = pair ? 'auto' : '';
+    el.style.marginLeft = el.style.marginRight = pair ? '0' : '';
+  });
+  if (pair) layoutProto(r, pair, size);
   if (viewer.f) return layoutFrame(im, fr.clientWidth, viewer.f, viewer.c);
   const cur = viewer.list && viewer.list[viewer.idx];
   if (viewer.kind === 'sample') {                      // no photo, or one without a stored size (shown plain)
@@ -1760,6 +1835,22 @@ function layoutViewerFrame(){
   if (src && im.getAttribute('src') !== src) im.src = src;
 }
 window.addEventListener('resize', layoutViewerFrame);
+/* the compared prototype at its 图片 position: the 主图 at thumbCrop, an extra at its own crop (a stand-in while it decodes) */
+function layoutProto(r, im, size){
+  const pr = $('ivProto'), pi = $('ivProtoImg');
+  pr.style.width = pr.style.height = size + 'px';
+  if (viewer.pf && viewer.pf.main === im) return layoutFrame(pi, pr.clientWidth, viewer.pf, viewer.pc);
+  pi.style.cssText = '';
+  const stand = viewer.proto ? im.url : r.thumb;
+  if (stand && pi.getAttribute('src') !== stand) pi.src = stand;
+  const v = viewer, i = viewer.proto;
+  decodeImg(im).then(f => {
+    if (viewer !== v || v.proto !== i || v.pf) return;
+    v.pf = f;
+    v.pc = i ? CROP.cropOf(im.crop, f.W, f.H) : cropFor(r, f.W, f.H);
+    layoutViewerFrame();
+  }).catch(() => {});
+}
 
 /* save the viewer's position. The main image: the table thumb and the 主图 tile follow at once;
    any other image: its crop in images.json and its tile */
@@ -1817,6 +1908,7 @@ $('ivBack').addEventListener('wheel', e => {
   if (!e.ctrlKey && !e.metaKey) return;
   e.preventDefault();
   if (!viewer || !viewer.f || viewer.drag) return;
+  if (e.target.closest && e.target.closest('#ivProto')) return;   // the prototype is view only
   const fr = $('ivFrame'), b = fr.getBoundingClientRect(), size = fr.clientWidth;
   const at = v => Math.min(1, Math.max(0, v));
   zoomCrop(viewer.c, viewer.f.W, viewer.f.H, wheelFactor(e),
@@ -1960,13 +2052,18 @@ $('ivGrid').addEventListener('click', e => {
   else if (t.dataset.iv === 'add') pickImage(files => viewerAdd(files), true);
 });
 $('ivMakeMain').addEventListener('click', () => { if (viewer) viewerMakeMain(viewer.idx); });
+$('ivProtoGrid').addEventListener('click', e => {
+  const t = e.target.closest('[data-pv]');
+  if (t) toggleProto(+t.dataset.pv);
+});
+$('ivProtoClose').addEventListener('click', () => { if (viewer && viewer.proto != null) toggleProto(viewer.proto); });
 $('ivPrev').addEventListener('click', () => viewerStep(-1));
 $('ivNext').addEventListener('click', () => viewerStep(1));
 $('ivClose').addEventListener('click', closeViewer);
 $('ivBack').addEventListener('mousedown', e => { if (e.target === $('ivBack')) closeViewer(); });
 document.addEventListener('keydown', e => {
   if (!viewer) return;
-  if (e.key === 'Escape') { e.preventDefault(); closeViewer(); }
+  if (e.key === 'Escape') { e.preventDefault(); if (viewer.proto != null && !typing()) toggleProto(viewer.proto); else closeViewer(); }
   else if (typing()) return;                            // ← → move the cursor in the notes box
   else if (e.key === 'ArrowLeft') { e.preventDefault(); viewerRow(-1); }
   else if (e.key === 'ArrowRight') { e.preventDefault(); viewerRow(1); }
