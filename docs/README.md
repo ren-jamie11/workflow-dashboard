@@ -71,8 +71,9 @@ settings.json         { categories:["XK","MUG"], materials:["树脂","金属","�
 rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, status, liveDate,
                         step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt, orderFolder,
                         sampleNotes, samples }
-                      the 上架 → 样品 panel: sampleNotes = 总备注; samples = [{id, note, ok}] per sample photo, in photo order
-                      (its notes and 样品通过; the 上架 pill's mark reads it, so the table never loads the photos). Rows saved
+                      the 上架 → 样品 panel: sampleNotes = 总备注; samples = [{id, title, note, ok, crop?}] per sample photo, in
+                      photo order (its title, notes, 样品通过 and square position — shared/crop.js, none = the whole photo;
+                      the 上架 pill's mark reads it, so the table never loads the photos). Rows saved
                       by the first version (2026-10-19) have sampleOk / sampleCount instead: loading the photos replaces them
                       (sampleOk is dropped, every photo starts unapproved)
                       orderFolder = the product's folder in 下单计划/, named after the product the first time it is
@@ -181,14 +182,16 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
 | S1 | Clicking **上架** expands a **样品** panel under the row (the 报价 panel's machinery; hub HTML, no iframe). No soft lock. Step 3 inventory ([stage-4-step3.md](stage-4-step3.md)) will join this panel later |
 | S2 | One expanded panel in the whole table. A pill opens its own panel, or switches the open one (same row or another); the open pill again closes it. The open panel's pill is ringed |
 | S3 | A row's blank-space click (G7) opens the latest stage: status ≥ 已下单 → 样品, else 报价; with any panel open on that row it closes. Never the 下单 pop-up |
-| S4 | Layout, side by side: photo column (`样品图片 ‹ 2 / 6 ›` + the shown photo, `N 张`, ✓ badge when approved) · **样品备注（第 n 张）** · **总备注** (30%); foot: `已收样，已通过 k / N` + the shown photo's 样品通过. Boxes resizable *(revised 2026-10-19: one notes box per photo)* |
+| S4 | Layout, side by side: photo column (the sample's title, the shown photo with `N 张` and a ✓ badge when approved, `‹ 2 / 6 ›` under it) · **样品备注（<title or 第 n 张>）** · **总备注** (30%); foot: `已收样，已通过 k / N` + the shown photo's 样品通过. Boxes resizable *(revised 2026-10-19: one notes box per photo; title above the photo)* |
 | S5 | Each sample photo has its own notes (`meta.samples[i].note`); **总备注** (`meta.sampleNotes`) is for the whole product. All autosaved with the row. No photos: `+ 样品图`, the per-photo box disabled (`先上传样品图片…`), 总备注 usable, no 样品通过 |
 | S6 | ‹ › and ← → step the panel's photos (keys only while no pop-up is open and focus isn't in a text box / dropdown). The tile opens the viewer on that photo; the panel shows the viewer's last photo when it closes. Adding photos shows the first new one |
-| S6b | Up to 9 photos (`samples.json`) in the image viewer's sample mode: shown whole, ‹ › and ← → step photos (never rows; not while typing), + tile, per-photo delete (the last one too; its notes and mark go with it). No 主图 / positions / 设为主图 / paste hint. Under the grid: the shown photo's notes box + 样品通过; approved tiles get a green ✓. Paste or drop anywhere on the 样品 panel adds photos |
+| S6b | Up to 9 photos (`samples.json`) in the image viewer's sample mode: ‹ › and ← → step photos (never rows; not while typing), + tile, per-photo delete (the last one too; its notes and mark go with it). No 主图 / 设为主图 / paste hint. Under the grid: the shown photo's notes box + 样品通过; approved tiles get a green ✓. Paste or drop anywhere on the 样品 panel adds photos |
 | S6c | The panel's and the viewer's notes boxes are the same data: typing in one shows in the other at once |
 | S7 | Mark on the 上架 pill: none = no photos · yellow = photos, not all approved · green = **every** photo approved |
 | S8 | **样品通过** toggles the shown photo, no confirm: light green with a green border (`✓ 样品通过`) until approved, then solid green (`✓ 已通过`). Status, sort order and the journey don't change |
 | S9 | The first version's row-level 样品通过 is dropped (all photos start unapproved); its notes became 总备注 |
+| S10 | Every sample photo has its own square position (`samples[i].crop`), as the row's 图片: press + drag moves, Ctrl + wheel zooms around the pointer, saved automatically — on the panel tile (a click without moving opens the viewer) and in the viewer's frame; the grid tiles show each square. A photo starts **whole** (zoomed out, white padding) |
+| S11 | Each sample has a title (`samples[i].title`, e.g. `蓝色 4x6`; empty → grey `样品 n`). Panel: above the photo. Viewer: the big title top right, with `<product> · <SKU>` on the grey line under it. Click to edit; Enter / click away keeps it, Esc cancels; panel and viewer stay in sync |
 
 ### 材质 (2026-09-29)
 | # | Decision |

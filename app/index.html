@@ -132,7 +132,17 @@ tr.xp-spacer td{padding:0;border:0}
   cursor:pointer;padding:0;font-family:inherit}
 .sp-nav:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
 .sp-nav:disabled{opacity:.35;cursor:default}
-.sp-pos{font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums;min-width:2.6em;text-align:center}
+.sp-pos{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:2.6em;text-align:center}
+.sp-navrow{display:flex;align-items:center;justify-content:center;gap:.3rem;width:128px}
+/* a sample's title: reads as a label, click to edit (Enter / click away = keep, Esc = cancel) */
+.sp-title,.iv-title-in{font:inherit;color:var(--dark);border:1px solid transparent;background:transparent;box-sizing:border-box;text-overflow:ellipsis}
+.sp-title{width:128px;height:22px;padding:0 .3rem;border-radius:5px;font-size:.8rem;font-weight:600}
+.iv-title-in{width:calc(100% - 2.6rem);margin-left:-.4rem;padding:.15rem .4rem;border-radius:6px;font-size:1rem;font-weight:600;line-height:1.4}
+.sp-title::placeholder,.iv-title-in::placeholder{color:#94a3b8;font-weight:500}
+.sp-title:hover:not(:disabled),.iv-title-in:hover:not(:disabled){border-color:var(--line);background:#fff;cursor:text}
+.sp-title:focus,.iv-title-in:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 2px rgba(79,70,229,.12)}
+.sp-title:disabled{cursor:default}
+.sp-title:disabled::placeholder{color:var(--muted);font-weight:600}
 .sp-col textarea{height:128px;min-height:80px;resize:vertical;font-size:.88rem;line-height:1.5;padding:.5rem .65rem}
 .sp-col textarea:disabled{background:#f8fafc;cursor:not-allowed}
 /* 样品通过: not approved = light green with a green border; approved = solid green */
@@ -150,7 +160,8 @@ tr.xp-spacer td{padding:0;border:0}
   display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;font-size:.8rem;padding:0;font-family:inherit;flex:none}
 .sp-tile:hover,.sp-tile:focus-visible,.sp-tile.over{border-color:var(--primary);color:var(--primary);background:#eef2ff;outline:none}
 .sp-tile.over{box-shadow:0 0 0 2px var(--primary)}
-.sp-tile.has{border-style:solid;border-color:var(--line);background:#fff;cursor:zoom-in}
+.sp-tile.has{border-style:solid;border-color:var(--line);background:#fff;cursor:zoom-in;touch-action:none}
+.sp-tile.panning{cursor:grabbing}
 .sp-tile img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .sp-tile .tag{position:absolute;left:4px;bottom:4px;font-size:.68rem;line-height:1.4;background:rgba(15,23,42,.72);color:#fff;border-radius:3px;padding:0 .35rem}
 .sp-state{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--muted);margin-right:auto}
@@ -195,7 +206,7 @@ tr.xp-spacer td{padding:0;border:0}
 .iv-tile.main.on:hover::after{content:'更换';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   background:rgba(15,23,42,.35);color:#fff;font-size:.78rem;font-weight:600}
 /* a tile image at its square position (tileStyle): percentages of the tile */
-.iv-tile img.pos,.pk-tile img.pos{position:absolute;max-width:none;object-fit:fill}
+.iv-tile img.pos,.pk-tile img.pos,.sp-tile img.pos{position:absolute;max-width:none;object-fit:fill}
 .iv-tile .tag{position:absolute;left:3px;bottom:3px;font-size:.62rem;line-height:1.4;background:rgba(15,23,42,.72);color:#fff;border-radius:3px;padding:0 .3rem}
 .iv-tile .del{position:absolute;z-index:1;top:3px;right:3px;width:18px;height:18px;border:none;border-radius:4px;background:rgba(15,23,42,.72);
   color:#fff;font-size:.7rem;line-height:1;cursor:pointer;opacity:0;padding:0}
@@ -208,9 +219,6 @@ tr.xp-spacer td{padding:0;border:0}
   box-shadow:0 2px 10px rgba(15,23,42,.08);cursor:grab;touch-action:none;user-select:none}
 .iv-frame.dragging{cursor:grabbing}
 .iv-frame img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-user-drag:none}
-/* sample photos: shown whole, never repositioned */
-.iv-frame.plain{cursor:default}
-.iv-frame.plain img{object-fit:contain}
 
 /* 下单 pop-up (Step 2): a compact header over the tool; ‹ (top left) goes back a view, × / Esc / backdrop close */
 .s2{background:#f1f5f9;border-radius:var(--radius);box-shadow:0 20px 40px rgba(15,23,42,.3);width:100%;height:100%;max-width:1700px;
@@ -375,9 +383,11 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
       <div class="xp-inner hidden" id="spInner">
         <div class="sp-body">
           <div class="sp-col">
-            <span class="form-label">样品图片
-              <button type="button" class="sp-nav" id="spPrev" title="上一张（←）">‹</button><span class="sp-pos" id="spPos"></span><button type="button" class="sp-nav" id="spNext" title="下一张（→）">›</button></span>
+            <input type="text" class="sp-title" id="spTitle" maxlength="40" spellcheck="false" autocomplete="off" title="点击修改样品名称，例：蓝色 4x6">
             <button type="button" class="sp-tile" id="spTile"></button>
+            <div class="sp-navrow" id="spNav">
+              <button type="button" class="sp-nav" id="spPrev" title="上一张（←）">‹</button><span class="sp-pos" id="spPos"></span><button type="button" class="sp-nav" id="spNext" title="下一张（→）">›</button>
+            </div>
           </div>
           <div class="sp-col notes">
             <label class="form-label" for="spNote" id="spNoteLabel">样品备注</label>
@@ -477,6 +487,7 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
     <div class="iv-side">
       <button type="button" class="iv-close" id="ivClose" title="关闭（Esc）">×</button>
       <div class="iv-title" id="ivTitle"></div>
+      <input type="text" class="iv-title-in hidden" id="ivSTitle" maxlength="40" spellcheck="false" autocomplete="off" title="点击修改样品名称，例：蓝色 4x6">
       <div class="iv-meta" id="ivMeta"></div>
       <div class="iv-count" id="ivCount"></div>
       <div class="iv-grid" id="ivGrid"></div>
@@ -1611,8 +1622,6 @@ function openViewer(r, kind, idx){
   const sample = kind === 'sample';
   const v = viewer = { id: r.id, kind: sample ? 'sample' : 'img', idx: sample && idx || 0, list: null, ver: 0, f: null, c: null, drag: null, saveTimer: null };
   $('ivBack').classList.remove('hidden');
-  $('ivFrame').classList.toggle('plain', sample);
-  $('ivFrame').title = sample ? '' : '按住拖动调整位置，Ctrl+滚轮缩放';
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   renderViewer();
   (sample ? loadSamples(r) : loadRowImages(r)).catch(() => []).then(list => {
@@ -1665,16 +1674,29 @@ function renderViewer(){
   const list = viewer.list, cur = list && list[viewer.idx];
   const order = viewerOrder(), pos = sample ? -1 : order.indexOf(r);
   const ids = [r.sku, r.parentAsin].filter(Boolean).map(esc).join(' · ');
-  $('ivTitle').textContent = rowLabel(r) + (sample ? ' · 样品图片' : '');
-  $('ivMeta').innerHTML = ids + (pos > -1 ? (ids ? '<br>' : '') + '产品 ' + (pos + 1) + ' / ' + order.length : '');
+  const s = sample && cur ? r.samples[viewer.idx] : null;
+  /* sample mode: the big title is the sample's (editable); the product goes on the grey line */
+  $('ivTitle').classList.toggle('hidden', sample);
+  $('ivSTitle').classList.toggle('hidden', !sample);
+  $('ivTitle').textContent = rowLabel(r);
+  if (sample) {
+    const st = $('ivSTitle');
+    st.disabled = !s;
+    st.placeholder = s ? '样品 ' + (viewer.idx + 1) : '样品图片';
+    fillField(st, s, 'title');
+  }
+  $('ivMeta').innerHTML = sample ? esc(rowLabel(r)) + (ids ? ' · ' + ids : '')
+    : ids + (pos > -1 ? (ids ? '<br>' : '') + '产品 ' + (pos + 1) + ' / ' + order.length : '');
   $('ivCount').textContent = !list ? '加载中…'
     : list.length ? (sample ? '样品 ' : '图片 ') + (viewer.idx + 1) + ' / ' + list.length
     : sample ? '还没有样品图片' : '没有找到原图';
   $('ivPrev').disabled = !list || viewer.idx <= 0;
   $('ivNext').disabled = !list || viewer.idx >= list.length - 1;
 
-  /* every image sits in the square frame; the main image's square is the table thumb (samples: the whole photo) */
+  /* every image sits in the square frame; the main image's square is the table thumb. A sample photo has its size stored,
+     so it is placed at once (no decode): its own position, else the whole photo */
   if (viewer.f && viewer.f.main !== cur) viewer.f = null;
+  if (s && !viewer.f && cur.w && cur.h) { viewer.f = sampleFrame(cur); viewer.c = sampleCrop(s, cur.w, cur.h); }
   layoutViewerFrame();
   if (cur && !viewer.f && !sample) {
     const id = r.id, isMain = viewer.idx === 0;
@@ -1685,13 +1707,13 @@ function renderViewer(){
     }).catch(() => {});
   }
 
-  const oks = sample ? (r.samples || []).map(s => s.ok ? 1 : 0).join('') : '';
+  const oks = sample ? JSON.stringify((r.samples || []).map(x => [x.ok, x.title])) : '';
   const key = viewer.kind + '#' + viewer.id + '#' + viewer.ver + '#' + (list ? list.length : -1) + '#' + oks;
   if (key !== gridKey && sample) {                      // sample photos: plain tiles (✓ = approved), any one can be deleted
     gridKey = key;
     $('ivGrid').innerHTML = !list ? '' : list.map((x, i) =>
-      '<div class="iv-tile" data-iv="pick" data-i="' + i + '" title="样品图片 ' + (i + 1) + '">' +
-        '<img src="' + x.url + '" alt="" draggable="false">' +
+      '<div class="iv-tile" data-iv="pick" data-i="' + i + '" title="' + esc(r.samples[i] && r.samples[i].title || '样品 ' + (i + 1)) + '">' +
+        '<img src="' + x.url + '" alt="" draggable="false"' + sampleTile(x, r.samples[i]) + '>' +
         (r.samples[i] && r.samples[i].ok ? '<span class="ok-badge" title="已通过">✓</span>' : '') +
         '<button type="button" class="del" data-iv="del" data-i="' + i + '" title="删除这张样品图片">×</button>' +
       '</div>').join('') +
@@ -1712,11 +1734,10 @@ function renderViewer(){
   $('ivHint').classList.toggle('hidden', sample);
   $('ivHint').textContent = '粘贴或拖入图片即可添加（拖到主图上即替换主图），每个产品最多 ' + IMG_LIMIT + ' 张。';
   /* sample mode: the shown photo's notes and 样品通过 (the same data as the table panel) */
-  const s = sample && cur ? r.samples[viewer.idx] : null;
   $('ivNoteBox').classList.toggle('hidden', !s);
   if (s) {
-    $('ivNoteLabel').textContent = '样品备注（第 ' + (viewer.idx + 1) + ' 张）';
-    fillNote($('ivNote'), s);
+    $('ivNoteLabel').textContent = '样品备注（' + sampleName(s, viewer.idx) + '）';
+    fillField($('ivNote'), s, 'note');
     okButton($('ivOk'), s, viewer.idx);
   }
 }
@@ -1728,7 +1749,7 @@ function layoutViewerFrame(){
   fr.style.width = fr.style.height = size + 'px';
   if (viewer.f) return layoutFrame(im, fr.clientWidth, viewer.f, viewer.c);
   const cur = viewer.list && viewer.list[viewer.idx];
-  if (viewer.kind === 'sample') {                      // the whole photo (CSS contain); nothing while there is none
+  if (viewer.kind === 'sample') {                      // no photo, or one without a stored size (shown plain)
     im.style.cssText = '';
     if (!cur) im.removeAttribute('src');
     else if (im.getAttribute('src') !== cur.url) im.src = cur.url;
@@ -1749,6 +1770,10 @@ function viewerSave(){
   const r = byId(viewer.id), f = viewer.f, list = viewer.list;
   if (!r || !f || !list) return;
   const i = list.indexOf(f.main);
+  if (viewer.kind === 'sample') {                      // a sample photo: its crop in meta.samples
+    if (r.samples[i]) setSampleCrop(r, r.samples[i], viewer.c);
+    return;
+  }
   if (i === 0) {
     if (!commitCrop(r, f, viewer.c)) return;
     render();
@@ -1949,7 +1974,8 @@ document.addEventListener('keydown', e => {
 
 /* ============ 上架 → 样品: notes + 样品通过 per photo, and one 总备注 ============
    rows/<id>/samples.json {images:[{id,url,w,h}]}: up to IMG_LIMIT photos (several MB: read when the panel or the viewer needs
-   them, never rewritten while typing). meta.samples [{id, note, ok}] in the same order: each photo's notes and 样品通过, small
+   them, never rewritten while typing). meta.samples [{id, title, note, ok, crop?}] in the same order: each photo's title, notes,
+   样品通过 and square position (shared/crop.js; none = the whole photo), small
    enough to autosave with the row and to give the 上架 pill its mark without loading photos. meta.sampleNotes = 总备注.
    Independent of the row's 图片: no 主图, no positions. Approval never changes status */
 const samplesPath = r => 'rows/' + r.id + '/samples.json';
@@ -1959,11 +1985,16 @@ const saveSamples = (r, list) => api.put(samplesPath(r), { images: list });
 const newSampleId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 let sampleBusy = false;           // one add / delete at a time (panel and viewer)
 
-/* meta.samples in photo order: each photo keeps its {note, ok} by id, a new one starts empty and unapproved.
+/* meta.samples in photo order: each photo keeps its {title, note, ok, crop} by id, a new one starts empty, unapproved and whole.
    Drops the fields of the first version (sampleOk: one mark per row; sampleCount). True when anything changed */
 function syncSampleMeta(r, list){
   const by = new Map((r.samples || []).map(s => [s.id, s]));
-  const next = list.map(im => { const s = by.get(im.id) || {}; return { id: im.id, note: s.note || '', ok: !!s.ok }; });
+  const next = list.map(im => {
+    const s = by.get(im.id) || {};
+    const o = { id: im.id, title: s.title || '', note: s.note || '', ok: !!s.ok };
+    if (s.crop) o.crop = s.crop;
+    return o;
+  });
   const changed = JSON.stringify(next) !== JSON.stringify(r.samples || []) || 'sampleCount' in r || 'sampleOk' in r;
   r.samples = next;
   delete r.sampleCount;
@@ -1986,6 +2017,18 @@ async function loadSamples(r){
 const samplePanelRow = () => expandedId && expandedKind === 'sample' && panelId === expandedId ? byId(expandedId) : null;
 /* the photo index the panel shows, within 0 … n-1 */
 const sampleAt = (r, n) => Math.max(0, Math.min(sampleIdx.get(r.id) || 0, n - 1));
+/* how a sample is named in labels: its title, else 第 n 张 */
+const sampleName = (s, i) => s && s.title || '第 ' + (i + 1) + ' 张';
+/* square positions: a sample photo starts whole (zoomed out until the long edge fits, white padding) */
+function wholeCrop(W, H){
+  const L = Math.max(W, H);
+  return { x: (W - L) / 2 / W, y: (H - L) / 2 / H, s: L / Math.min(W, H) };
+}
+const sampleCrop = (s, W, H) => CROP.cropOf(s && s.crop || wholeCrop(W, H), W, H);
+/* a stored photo knows its size, so it can be placed without decoding (layoutFrame's f) */
+const sampleFrame = im => ({ main: im, W: im.w, H: im.h });
+/* a tile <img> at the photo's square (percentages of the tile) */
+const sampleTile = (im, s) => im.w && im.h ? tileStyle({ w: im.w, h: im.h, crop: sampleCrop(s, im.w, im.h) }) : '';
 
 /* add image files as sample photos (stored like the row's images: longest side IMG_STORE_MAX); the panel moves to the
    first new one. Resolves to the number added */
@@ -2061,11 +2104,31 @@ function setSampleNote(r, s, text){
   saveRow(r);                                           // debounced; flushed on pagehide
   [$('spNote'), $('ivNote')].forEach(b => { if (b.dataset.sid === s.id && b.value !== text) b.value = text; });
 }
-/* show photo s's notes in a box; the text being typed is left alone */
-function fillNote(box, s){
+/* show photo s's field (note / title) in a box; the text being typed is left alone */
+function fillField(box, s, key){
   const sid = s ? s.id : '';
-  if (box.dataset.sid !== sid || document.activeElement !== box) box.value = s ? s.note : '';
+  if (box.dataset.sid !== sid || document.activeElement !== box) box.value = s ? s[key] || '' : '';
   box.dataset.sid = sid;
+}
+/* a sample's title, from the panel or the viewer (confirmed on Enter / blur): both show it, and the labels follow */
+function setSampleTitle(r, s, text){
+  if ((s.title || '') === text) return;
+  s.title = text;
+  saveRow(r);
+  if (panelKind === 'sample' && panelId === r.id) renderSample(r);
+  if (viewer && viewer.kind === 'sample' && viewer.id === r.id) renderViewer();
+}
+/* a sample photo's new square position (panel tile or viewer): saved with the row; the tiles showing it follow */
+function setSampleCrop(r, s, c){
+  const n = roundCrop(c), o = s.crop;
+  if (![n.x, n.y, n.s].every(Number.isFinite) || (o && o.x === n.x && o.y === n.y && o.s === n.s)) return;
+  s.crop = n;
+  saveRow(r);
+  const i = r.samples.indexOf(s), list = sampleCache.get(r.id), im = list && list[i];
+  if (!im) return;
+  if (panelKind === 'sample' && panelId === r.id && sampleAt(r, list.length) === i) renderSample(r);
+  const tile = viewer && viewer.kind === 'sample' && viewer.id === r.id && $('ivGrid').querySelector('.iv-tile[data-i="' + i + '"] img');
+  if (tile) tile.outerHTML = '<img src="' + im.url + '" alt="" draggable="false"' + sampleTile(im, s) + '>';
 }
 /* 样品通过 button: light green until approved, then solid green */
 function okButton(btn, s, i){
@@ -2082,21 +2145,26 @@ function renderSample(r, fresh){
   const list = sampleCache.get(r.id), n = list ? list.length : sampleN(r);
   if (!list && n) loadSamples(r).then(() => { if (panelKind === 'sample' && panelId === r.id) renderSample(r); }).catch(() => {});
   const i = sampleAt(r, n), im = list && list[i], s = list ? r.samples[i] : null;
+  const title = $('spTitle');
+  title.disabled = !s;
+  title.placeholder = n ? '样品 ' + (i + 1) : '样品图片';
+  fillField(title, s, 'title');
   const tile = $('spTile');
   tile.classList.toggle('has', n > 0);
-  tile.title = n ? '点击查看样品图片 · 可在此处粘贴或拖入图片添加' : '点击上传样品图片（可多选），也可在此处粘贴或拖入';
+  tile.title = n ? '点击查看样品图片 · 按住拖动调整位置 · Ctrl+滚轮缩放 · 可在此处粘贴或拖入图片添加'
+                 : '点击上传样品图片（可多选），也可在此处粘贴或拖入';
   tile.innerHTML = !n ? '+ 样品图'
-    : (im ? '<img src="' + im.url + '" alt="" draggable="false">' : '') + (s && s.ok ? '<span class="ok-badge">✓</span>' : '') +
-      '<span class="tag">' + n + ' 张</span>';
-  ['spPrev', 'spPos', 'spNext'].forEach(id => $(id).classList.toggle('hidden', !n));
+    : (im ? '<img src="' + im.url + '" alt="" draggable="false"' + sampleTile(im, s) + '>' : '') +
+      (s && s.ok ? '<span class="ok-badge">✓</span>' : '') + '<span class="tag">' + n + ' 张</span>';
+  $('spNav').classList.toggle('hidden', !n);
   $('spPos').textContent = (i + 1) + ' / ' + n;
   $('spPrev').disabled = i <= 0;
   $('spNext').disabled = i >= n - 1;
-  $('spNoteLabel').textContent = n ? '样品备注（第 ' + (i + 1) + ' 张）' : '样品备注';
+  $('spNoteLabel').textContent = n ? '样品备注（' + sampleName(s, i) + '）' : '样品备注';
   const box = $('spNote');
   box.disabled = !s;
   box.placeholder = !n ? '先上传样品图片，再为每张图片写备注' : !s ? '加载中…' : '这张样品的备注，例：颜色很好，但右上角图案不够密';
-  fillNote(box, s);
+  fillField(box, s, 'note');
   const st = sampleState(r);
   $('spState').innerHTML = '<span class="smark ' + st + '"></span>' + sampleTip(r);
   okButton($('spOk'), s, i);
@@ -2104,6 +2172,7 @@ function renderSample(r, fresh){
 function sampleStep(r, d){
   const list = sampleCache.get(r.id);
   if (!list) return;
+  spWheelEnd();                                         // a zoom still waiting to save belongs to the current photo
   const i = sampleAt(r, list.length) + d;
   if (i < 0 || i >= list.length) return;
   sampleIdx.set(r.id, i);
@@ -2124,7 +2193,7 @@ $('spPrev').addEventListener('click', () => { const r = samplePanelRow(); if (r)
 $('spNext').addEventListener('click', () => { const r = samplePanelRow(); if (r) sampleStep(r, 1); });
 $('spTile').addEventListener('click', () => {
   const r = samplePanelRow();
-  if (!r) return;
+  if (!r || skipSpClick) return;
   const list = sampleCache.get(r.id), n = list ? list.length : sampleN(r);
   if (n) openViewer(r, 'sample', sampleAt(r, n));
   else pickImage(files => addSamples(r, files), true);
@@ -2133,6 +2202,90 @@ $('spOk').addEventListener('click', () => {
   const r = samplePanelRow(), list = r && sampleCache.get(r.id);
   if (list) toggleSampleOk(r, r.samples[sampleAt(r, list.length)]);
 });
+/* ---- the panel tile: press + drag moves the photo, Ctrl + wheel zooms (as the row thumb); a click without moving opens
+   the viewer. Saved in meta.samples[i].crop ---- */
+let spg = null;             // drag: {r, s, f, size, x0, y0, moved, c0, c}
+let spz = null;             // Ctrl + wheel: {r, s, f, c, timer}
+let skipSpClick = false;
+/* the panel's shown photo, ready to place: {r, s, f} (null without one, or before the photos are loaded) */
+function spShown(){
+  const r = samplePanelRow(), list = r && sampleCache.get(r.id);
+  if (!list || !list.length) return null;
+  const i = sampleAt(r, list.length), im = list[i], s = r.samples[i];
+  return im && s && im.w && im.h ? { r, s, f: sampleFrame(im) } : null;
+}
+$('spTile').addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  const g = spShown();
+  if (!g) return;
+  spWheelEnd();
+  const tile = $('spTile');
+  spg = Object.assign(g, { size: tile.clientWidth, x0: e.clientX, y0: e.clientY, moved: false, c0: sampleCrop(g.s, g.f.W, g.f.H) });
+  tile.setPointerCapture(e.pointerId);
+});
+$('spTile').addEventListener('pointermove', e => {
+  const g = spg;
+  if (!g) return;
+  const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
+  if (!g.moved && Math.abs(dx) + Math.abs(dy) < 4) return;
+  g.moved = true;
+  $('spTile').classList.add('panning');
+  g.c = panCrop(Object.assign({}, g.c0), g.f.W, g.f.H, dx / g.size, dy / g.size);
+  const img = $('spTile').querySelector('img');
+  if (img) layoutFrame(img, g.size, g.f, g.c);
+});
+['pointerup', 'pointercancel'].forEach(type => $('spTile').addEventListener(type, () => {
+  const g = spg;
+  spg = null;
+  $('spTile').classList.remove('panning');
+  if (!g || !g.moved) return;                           // a plain click: the click handler opens the viewer
+  skipSpClick = true;
+  setTimeout(() => { skipSpClick = false; }, 0);
+  if (g.c) setSampleCrop(g.r, g.s, g.c);
+}));
+$('spTile').addEventListener('wheel', e => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();                                   // no browser zoom
+  if (spg) return;
+  const g = spShown();
+  if (!g) return;
+  if (spz && spz.s !== g.s) spWheelEnd();
+  if (!spz) spz = Object.assign(g, { c: sampleCrop(g.s, g.f.W, g.f.H) });
+  const tile = $('spTile'), b = tile.getBoundingClientRect(), size = tile.clientWidth;
+  zoomCrop(spz.c, spz.f.W, spz.f.H, wheelFactor(e), (e.clientX - b.left - tile.clientLeft) / size, (e.clientY - b.top - tile.clientTop) / size);
+  const img = tile.querySelector('img');
+  if (img) layoutFrame(img, size, spz.f, spz.c);
+  clearTimeout(spz.timer);
+  spz.timer = setTimeout(spWheelEnd, 400);              // save once the wheel goes quiet
+}, { passive: false });
+function spWheelEnd(){
+  const z = spz;
+  spz = null;
+  if (!z) return;
+  clearTimeout(z.timer);
+  setSampleCrop(z.r, z.s, z.c);
+}
+
+/* ---- sample titles: click to edit; Enter / click away keeps it, Esc cancels ---- */
+[['spTitle', () => samplePanelRow()], ['ivSTitle', () => viewer && viewer.kind === 'sample' && byId(viewer.id)]].forEach(([id, rowOf]) => {
+  const el = $(id);
+  const sampleOf = () => { const r = rowOf(); return r && (r.samples || []).find(x => x.id === el.dataset.sid) ? r : null; };
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+    else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();                              // only the edit is cancelled, the viewer stays open
+      const r = sampleOf();
+      el.value = r ? r.samples.find(x => x.id === el.dataset.sid).title || '' : '';
+      el.blur();
+    }
+  });
+  el.addEventListener('change', () => {
+    const r = sampleOf();
+    if (r) setSampleTitle(r, r.samples.find(x => x.id === el.dataset.sid), el.value.trim());
+  });
+});
+
 /* ← → step the panel's photos: not while typing, in a dropdown, or with a pop-up open */
 document.addEventListener('keydown', e => {
   if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
