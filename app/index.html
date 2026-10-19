@@ -197,6 +197,14 @@ tr.xp-spacer td{padding:0;border:0}
   color:var(--dark);font-size:1.05rem;line-height:1;cursor:pointer;padding:0;font-family:inherit}
 .iv-pclose:hover{border-color:var(--primary);color:var(--primary)}
 .iv-protos{display:flex;flex-direction:column;gap:.45rem;margin-top:.6rem;padding-top:.8rem;border-top:1px solid var(--line)}
+.iv-product textarea{height:120px;resize:vertical;font-size:.86rem;line-height:1.5;padding:.5rem .6rem}
+/* 样品 mode without photos: the big frame becomes the upload area */
+.iv-empty{position:absolute;inset:14px;border:2px dashed #cbd5e1;border-radius:10px;background:#f8fafc;color:var(--muted);font-family:inherit;
+  font-size:.85rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.35rem;cursor:pointer}
+.iv-empty:hover{border-color:var(--primary);color:var(--primary);background:#eef2ff}
+.iv-empty b{font-size:1rem;color:var(--dark);font-weight:600}
+.iv-empty:hover b{color:var(--primary)}
+.iv-empty .plus{font-size:2.4rem;line-height:1;font-weight:300}
 .iv-protos .form-label{margin:0;font-size:.78rem}
 .iv-protos .form-label .note{font-weight:400;color:#94a3b8;margin-left:.3rem}
 
@@ -435,7 +443,9 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
 <div class="iv-back hidden" id="ivBack">
   <div class="iv" id="iv" role="dialog" aria-modal="true" aria-labelledby="ivTitle">
     <div class="iv-stage" id="ivStage">
-      <div class="iv-frame" id="ivFrame" title="按住拖动调整位置，Ctrl+滚轮缩放"><img id="ivFrameImg" alt="" draggable="false"><span class="iv-flabel hidden" id="ivFrameLabel"></span></div>
+      <div class="iv-frame" id="ivFrame" title="按住拖动调整位置，Ctrl+滚轮缩放"><img id="ivFrameImg" alt="" draggable="false"><span class="iv-flabel hidden" id="ivFrameLabel"></span>
+        <!-- 样品 mode without photos: the frame is the upload area -->
+        <button type="button" class="iv-empty hidden" id="ivEmpty"><span class="plus">+</span><b>上传样品图片</b>点击选择（可多选），也可粘贴或拖入图片</button></div>
       <!-- 样品 mode: a prototype 图片 next to the sample (view only) -->
       <div class="iv-frame proto hidden" id="ivProto" title="原型图（只读，在「图片」中修改）"><img id="ivProtoImg" alt="" draggable="false"><span class="iv-flabel" id="ivProtoLabel"></span>
         <button type="button" class="iv-pclose" id="ivProtoClose" title="取消对应（这张样品不再与原型并排）">×</button></div>
@@ -463,6 +473,11 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
       <div class="iv-protos hidden" id="ivProtoBox">
         <span class="form-label">原型图<span class="note">点击设为这张样品的对应原型</span></span>
         <div class="iv-grid" id="ivProtoGrid"></div>
+      </div>
+      <!-- 样品 mode: notes for the whole product (e.g. when the samples should arrive) -->
+      <div class="iv-protos iv-product hidden" id="ivProductBox">
+        <label class="form-label" for="ivProduct">产品备注</label>
+        <textarea id="ivProduct" class="form-control" spellcheck="false" placeholder="整个产品的备注，例：工厂说样品 10/25 寄出，预计 11/1 到"></textarea>
       </div>
     </div>
   </div>
@@ -1660,6 +1675,18 @@ function renderViewer(){
     fillField($('ivNote'), s, 'note');
     okButton($('ivOk'), s, viewer.idx);
   }
+  /* sample mode without photos: no image in the frame (no broken-image icon), the frame is the upload area */
+  const none = sample && !!list && !list.length;
+  $('ivEmpty').classList.toggle('hidden', !none);
+  $('ivFrameImg').classList.toggle('hidden', sample && !cur);
+  $('ivFrame').title = none ? '' : '按住拖动调整位置，Ctrl+滚轮缩放';
+  /* 产品备注: one per product, shown in sample mode whether or not there are photos */
+  $('ivProductBox').classList.toggle('hidden', !sample);
+  if (sample) {
+    const pn = $('ivProduct');
+    if (pn.dataset.rid !== r.id || document.activeElement !== pn) pn.value = r.productNotes || '';
+    pn.dataset.rid = r.id;
+  }
   renderProtos(r, s);
 }
 /* 样品 mode: the 原型图 grid (the row's 图片, at their positions; view only) and, in compare, the two frames' labels */
@@ -2156,6 +2183,14 @@ function okButton(btn, s, i){
   });
 });
 
+/* the viewer's sample mode: the upload area (no photos yet) and 产品备注 (autosaved with the row) */
+$('ivEmpty').addEventListener('click', () => pickImage(files => viewerAdd(files), true));
+$('ivProduct').addEventListener('input', () => {
+  const r = viewer && viewer.kind === 'sample' && byId(viewer.id);
+  if (!r || $('ivProduct').dataset.rid !== r.id) return;
+  r.productNotes = $('ivProduct').value;
+  saveRow(r);
+});
 /* the viewer's sample mode: the shown photo's notes and 样品通过 */
 $('ivNote').addEventListener('input', () => {
   const r = viewer && viewer.kind === 'sample' && byId(viewer.id);

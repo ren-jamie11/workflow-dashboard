@@ -70,8 +70,8 @@ settings.json         { categories:["XK","MUG"], materials:["树脂","金属","�
                         step2:{operator,store}, step3:{targetDays:90, invTargetDays:180} }
 rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, status, liveDate,
                         step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt, orderFolder,
-                        samples }
-                      上架 → 样品: samples = [{id, title, note, ok, crop?, proto?}] per sample
+                        samples, productNotes }
+                      上架 → 样品: productNotes = 产品备注 (one per product); samples = [{id, title, note, ok, crop?, proto?}] per sample
                       photo, in photo order (its title, notes, 样品通过, square position — shared/crop.js, none = the whole
                       photo — and linked prototype: proto = a fingerprint (hash) of that 图片's data URL, since 图片 have no ids
                       and get reordered; the 上架 pill's mark reads samples, so the table never loads the photos). Rows saved
@@ -185,9 +185,9 @@ mode**; there is no expanded row for 上架 (an in-row 样品 panel existed for 
 | S1 | Clicking **上架** opens the image viewer in 样品 mode on the photo it last showed (this session). No soft lock (samples often come before the order). Step 3 inventory ([stage-4-step3.md](stage-4-step3.md)) is still to be placed |
 | S2 | Only 报价 expands under its row; its pill is ringed while open |
 | S3 | A row's blank-space click (G7) always toggles 报价, whatever the status; the 样品 viewer opens only from the 上架 pill |
-| S4 | Up to 9 sample photos (`samples.json`): ‹ › and ← → step photos (never rows; not while typing), + tile, paste / drop anywhere in the viewer adds, per-photo delete (the last one too; its title, notes, mark and link go with it). No 主图 / 设为主图 / paste hint |
+| S4 | Up to 9 sample photos (`samples.json`). With none, the big frame is the upload area (click, paste or drop): ‹ › and ← → step photos (never rows; not while typing), + tile, paste / drop anywhere in the viewer adds, per-photo delete (the last one too; its title, notes, mark and link go with it). No 主图 / 设为主图 / paste hint |
 | S5 | Each photo has a **title** (`samples[i].title`, e.g. `蓝色 4x6`; empty → grey `样品 n`): the big title top right, `<product> · <SKU>` on the grey line under it. Click to edit; Enter / click away keeps it, Esc cancels |
-| S6 | Each photo has its own **notes** (`samples[i].note`, `样品备注（<title or 第 n 张>）` under the grid), autosaved with the row. There is no whole-product note (总备注 was removed with the panel, saved text included) |
+| S6 | Each photo has its own **notes** (`samples[i].note`, `样品备注（<title or 第 n 张>）` under the grid), autosaved with the row. **产品备注** (`productNotes`, one per product, e.g. when the samples should arrive) sits under 原型图, shown with or without photos. *(The panel's 总备注 was removed with its saved text on 2026-10-19; 产品备注 replaced it the same day, starting empty)* |
 | S7 | Mark on the 上架 pill: none = no photos · yellow = photos, not all approved · green = **every** photo approved. The pill's tooltip says `已收样，已通过 k / N` |
 | S8 | **样品通过** toggles the shown photo, no confirm: light green with a green border (`✓ 样品通过`) until approved, then solid green (`✓ 已通过`). Grid tiles show no mark (a ✓ badge was tried and removed). Status, sort order and the journey don't change |
 | S9 | The first version's row-level 样品通过 was dropped (all photos started unapproved) |

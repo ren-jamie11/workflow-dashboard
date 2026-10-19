@@ -23,7 +23,8 @@ function newRow(category) {
     id: newId(), name: '', factory: '', category: category || '', material: '', sku: '', parentAsin: '',
     status: STATUSES[0], liveDate: '', step1Confirmed: false, deliveryDate: '',
     thumb: null, createdAt: Date.now(),
-    samples: []     // 上架 → 样品: [{id, title, note, ok, crop?, proto?}] per photo (photos in rows/<id>/samples.json)
+    samples: [],    // 上架 → 样品: [{id, title, note, ok, crop?, proto?}] per photo (photos in rows/<id>/samples.json)
+    productNotes: ''                                    // 产品备注, in the 样品 viewer
   };
 }
 
