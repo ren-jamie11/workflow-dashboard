@@ -226,6 +226,9 @@ tr.xp-spacer td{padding:0;border:0}
 .iv-pclose{position:absolute;z-index:1;top:8px;right:8px;width:30px;height:30px;border:1px solid var(--line);border-radius:7px;background:#fff;
   color:var(--dark);font-size:1.05rem;line-height:1;cursor:pointer;padding:0;font-family:inherit}
 .iv-pclose:hover{border-color:var(--primary);color:var(--primary)}
+/* a sample tile whose sample is linked to a prototype: that prototype, small, bottom right */
+.iv-tile img.proto-badge{position:absolute;z-index:1;right:3px;bottom:3px;left:auto;top:auto;width:26px;height:26px;object-fit:cover;
+  border-radius:4px;box-shadow:0 0 0 2px #fff;background:#fff}
 .iv-protos{display:flex;flex-direction:column;gap:.45rem;margin-top:.6rem;padding-top:.8rem;border-top:1px solid var(--line)}
 .iv-protos .form-label{margin:0;font-size:.78rem}
 .iv-protos .form-label .note{font-weight:400;color:#94a3b8;margin-left:.3rem}
@@ -493,7 +496,7 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
       <div class="iv-frame" id="ivFrame" title="按住拖动调整位置，Ctrl+滚轮缩放"><img id="ivFrameImg" alt="" draggable="false"><span class="iv-flabel hidden" id="ivFrameLabel"></span></div>
       <!-- 样品 mode: a prototype 图片 next to the sample (view only) -->
       <div class="iv-frame proto hidden" id="ivProto" title="原型图（只读，在「图片」中修改）"><img id="ivProtoImg" alt="" draggable="false"><span class="iv-flabel" id="ivProtoLabel"></span>
-        <button type="button" class="iv-pclose" id="ivProtoClose" title="关闭对比（Esc）">×</button></div>
+        <button type="button" class="iv-pclose" id="ivProtoClose" title="取消对应（这张样品不再与原型并排）">×</button></div>
       <button type="button" class="iv-nav prev" id="ivPrev" title="上一张">‹</button>
       <button type="button" class="iv-nav next" id="ivNext" title="下一张">›</button>
     </div>
@@ -516,7 +519,7 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
       </div>
       <!-- 样品 mode: the row's 图片 = the prototype; click one to compare side by side -->
       <div class="iv-protos hidden" id="ivProtoBox">
-        <span class="form-label">原型图<span class="note">点击并排对比</span></span>
+        <span class="form-label">原型图<span class="note">点击设为这张样品的对应原型</span></span>
         <div class="iv-grid" id="ivProtoGrid"></div>
       </div>
     </div>
@@ -1737,7 +1740,7 @@ function renderViewer(){
     }).catch(() => {});
   }
 
-  const oks = sample ? JSON.stringify((r.samples || []).map(x => [x.ok, x.title])) : '';
+  const oks = sample ? JSON.stringify([viewer.protos ? viewer.protos.length : -1].concat((r.samples || []).map(x => [x.ok, x.title, protoAt(x)]))) : '';
   const key = viewer.kind + '#' + viewer.id + '#' + viewer.ver + '#' + (list ? list.length : -1) + '#' + oks;
   if (key !== gridKey && sample) {                      // sample photos: plain tiles (✓ = approved), any one can be deleted
     gridKey = key;
@@ -1745,6 +1748,7 @@ function renderViewer(){
       '<div class="iv-tile" data-iv="pick" data-i="' + i + '" title="' + esc(r.samples[i] && r.samples[i].title || '样品 ' + (i + 1)) + '">' +
         '<img src="' + x.url + '" alt="" draggable="false"' + sampleTile(x, r.samples[i]) + '>' +
         (r.samples[i] && r.samples[i].ok ? '<span class="ok-badge" title="已通过">✓</span>' : '') +
+        protoBadge(r, r.samples[i]) +
         '<button type="button" class="del" data-iv="del" data-i="' + i + '" title="删除这张样品图片">×</button>' +
       '</div>').join('') +
       (list.length < IMG_LIMIT ? '<button type="button" class="iv-tile add" data-iv="add" title="添加样品图片（可多选，最多 ' + IMG_LIMIT + ' 张）">+</button>' : '');
@@ -1782,12 +1786,13 @@ function renderProtos(r, s){
   if (protos && key !== protoKey) {
     protoKey = key;
     $('ivProtoGrid').innerHTML = protos.map((x, i) =>
-      '<div class="iv-tile" data-pv="' + i + '" title="' + (i ? '图片 ' + (i + 1) : '主图') + ' · 点击并排对比">' +
+      '<div class="iv-tile" data-pv="' + i + '" title="' + (i ? '图片 ' + (i + 1) : '主图') + ' · 点击设为这张样品的对应原型（再次点击取消）">' +
         (i ? '<img src="' + x.url + '" alt="" draggable="false"' + tileStyle(x) + '>'
            : '<img src="' + r.thumb + '" alt="" draggable="false"><span class="tag">主图</span>') +
       '</div>').join('');
   }
-  if (viewer.proto != null && !(protos && protos[viewer.proto])) viewer.proto = null;
+  const pi = protoAt(s);                                // the shown sample's own prototype (null: none, or not loaded yet)
+  if (pi !== viewer.proto) { viewer.proto = pi; viewer.pf = null; }
   $('ivProtoGrid').querySelectorAll('.iv-tile').forEach(t => t.classList.toggle('on', +t.dataset.pv === viewer.proto));
   const on = viewer.proto != null;
   $('ivProto').classList.toggle('hidden', !on);
@@ -1798,12 +1803,42 @@ function renderProtos(r, s){
   }
   layoutViewerFrame();
 }
-/* compare with prototype i (again = stop comparing) */
+/* link prototype i to the shown sample (saved; the same one again = unlink) */
 function toggleProto(i){
-  if (!viewer || viewer.kind !== 'sample') return;
-  viewer.proto = viewer.proto === i ? null : i;
-  viewer.pf = null;
+  const r = viewer && viewer.kind === 'sample' && byId(viewer.id);
+  const s = r && viewer.list && r.samples[viewer.idx], im = s && viewer.protos && viewer.protos[i];
+  if (!im) return;
+  const id = protoId(im);
+  if (s.proto === id) delete s.proto;
+  else s.proto = id;
+  saveRow(r);
   renderViewer();
+}
+/* 图片 have no ids and their order changes (设为主图, delete), so a sample links to its prototype by a fingerprint of the
+   image itself: FNV-1a over the data URL, base36. Cached per image object */
+const protoIds = new WeakMap();
+function protoId(im){
+  if (!protoIds.has(im)) {
+    const u = im.url || '';
+    let h = 0x811c9dc5;
+    for (let k = 0; k < u.length; k++) { h ^= u.charCodeAt(k); h = Math.imul(h, 0x01000193); }
+    protoIds.set(im, (h >>> 0).toString(36) + u.length.toString(36));
+  }
+  return protoIds.get(im);
+}
+/* index of sample s's prototype among the viewer's 图片; null when unlinked, not loaded yet, or that 图片 is gone */
+function protoAt(s){
+  const protos = viewer && viewer.protos;
+  if (!s || !s.proto || !protos) return null;
+  const i = protos.findIndex(im => protoId(im) === s.proto);
+  return i < 0 ? null : i;
+}
+/* the small prototype thumbnail on a linked sample tile */
+function protoBadge(r, s){
+  const i = protoAt(s);
+  if (i == null) return '';
+  return '<img class="proto-badge" src="' + (i ? viewer.protos[i].url : r.thumb) + '" alt="" draggable="false" title="对应原型：' +
+    (i ? '图片 ' + (i + 1) : '主图') + '">';
 }
 /* size the square to the stage and place the image in it (a stand-in shows while the full image decodes) */
 function layoutViewerFrame(){
@@ -2056,14 +2091,14 @@ $('ivProtoGrid').addEventListener('click', e => {
   const t = e.target.closest('[data-pv]');
   if (t) toggleProto(+t.dataset.pv);
 });
-$('ivProtoClose').addEventListener('click', () => { if (viewer && viewer.proto != null) toggleProto(viewer.proto); });
+$('ivProtoClose').addEventListener('click', () => { if (viewer && viewer.proto != null) toggleProto(viewer.proto); });   // unlink
 $('ivPrev').addEventListener('click', () => viewerStep(-1));
 $('ivNext').addEventListener('click', () => viewerStep(1));
 $('ivClose').addEventListener('click', closeViewer);
 $('ivBack').addEventListener('mousedown', e => { if (e.target === $('ivBack')) closeViewer(); });
 document.addEventListener('keydown', e => {
   if (!viewer) return;
-  if (e.key === 'Escape') { e.preventDefault(); if (viewer.proto != null && !typing()) toggleProto(viewer.proto); else closeViewer(); }
+  if (e.key === 'Escape') { e.preventDefault(); closeViewer(); }                 // links stay
   else if (typing()) return;                            // ← → move the cursor in the notes box
   else if (e.key === 'ArrowLeft') { e.preventDefault(); viewerRow(-1); }
   else if (e.key === 'ArrowRight') { e.preventDefault(); viewerRow(1); }
@@ -2071,8 +2106,8 @@ document.addEventListener('keydown', e => {
 
 /* ============ 上架 → 样品: notes + 样品通过 per photo, and one 总备注 ============
    rows/<id>/samples.json {images:[{id,url,w,h}]}: up to IMG_LIMIT photos (several MB: read when the panel or the viewer needs
-   them, never rewritten while typing). meta.samples [{id, title, note, ok, crop?}] in the same order: each photo's title, notes,
-   样品通过 and square position (shared/crop.js; none = the whole photo), small
+   them, never rewritten while typing). meta.samples [{id, title, note, ok, crop?, proto?}] in the same order: each photo's title,
+   notes, 样品通过, square position (shared/crop.js; none = the whole photo) and linked prototype 图片 (protoId), small
    enough to autosave with the row and to give the 上架 pill its mark without loading photos. meta.sampleNotes = 总备注.
    Independent of the row's 图片: no 主图, no positions. Approval never changes status */
 const samplesPath = r => 'rows/' + r.id + '/samples.json';
@@ -2090,6 +2125,7 @@ function syncSampleMeta(r, list){
     const s = by.get(im.id) || {};
     const o = { id: im.id, title: s.title || '', note: s.note || '', ok: !!s.ok };
     if (s.crop) o.crop = s.crop;
+    if (s.proto) o.proto = s.proto;
     return o;
   });
   const changed = JSON.stringify(next) !== JSON.stringify(r.samples || []) || 'sampleCount' in r || 'sampleOk' in r;

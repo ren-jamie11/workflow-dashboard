@@ -71,9 +71,10 @@ settings.json         { categories:["XK","MUG"], materials:["树脂","金属","�
 rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, status, liveDate,
                         step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt, orderFolder,
                         sampleNotes, samples }
-                      the 上架 → 样品 panel: sampleNotes = 总备注; samples = [{id, title, note, ok, crop?}] per sample photo, in
-                      photo order (its title, notes, 样品通过 and square position — shared/crop.js, none = the whole photo;
-                      the 上架 pill's mark reads it, so the table never loads the photos). Rows saved
+                      the 上架 → 样品 panel: sampleNotes = 总备注; samples = [{id, title, note, ok, crop?, proto?}] per sample
+                      photo, in photo order (its title, notes, 样品通过, square position — shared/crop.js, none = the whole
+                      photo — and linked prototype: proto = a fingerprint (hash) of that 图片's data URL, since 图片 have no ids
+                      and get reordered; the 上架 pill's mark reads samples, so the table never loads the photos). Rows saved
                       by the first version (2026-10-19) have sampleOk / sampleCount instead: loading the photos replaces them
                       (sampleOk is dropped, every photo starts unapproved)
                       orderFolder = the product's folder in 下单计划/, named after the product the first time it is
@@ -192,7 +193,7 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
 | S9 | The first version's row-level 样品通过 is dropped (all photos start unapproved); its notes became 总备注 |
 | S10 | Every sample photo has its own square position (`samples[i].crop`), as the row's 图片: press + drag moves, Ctrl + wheel zooms around the pointer, saved automatically — on the panel tile (a click without moving opens the viewer) and in the viewer's frame; the grid tiles show each square. A photo starts **whole** (zoomed out, white padding) |
 | S11 | Each sample has a title (`samples[i].title`, e.g. `蓝色 4x6`; empty → grey `样品 n`). Panel: above the photo. Viewer: the big title top right, with `<product> · <SKU>` on the grey line under it. Click to edit; Enter / click away keeps it, Esc cancels; panel and viewer stay in sync |
-| S12 | Sample viewer sidebar, under the notes + 样品通过: **原型图** = all of the row's 图片 (主图 first, tagged 主图), at their 图片 positions, view only. Clicking one opens a side-by-side compare: the sample on the left (still movable / zoomable), the prototype on the right (view only, × to close), each labelled. ← → / ‹ › keep stepping samples while the prototype stays. The same tile again, ×, or Esc ends the compare (a second Esc closes the viewer) |
+| S12 | Sample viewer sidebar, under the notes + 样品通过: **原型图** = all of the row's 图片 (主图 first, tagged 主图), at their 图片 positions, view only. Clicking one **links it to the shown sample** (saved in `samples[i].proto`) and shows them side by side: the sample left (still movable / zoomable), the prototype right (view only), each labelled; clicking another re-links. Each sample shows its own prototype as you step with ← → / ‹ ›; an unlinked sample shows the single frame. × on the prototype, or the highlighted tile again, removes the link; Esc just closes the viewer. Linked sample tiles in the grid show the prototype as a small badge (bottom right). A deleted / replaced 图片 leaves its samples unlinked; 设为主图 keeps links *(revised 2026-10-19: was one compare for the whole viewer)* |
 
 ### 材质 (2026-09-29)
 | # | Decision |
