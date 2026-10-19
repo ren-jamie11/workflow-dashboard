@@ -7,8 +7,9 @@ Context: [README.md](README.md). This assumes Stages 1–3 work (`embed.js`, `sk
 > once and switched with `load-row`, ← → between products, × / Esc / backdrop close. Read "workspace.html" below as
 > "the hub (`index.html`)", and "refresh the sidebar" as "re-render the table". Confirm this when scoping Stage 4.
 
-> **Changed 2026-10-19:** clicking 上架 now expands the **样品** panel under the row (sample notes + photos, S1–S8 in
-> [README.md](README.md)). Step 3 inventory should join that panel (e.g. a section or button there) rather than replace it.
+> **Changed 2026-10-19:** clicking 上架 now opens the image viewer in **样品** mode (sample photos with titles, notes,
+> 样品通过 and prototype compare — S1–S12 in [README.md](README.md)). Where Step 3 inventory goes is to be decided when
+> scoping Stage 4 (e.g. a button in the 样品 viewer).
 
 ## Goal
 The **上架** step shows the Step 3 inventory dashboard filtered to that row's SKUs, with a seasonality

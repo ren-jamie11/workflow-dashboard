@@ -95,7 +95,7 @@ tr.row.draft .step,tr.row.draft .step:hover{color:#cbd5e1;border-color:#f1f5f9;b
 .step.next{border-color:var(--primary);color:var(--primary);background:#eef2ff;font-weight:600}
 .step.locked{color:#cbd5e1;border-color:#f1f5f9;background:#fff}
 .step{position:relative}
-.step.on{box-shadow:0 0 0 2px rgba(79,70,229,.25)}       /* its panel is open */
+.step.on{box-shadow:0 0 0 2px rgba(79,70,229,.25)}       /* its 报价 panel is open */
 /* 样品 mark on the 上架 pill: yellow = sample photos, not all approved · green = every photo approved */
 .smark{position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;border:2px solid #fff;box-sizing:border-box}
 .smark.wait{background:#f59e0b}
@@ -122,52 +122,22 @@ tr.xp-spacer td{padding:0;border:0}
 .xp-panel iframe.ready{opacity:1}
 .xp-foot{display:flex;align-items:center;gap:1rem;margin-top:.6rem}
 .xp-foot .hint{margin:0}
-/* 上架 → 样品 panel (hub HTML, no iframe): photo (‹ n / N ›) · its notes · 总备注; 已通过 k / N + this photo's 样品通过 */
-.sp-body{display:flex;gap:1rem;align-items:flex-start}
-.sp-col{display:flex;flex-direction:column;gap:.35rem}
-.sp-col .form-label{margin:0;font-size:.78rem;height:22px;display:flex;align-items:center;gap:.35rem;white-space:nowrap}
-.sp-col.notes{flex:1;min-width:0}
-.sp-col.general{flex:0 0 30%;min-width:0}
-.sp-nav{width:22px;height:22px;border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--dark);font-size:.95rem;line-height:1;
-  cursor:pointer;padding:0;font-family:inherit}
-.sp-nav:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
-.sp-nav:disabled{opacity:.35;cursor:default}
-.sp-pos{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:2.6em;text-align:center}
-.sp-navrow{display:flex;align-items:center;justify-content:center;gap:.3rem;width:128px}
-/* a sample's title: reads as a label, click to edit (Enter / click away = keep, Esc = cancel) */
-.sp-title,.iv-title-in{font:inherit;color:var(--dark);border:1px solid transparent;background:transparent;box-sizing:border-box;text-overflow:ellipsis}
-.sp-title{width:128px;height:22px;padding:0 .3rem;border-radius:5px;font-size:.8rem;font-weight:600}
-.iv-title-in{width:calc(100% - 2.6rem);margin-left:-.4rem;padding:.15rem .4rem;border-radius:6px;font-size:1rem;font-weight:600;line-height:1.4}
-.sp-title::placeholder,.iv-title-in::placeholder{color:#94a3b8;font-weight:500}
-.sp-title:hover:not(:disabled),.iv-title-in:hover:not(:disabled){border-color:var(--line);background:#fff;cursor:text}
-.sp-title:focus,.iv-title-in:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 2px rgba(79,70,229,.12)}
-.sp-title:disabled{cursor:default}
-.sp-title:disabled::placeholder{color:var(--muted);font-weight:600}
-.sp-col textarea{height:128px;min-height:80px;resize:vertical;font-size:.88rem;line-height:1.5;padding:.5rem .65rem}
-.sp-col textarea:disabled{background:#f8fafc;cursor:not-allowed}
+/* a sample's title in the 样品 viewer: reads as a heading, click to edit (Enter / click away = keep, Esc = cancel) */
+.iv-title-in{font:inherit;color:var(--dark);border:1px solid transparent;background:transparent;box-sizing:border-box;text-overflow:ellipsis;
+  width:calc(100% - 2.6rem);margin-left:-.4rem;padding:.15rem .4rem;border-radius:6px;font-size:1rem;font-weight:600;line-height:1.4}
+.iv-title-in::placeholder{color:#94a3b8;font-weight:500}
+.iv-title-in:hover:not(:disabled){border-color:var(--line);background:#fff;cursor:text}
+.iv-title-in:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 2px rgba(79,70,229,.12)}
 /* 样品通过: not approved = light green with a green border; approved = solid green */
 .btn-okish{background:#f0fdf4;color:#15803d;border:1px solid #16a34a}
 .btn-okish:hover{background:#dcfce7}
-/* an approved photo's tile: green ✓ badge, top left (the delete × is top right) */
-.ok-badge{position:absolute;z-index:1;top:4px;left:4px;width:18px;height:18px;border-radius:50%;background:#16a34a;color:#fff;
-  font-size:.7rem;line-height:18px;text-align:center;font-weight:700;box-shadow:0 0 0 2px #fff;pointer-events:none}
+.btn-ok{background:#16a34a;color:#fff;border:1px solid #16a34a}
+.btn-ok:hover{background:#15803d;border-color:#15803d}
 /* 样品 mode of the image viewer: the shown photo's notes + 样品通过 under the grid */
 .iv-note{display:flex;flex-direction:column;gap:.45rem;margin-top:.4rem}
 .iv-note .form-label{margin:0;font-size:.78rem}
 .iv-note textarea{height:180px;resize:vertical;font-size:.86rem;line-height:1.5;padding:.5rem .6rem}
 .iv-note .btn{align-self:flex-start}
-.sp-tile{position:relative;width:128px;height:128px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;overflow:hidden;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;font-size:.8rem;padding:0;font-family:inherit;flex:none}
-.sp-tile:hover,.sp-tile:focus-visible,.sp-tile.over{border-color:var(--primary);color:var(--primary);background:#eef2ff;outline:none}
-.sp-tile.over{box-shadow:0 0 0 2px var(--primary)}
-.sp-tile.has{border-style:solid;border-color:var(--line);background:#fff;cursor:zoom-in;touch-action:none}
-.sp-tile.panning{cursor:grabbing}
-.sp-tile img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
-.sp-tile .tag{position:absolute;left:4px;bottom:4px;font-size:.68rem;line-height:1.4;background:rgba(15,23,42,.72);color:#fff;border-radius:3px;padding:0 .35rem}
-.sp-state{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--muted);margin-right:auto}
-.sp-state .smark{position:static;border:0;width:9px;height:9px}
-.btn-ok{background:#16a34a;color:#fff;border:1px solid #16a34a}
-.btn-ok:hover{background:#15803d;border-color:#15803d}
 
 /* settings */
 .set-sec + .set-sec{margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid #f1f5f9}
@@ -206,7 +176,7 @@ tr.xp-spacer td{padding:0;border:0}
 .iv-tile.main.on:hover::after{content:'更换';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   background:rgba(15,23,42,.35);color:#fff;font-size:.78rem;font-weight:600}
 /* a tile image at its square position (tileStyle): percentages of the tile */
-.iv-tile img.pos,.pk-tile img.pos,.sp-tile img.pos{position:absolute;max-width:none;object-fit:fill}
+.iv-tile img.pos,.pk-tile img.pos{position:absolute;max-width:none;object-fit:fill}
 .iv-tile .tag{position:absolute;left:3px;bottom:3px;font-size:.62rem;line-height:1.4;background:rgba(15,23,42,.72);color:#fff;border-radius:3px;padding:0 .3rem}
 .iv-tile .del{position:absolute;z-index:1;top:3px;right:3px;width:18px;height:18px;border:none;border-radius:4px;background:rgba(15,23,42,.72);
   color:#fff;font-size:.7rem;line-height:1;cursor:pointer;opacity:0;padding:0}
@@ -226,9 +196,6 @@ tr.xp-spacer td{padding:0;border:0}
 .iv-pclose{position:absolute;z-index:1;top:8px;right:8px;width:30px;height:30px;border:1px solid var(--line);border-radius:7px;background:#fff;
   color:var(--dark);font-size:1.05rem;line-height:1;cursor:pointer;padding:0;font-family:inherit}
 .iv-pclose:hover{border-color:var(--primary);color:var(--primary)}
-/* a sample tile whose sample is linked to a prototype: that prototype, small, bottom right */
-.iv-tile img.proto-badge{position:absolute;z-index:1;right:3px;bottom:3px;left:auto;top:auto;width:26px;height:26px;object-fit:cover;
-  border-radius:4px;box-shadow:0 0 0 2px #fff;background:#fff}
 .iv-protos{display:flex;flex-direction:column;gap:.45rem;margin-top:.6rem;padding-top:.8rem;border-top:1px solid var(--line)}
 .iv-protos .form-label{margin:0;font-size:.78rem}
 .iv-protos .form-label .note{font-weight:400;color:#94a3b8;margin-left:.3rem}
@@ -390,31 +357,6 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
           <span class="hint">点击表格下方「保存」即完成报价。参数（汇率 / 头程 / 佣金 / 广告 / 仓储 / 目标毛利率）在
             <button type="button" class="menu-link" data-act="quote-settings">⚙ 设置 → 报价</button>
             中统一修改，所有产品实时生效。</span>
-        </div>
-      </div>
-      <!-- 上架：样品（每张样品图片的备注 + 总备注） -->
-      <div class="xp-inner hidden" id="spInner">
-        <div class="sp-body">
-          <div class="sp-col">
-            <input type="text" class="sp-title" id="spTitle" maxlength="40" spellcheck="false" autocomplete="off" title="点击修改样品名称，例：蓝色 4x6">
-            <button type="button" class="sp-tile" id="spTile"></button>
-            <div class="sp-navrow" id="spNav">
-              <button type="button" class="sp-nav" id="spPrev" title="上一张（←）">‹</button><span class="sp-pos" id="spPos"></span><button type="button" class="sp-nav" id="spNext" title="下一张（→）">›</button>
-            </div>
-          </div>
-          <div class="sp-col notes">
-            <label class="form-label" for="spNote" id="spNoteLabel">样品备注</label>
-            <textarea id="spNote" class="form-control" spellcheck="false"></textarea>
-          </div>
-          <div class="sp-col general">
-            <label class="form-label" for="spGeneral">总备注</label>
-            <textarea id="spGeneral" class="form-control" spellcheck="false"
-              placeholder="整个产品的备注，例：已通知工厂，等待新样品。"></textarea>
-          </div>
-        </div>
-        <div class="xp-foot">
-          <span class="sp-state" id="spState"></span>
-          <button type="button" class="btn btn-sm" id="spOk"></button>
         </div>
       </div>
     </div>
@@ -816,7 +758,6 @@ const ST_CLASS = { '未下单': 'st0', '已下单': 'st1', '已上架': 'st3' };
 const STEP_TIPS = {
   done: '已完成', next: '下一步', open: '可打开', locked: '前一步未完成'
 };
-const STEP_PANEL = { quote: 'quote', live: 'sample' };   // pill → the panel it expands (下单 opens a pop-up instead)
 /* 样品 of a row: meta.samples [{id, note, ok}] per photo. Rows from before per-photo notes only have sampleCount until their
    photos are first loaded (loadSamples rebuilds samples) */
 const sampleN = r => r.samples && r.samples.length ? r.samples.length : r.sampleCount || 0;
@@ -831,7 +772,7 @@ function rowHtml(r){
   const ss = sampleState(r);
   const steps = j.map((s, i) =>
     (i ? '<span class="ln' + (j[i - 1].state === 'done' ? ' on' : '') + '"></span>' : '') +
-    '<button type="button" class="step ' + s.state + (r.id === expandedId && STEP_PANEL[s.key] === expandedKind ? ' on' : '') +
+    '<button type="button" class="step ' + s.state + (r.id === expandedId && s.key === 'quote' ? ' on' : '') +
     '" data-act="step" data-step="' + s.key + '" data-id="' + id +
     '" title="' + (draft ? '请先添加图片和类目' : s.label + '：' + STEP_TIPS[s.state] +
       (s.key === 'live' ? ' · 样品：' + sampleTip(r) : '')) + '"' + (draft ? ' disabled' : '') + '>' +
@@ -940,9 +881,11 @@ document.addEventListener('click', e => {
   }
 });
 
-/* 报价 / 上架 expand their panel (上架 = 样品: never soft-locked, samples often come before the order); 下单 opens its pop-up */
+/* 报价 expands its panel; 上架 opens the 样品 image viewer (never soft-locked: samples often come before the order);
+   下单 opens its pop-up */
 function stepClick(r, step){
-  if (STEP_PANEL[step]) return toggleExpand(r, STEP_PANEL[step]);
+  if (step === 'quote') return toggleExpand(r);
+  if (step === 'live') return openSamples(r);
   if (step === 'order') {
     if (drafts.has(r.id)) return toast('请先选择类目并添加图片', true);
     const s = ROWS.journey(r).find(x => x.key === 'order');
@@ -951,38 +894,31 @@ function stepClick(r, step){
   }
 }
 
-/* ============ 展开行: 报价 or 样品 (one panel at a time) ============
-   One panel sits over a spacer row under the open row. It shows either 报价 (the Step 1 iframe, #xpInner) or 上架 → 样品
-   (hub HTML, #spInner). Opening, closing and switching rows animate the
+/* ============ 报价：展开行 (one at a time) ============
+   One panel (one iframe) sits over a spacer row under the open row. Opening, closing and switching rows animate the
    spacer's .xp-gap and the panel's height together (renderBody → xpSync), and pinRow keeps the clicked row still on screen.
-   The page never scrolls by itself: a first open waits for the tool's height so it opens in one move (样品 is measured
-   at once), and holdScroll stops a collapse near the bottom of the page from pulling the page down. */
+   The page never scrolls by itself: a first open waits for the tool's height so it opens in one move, and holdScroll
+   stops a collapse near the bottom of the page from pulling the page down. */
 const XP_MS = 220;                // = the CSS height transition
 const XP_EST = 360;               // fallback height when the tool doesn't report its size in time
 const XP_WAIT = 700;              // how long a first open waits for that report
 let expandedId = null;            // the open row
-let expandedKind = null;          // what its panel shows: 'quote' | 'sample'
 let closingId = null;             // a row whose spacer is still closing
 let panelId = null;               // the row the panel sits over: the open row, or the one closing under it
-let panelKind = null;             // what the panel holds for panelId
 const gapT = {};                  // row id → target spacer height (open and closing rows only)
-const xpHeights = {};             // row id → last measured 报价 panel height (this session)
+const xpHeights = {};             // row id → last measured panel height (this session)
 let closeTimer = null;
 let xpPending = null;             // an open row still at 0, waiting for the tool's first height
 let pendTimer = null;
 const xpPanel = $('xpPanel'), xpFrame = $('xpFrame');
 
-/* a row click opens the latest stage: 样品 once ordered, else 报价 */
-const rowKind = r => ROWS.statusRank(r.status) >= 1 ? 'sample' : 'quote';
-
-function toggleExpand(r, kind){
-  kind = kind || 'quote';
+function toggleExpand(r){
   if (drafts.has(r.id)) return toast('请先添加图片和类目，产品才会保存', true);
-  if (expandedId === r.id) return expandedKind === kind ? collapse() : switchKind(r, kind);
+  if (expandedId === r.id) return collapse();
   const top0 = rowTop(r.id);
   clearPending();
   let fresh = false;                                    // a newly loaded tool: its height report opens the panel
-  if (closingId === r.id && panelId === r.id && panelKind === kind) {   // re-opened while closing: still loaded
+  if (closingId === r.id && panelId === r.id) {         // re-opened while closing: the tool is still loaded
     clearTimeout(closeTimer);
     closingId = null;
   } else {
@@ -995,49 +931,19 @@ function toggleExpand(r, kind){
       closeTimer = setTimeout(endClosing, XP_MS + 60);
     }
     panelId = r.id;
-    loadPanel(r, kind);
+    xpFrame.classList.remove('ready');                  // fades in once the tool reports its height
+    xpFrame.style.height = '300px';
+    xpFrame.src = 'tools/step1.html?row=' + encodeURIComponent(r.id);
   }
   expandedId = r.id;
-  expandedKind = kind;
   if (!(r.id in held)) held[r.id] = ROWS.progress(r);
-  if (kind === 'sample') gapT[r.id] = 0;                // measured below, once the panel is placed
-  else if (xpHeights[r.id] || !fresh) gapT[r.id] = xpHeights[r.id] || XP_EST;
+  if (xpHeights[r.id] || !fresh) gapT[r.id] = xpHeights[r.id] || XP_EST;
   else {                                                // first open: stay at 0 until the real height is known
     gapT[r.id] = 0;
     xpPending = r.id;
     pendTimer = setTimeout(() => openPending(XP_EST), XP_WAIT);
   }
   render();
-  if (kind === 'sample') { gapT[r.id] = $('spInner').offsetHeight || XP_EST; xpSync(false); }
-  pinRow(r.id, top0);
-}
-/* fill the panel for row r: 报价 loads the tool (fades in once it reports its height); 样品 unloads it, which flushes its save */
-function loadPanel(r, kind){
-  panelKind = kind;
-  $('xpInner').classList.toggle('hidden', kind !== 'quote');
-  $('spInner').classList.toggle('hidden', kind !== 'sample');
-  xpFrame.classList.remove('ready');
-  if (kind === 'quote') {
-    xpFrame.style.height = '300px';
-    xpFrame.src = 'tools/step1.html?row=' + encodeURIComponent(r.id);
-  } else {
-    if (xpFrame.getAttribute('src') && xpFrame.getAttribute('src') !== 'about:blank') xpFrame.src = 'about:blank';
-    renderSample(r, true);
-  }
-}
-/* the open row's other pill: swap the content; the spacer animates to the new height */
-function switchKind(r, kind){
-  const top0 = rowTop(r.id);
-  clearPending();
-  loadPanel(r, kind);
-  expandedKind = kind;
-  render();
-  if (kind === 'sample') { gapT[r.id] = $('spInner').offsetHeight || XP_EST; xpSync(false); }
-  else if (xpHeights[r.id]) { gapT[r.id] = xpHeights[r.id]; xpSync(false); }
-  else {                                                // keeps its height until the tool reports its own
-    xpPending = r.id;
-    pendTimer = setTimeout(() => openPending(XP_EST), XP_WAIT);
-  }
   pinRow(r.id, top0);
 }
 /* the pending open row gets its height: grow 0 → h in one move */
@@ -1059,7 +965,7 @@ function collapse(instant){
   const id = expandedId, top0 = instant ? null : rowTop(id);
   clearPending();
   endClosing();
-  expandedId = expandedKind = null;
+  expandedId = null;
   closingId = id;
   gapT[id] = 0;
   if (instant) { endClosing(); return render(); }
@@ -1078,7 +984,7 @@ function endClosing(){
   const sp = $('tbody').querySelector('tr.xp-spacer[data-id="' + id + '"]');
   if (sp) sp.remove();
   if (panelId === id) {
-    panelId = panelKind = null;
+    panelId = null;
     xpFrame.src = 'about:blank';
     xpFrame.classList.remove('ready');
   }
@@ -1156,7 +1062,7 @@ function pinRow(id, top0){
 }
 
 hubEmbed.listen((m, frame) => {
-  if (m.type === 'height' && frame === xpFrame && m.row === expandedId && panelKind === 'quote') {
+  if (m.type === 'height' && frame === xpFrame && m.row === expandedId) {
     xpFrame.style.height = Math.max(120, m.data.h) + 'px';
     xpFrame.classList.add('ready');
     const h = $('xpInner').offsetHeight;                 // 0 while the panel is hidden by a filter
@@ -1206,7 +1112,7 @@ $('tbody').addEventListener('click', e => {
   rowPress = null;
   if (!p || e.detail > 1 || hitRow(e.target, e.clientX, e.clientY) !== p.id || Math.abs(e.clientX - p.x) + Math.abs(e.clientY - p.y) >= 5) return;
   const r = byId(p.id);
-  if (r) expandedId === r.id ? collapse() : toggleExpand(r, rowKind(r));   // S3: the latest stage's panel
+  if (r) toggleExpand(r);                               // S3: a row click always toggles 报价 (样品: the 上架 pill)
 });
 
 /* category headers: collapse / expand that group's rows. Nothing stays open inside a collapsed group */
@@ -1427,11 +1333,6 @@ document.addEventListener('paste', e => {
     if (order.view === 'pick' && files.length) { e.preventDefault(); pickAdd(files, slotOf(document.querySelector('#pkGrid .pk-slot:hover'))); }
     return;
   }
-  const sp = samplePanelRow();
-  if (sp && document.querySelector('#spInner:hover')) {  // over the 样品 panel: images become sample photos (text pastes as usual)
-    if (files.length) { e.preventDefault(); addSamples(sp, files); }
-    return;
-  }
   const a = document.activeElement;
   const id = hoverThumb || (a && a.classList && a.classList.contains('thumb') ? a.dataset.id : null);
   const r = id && byId(id);
@@ -1448,9 +1349,6 @@ document.addEventListener('dragover', e => {
     return $('iv').classList.toggle('over', !m);
   }
   if (order) return $('pkCard').classList.toggle('over', order.view === 'pick');
-  const sp = !!(samplePanelRow() && e.target.closest && e.target.closest('#spInner'));
-  $('spTile').classList.toggle('over', sp);
-  if (sp) return;
   const t = e.target.closest && e.target.closest('.thumb');
   document.querySelectorAll('.thumb.over').forEach(x => { if (x !== t) x.classList.remove('over'); });
   if (t) t.classList.add('over');
@@ -1458,7 +1356,6 @@ document.addEventListener('dragover', e => {
 document.addEventListener('dragleave', e => {
   if (viewer && !e.relatedTarget) { $('iv').classList.remove('over'); document.querySelectorAll('#ivGrid .iv-tile.over').forEach(x => x.classList.remove('over')); }
   if (order && !e.relatedTarget) $('pkCard').classList.remove('over');
-  if (!e.relatedTarget) $('spTile').classList.remove('over');
 });
 document.addEventListener('drop', e => {
   e.preventDefault();
@@ -1475,13 +1372,6 @@ document.addEventListener('drop', e => {
     $('pkCard').classList.remove('over');
     const files = [...(e.dataTransfer.files || [])];
     if (order.view === 'pick' && files.length) pickAdd(files, slotOf(e.target));
-    return;
-  }
-  $('spTile').classList.remove('over');
-  const sp = samplePanelRow();
-  if (sp && e.target.closest && e.target.closest('#spInner')) {   // dropped on the 样品 panel: sample photos
-    const files = [...(e.dataTransfer.files || [])];
-    if (files.length) addSamples(sp, files);
     return;
   }
   const t = e.target.closest && e.target.closest('.thumb');
@@ -1664,15 +1554,13 @@ function openViewer(r, kind, idx){
 function closeViewer(){
   if (!viewer) return;
   viewerSaveNow();
-  const id = viewer.id, wasSample = viewer.kind === 'sample';
+  const id = viewer.id;
   viewer = null; gridKey = ''; protoKey = '';
   $('ivBack').classList.add('hidden');
   $('ivProto').classList.add('hidden');
   $('ivProtoImg').removeAttribute('src');
   $('ivFrameLabel').classList.add('hidden');
   ['left', 'right', 'marginLeft', 'marginRight'].forEach(k => { $('ivFrame').style[k] = ''; });
-  const sr = wasSample && panelKind === 'sample' && panelId === id && byId(id);
-  if (sr) renderSample(sr);                            // the panel shows the photo the viewer was on
   $('iv').classList.remove('over');
   $('ivFrameImg').removeAttribute('src');
   const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
@@ -1740,15 +1628,13 @@ function renderViewer(){
     }).catch(() => {});
   }
 
-  const oks = sample ? JSON.stringify([viewer.protos ? viewer.protos.length : -1].concat((r.samples || []).map(x => [x.ok, x.title, protoAt(x)]))) : '';
+  const oks = sample ? JSON.stringify((r.samples || []).map(x => [x.ok, x.title])) : '';
   const key = viewer.kind + '#' + viewer.id + '#' + viewer.ver + '#' + (list ? list.length : -1) + '#' + oks;
   if (key !== gridKey && sample) {                      // sample photos: plain tiles (✓ = approved), any one can be deleted
     gridKey = key;
     $('ivGrid').innerHTML = !list ? '' : list.map((x, i) =>
       '<div class="iv-tile" data-iv="pick" data-i="' + i + '" title="' + esc(r.samples[i] && r.samples[i].title || '样品 ' + (i + 1)) + '">' +
         '<img src="' + x.url + '" alt="" draggable="false"' + sampleTile(x, r.samples[i]) + '>' +
-        (r.samples[i] && r.samples[i].ok ? '<span class="ok-badge" title="已通过">✓</span>' : '') +
-        protoBadge(r, r.samples[i]) +
         '<button type="button" class="del" data-iv="del" data-i="' + i + '" title="删除这张样品图片">×</button>' +
       '</div>').join('') +
       (list.length < IMG_LIMIT ? '<button type="button" class="iv-tile add" data-iv="add" title="添加样品图片（可多选，最多 ' + IMG_LIMIT + ' 张）">+</button>' : '');
@@ -1832,13 +1718,6 @@ function protoAt(s){
   if (!s || !s.proto || !protos) return null;
   const i = protos.findIndex(im => protoId(im) === s.proto);
   return i < 0 ? null : i;
-}
-/* the small prototype thumbnail on a linked sample tile */
-function protoBadge(r, s){
-  const i = protoAt(s);
-  if (i == null) return '';
-  return '<img class="proto-badge" src="' + (i ? viewer.protos[i].url : r.thumb) + '" alt="" draggable="false" title="对应原型：' +
-    (i ? '图片 ' + (i + 1) : '主图') + '">';
 }
 /* size the square to the stage and place the image in it (a stand-in shows while the full image decodes) */
 function layoutViewerFrame(){
@@ -2104,18 +1983,18 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowRight') { e.preventDefault(); viewerRow(1); }
 });
 
-/* ============ 上架 → 样品: notes + 样品通过 per photo, and one 总备注 ============
+/* ============ 上架 → 样品: title, notes, 样品通过, position and prototype per photo ============
    rows/<id>/samples.json {images:[{id,url,w,h}]}: up to IMG_LIMIT photos (several MB: read when the panel or the viewer needs
    them, never rewritten while typing). meta.samples [{id, title, note, ok, crop?, proto?}] in the same order: each photo's title,
    notes, 样品通过, square position (shared/crop.js; none = the whole photo) and linked prototype 图片 (protoId), small
-   enough to autosave with the row and to give the 上架 pill its mark without loading photos. meta.sampleNotes = 总备注.
-   Independent of the row's 图片: no 主图, no positions. Approval never changes status */
+   enough to autosave with the row and to give the 上架 pill its mark without loading photos. All of it is edited in the image
+   viewer's 样品 mode (the 上架 pill). Independent of the row's 图片. Approval never changes status */
 const samplesPath = r => 'rows/' + r.id + '/samples.json';
 const sampleCache = new Map();    // row id → [{id,url,w,h}], kept in step with every write
-const sampleIdx = new Map();      // row id → the photo the panel shows (this session; the viewer moves it too)
+const sampleIdx = new Map();      // row id → the photo the 样品 viewer last showed (this session): it reopens there
 const saveSamples = (r, list) => api.put(samplesPath(r), { images: list });
 const newSampleId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-let sampleBusy = false;           // one add / delete at a time (panel and viewer)
+let sampleBusy = false;           // one add / delete at a time
 
 /* meta.samples in photo order: each photo keeps its {title, note, ok, crop} by id, a new one starts empty, unapproved and whole.
    Drops the fields of the first version (sampleOk: one mark per row; sampleCount). True when anything changed */
@@ -2146,10 +2025,11 @@ async function loadSamples(r){
   if (syncSampleMeta(r, list)) { saveRow(r); render(); }
   return list;
 }
-/* the row whose 样品 panel is open (null when none) */
-const samplePanelRow = () => expandedId && expandedKind === 'sample' && panelId === expandedId ? byId(expandedId) : null;
-/* the photo index the panel shows, within 0 … n-1 */
-const sampleAt = (r, n) => Math.max(0, Math.min(sampleIdx.get(r.id) || 0, n - 1));
+/* 上架: the row's sample photos in the image viewer, on the photo it last showed */
+function openSamples(r){
+  if (drafts.has(r.id)) return toast('请先添加图片和类目，产品才会保存', true);
+  openViewer(r, 'sample', sampleIdx.get(r.id) || 0);
+}
 /* how a sample is named in labels: its title, else 第 n 张 */
 const sampleName = (s, i) => s && s.title || '第 ' + (i + 1) + ' 张';
 /* square positions: a sample photo starts whole (zoomed out until the long edge fits, white padding) */
@@ -2163,8 +2043,7 @@ const sampleFrame = im => ({ main: im, W: im.w, H: im.h });
 /* a tile <img> at the photo's square (percentages of the tile) */
 const sampleTile = (im, s) => im.w && im.h ? tileStyle({ w: im.w, h: im.h, crop: sampleCrop(s, im.w, im.h) }) : '';
 
-/* add image files as sample photos (stored like the row's images: longest side IMG_STORE_MAX); the panel moves to the
-   first new one. Resolves to the number added */
+/* add image files as sample photos (stored like the row's images: longest side IMG_STORE_MAX). Resolves to the number added */
 async function addSamples(r, files){
   const imgs = files.filter(f => f && /^image\//.test(f.type));
   if (!imgs.length) { toast('请选择图片文件', true); return 0; }
@@ -2174,13 +2053,12 @@ async function addSamples(r, files){
     const list = await loadSamples(r);
     const room = IMG_LIMIT - list.length;
     if (room <= 0) { toast('每个产品最多 ' + IMG_LIMIT + ' 张样品图片', true); return 0; }
-    const take = imgs.slice(0, room), first = list.length;
+    const take = imgs.slice(0, room);
     for (const f of take) list.push(Object.assign({ id: newSampleId() }, drawScaled(await loadImg(await readFile(f)), IMG_STORE_MAX, 0.85)));
     await saveSamples(r, list);
     syncSampleMeta(r, list);
     saveRow(r); render();
-    sampleIdx.set(r.id, first);
-    sampleChanged(r);
+    viewerChanged(r, 'sample');
     toast(imgs.length > room
       ? '已添加 ' + take.length + ' 张；每个产品最多 ' + IMG_LIMIT + ' 张样品图片，其余 ' + (imgs.length - room) + ' 张未添加'
       : '已添加 ' + take.length + ' 张样品图片', imgs.length > room);
@@ -2204,8 +2082,7 @@ async function deleteSample(r, i){
     await saveSamples(r, list);
     syncSampleMeta(r, list);
     saveRow(r); render();
-    if ((sampleIdx.get(r.id) || 0) > i) sampleIdx.set(r.id, sampleIdx.get(r.id) - 1);
-    sampleChanged(r);
+    viewerChanged(r, 'sample');
     toast('已删除样品图片');
   } catch (e) {
     sampleCache.delete(r.id);
@@ -2214,28 +2091,17 @@ async function deleteSample(r, i){
     sampleBusy = false;
   }
 }
-/* after photos were added / deleted: redraw the panel and the viewer where they show them */
-function sampleChanged(r){
-  if (panelKind === 'sample' && panelId === r.id) renderSample(r);
-  viewerChanged(r, 'sample');
-}
-/* after a 样品通过 change: the panel, the viewer and the pill */
-function sampleRefresh(r){
-  render();
-  if (panelKind === 'sample' && panelId === r.id) renderSample(r);
-  if (viewer && viewer.kind === 'sample' && viewer.id === r.id) renderViewer();
-}
+/* 样品通过 of one photo: the viewer and the 上架 pill's mark follow */
 function toggleSampleOk(r, s){
   if (!s) return;
   s.ok = !s.ok;
   saveRow(r);
-  sampleRefresh(r);
+  render();
+  if (viewer && viewer.kind === 'sample' && viewer.id === r.id) renderViewer();
 }
-/* a photo's notes, typed in the panel or the viewer: both boxes show the same text */
 function setSampleNote(r, s, text){
   s.note = text;
   saveRow(r);                                           // debounced; flushed on pagehide
-  [$('spNote'), $('ivNote')].forEach(b => { if (b.dataset.sid === s.id && b.value !== text) b.value = text; });
 }
 /* show photo s's field (note / title) in a box; the text being typed is left alone */
 function fillField(box, s, key){
@@ -2243,15 +2109,14 @@ function fillField(box, s, key){
   if (box.dataset.sid !== sid || document.activeElement !== box) box.value = s ? s[key] || '' : '';
   box.dataset.sid = sid;
 }
-/* a sample's title, from the panel or the viewer (confirmed on Enter / blur): both show it, and the labels follow */
+/* a sample's title (confirmed on Enter / blur); the labels follow */
 function setSampleTitle(r, s, text){
   if ((s.title || '') === text) return;
   s.title = text;
   saveRow(r);
-  if (panelKind === 'sample' && panelId === r.id) renderSample(r);
   if (viewer && viewer.kind === 'sample' && viewer.id === r.id) renderViewer();
 }
-/* a sample photo's new square position (panel tile or viewer): saved with the row; the tiles showing it follow */
+/* a sample photo's new square position (viewer frame): saved with the row; its grid tile follows */
 function setSampleCrop(r, s, c){
   const n = roundCrop(c), o = s.crop;
   if (![n.x, n.y, n.s].every(Number.isFinite) || (o && o.x === n.x && o.y === n.y && o.s === n.s)) return;
@@ -2259,7 +2124,6 @@ function setSampleCrop(r, s, c){
   saveRow(r);
   const i = r.samples.indexOf(s), list = sampleCache.get(r.id), im = list && list[i];
   if (!im) return;
-  if (panelKind === 'sample' && panelId === r.id && sampleAt(r, list.length) === i) renderSample(r);
   const tile = viewer && viewer.kind === 'sample' && viewer.id === r.id && $('ivGrid').querySelector('.iv-tile[data-i="' + i + '"] img');
   if (tile) tile.outerHTML = '<img src="' + im.url + '" alt="" draggable="false"' + sampleTile(im, s) + '>';
 }
@@ -2272,135 +2136,8 @@ function okButton(btn, s, i){
   btn.title = '第 ' + (i + 1) + ' 张：' + (s.ok ? '已通过，点击撤销' : '点击标记为通过');
 }
 
-/* fill the 样品 panel; fresh = a newly shown row (总备注 gets its text; otherwise it is left alone while typing) */
-function renderSample(r, fresh){
-  if (fresh) $('spGeneral').value = r.sampleNotes || '';
-  const list = sampleCache.get(r.id), n = list ? list.length : sampleN(r);
-  if (!list && n) loadSamples(r).then(() => { if (panelKind === 'sample' && panelId === r.id) renderSample(r); }).catch(() => {});
-  const i = sampleAt(r, n), im = list && list[i], s = list ? r.samples[i] : null;
-  const title = $('spTitle');
-  title.disabled = !s;
-  title.placeholder = n ? '样品 ' + (i + 1) : '样品图片';
-  fillField(title, s, 'title');
-  const tile = $('spTile');
-  tile.classList.toggle('has', n > 0);
-  tile.title = n ? '点击查看样品图片 · 按住拖动调整位置 · Ctrl+滚轮缩放 · 可在此处粘贴或拖入图片添加'
-                 : '点击上传样品图片（可多选），也可在此处粘贴或拖入';
-  tile.innerHTML = !n ? '+ 样品图'
-    : (im ? '<img src="' + im.url + '" alt="" draggable="false"' + sampleTile(im, s) + '>' : '') +
-      (s && s.ok ? '<span class="ok-badge">✓</span>' : '') + '<span class="tag">' + n + ' 张</span>';
-  $('spNav').classList.toggle('hidden', !n);
-  $('spPos').textContent = (i + 1) + ' / ' + n;
-  $('spPrev').disabled = i <= 0;
-  $('spNext').disabled = i >= n - 1;
-  $('spNoteLabel').textContent = n ? '样品备注（' + sampleName(s, i) + '）' : '样品备注';
-  const box = $('spNote');
-  box.disabled = !s;
-  box.placeholder = !n ? '先上传样品图片，再为每张图片写备注' : !s ? '加载中…' : '这张样品的备注，例：颜色很好，但右上角图案不够密';
-  fillField(box, s, 'note');
-  const st = sampleState(r);
-  $('spState').innerHTML = '<span class="smark ' + st + '"></span>' + sampleTip(r);
-  okButton($('spOk'), s, i);
-}
-function sampleStep(r, d){
-  const list = sampleCache.get(r.id);
-  if (!list) return;
-  spWheelEnd();                                         // a zoom still waiting to save belongs to the current photo
-  const i = sampleAt(r, list.length) + d;
-  if (i < 0 || i >= list.length) return;
-  sampleIdx.set(r.id, i);
-  renderSample(r);
-}
-
-$('spNote').addEventListener('input', () => {
-  const r = samplePanelRow(), s = r && (r.samples || []).find(x => x.id === $('spNote').dataset.sid);
-  if (s) setSampleNote(r, s, $('spNote').value);
-});
-$('spGeneral').addEventListener('input', () => {      // 总备注: autosaved with the row
-  const r = samplePanelRow();
-  if (!r) return;
-  r.sampleNotes = $('spGeneral').value;
-  saveRow(r);
-});
-$('spPrev').addEventListener('click', () => { const r = samplePanelRow(); if (r) sampleStep(r, -1); });
-$('spNext').addEventListener('click', () => { const r = samplePanelRow(); if (r) sampleStep(r, 1); });
-$('spTile').addEventListener('click', () => {
-  const r = samplePanelRow();
-  if (!r || skipSpClick) return;
-  const list = sampleCache.get(r.id), n = list ? list.length : sampleN(r);
-  if (n) openViewer(r, 'sample', sampleAt(r, n));
-  else pickImage(files => addSamples(r, files), true);
-});
-$('spOk').addEventListener('click', () => {
-  const r = samplePanelRow(), list = r && sampleCache.get(r.id);
-  if (list) toggleSampleOk(r, r.samples[sampleAt(r, list.length)]);
-});
-/* ---- the panel tile: press + drag moves the photo, Ctrl + wheel zooms (as the row thumb); a click without moving opens
-   the viewer. Saved in meta.samples[i].crop ---- */
-let spg = null;             // drag: {r, s, f, size, x0, y0, moved, c0, c}
-let spz = null;             // Ctrl + wheel: {r, s, f, c, timer}
-let skipSpClick = false;
-/* the panel's shown photo, ready to place: {r, s, f} (null without one, or before the photos are loaded) */
-function spShown(){
-  const r = samplePanelRow(), list = r && sampleCache.get(r.id);
-  if (!list || !list.length) return null;
-  const i = sampleAt(r, list.length), im = list[i], s = r.samples[i];
-  return im && s && im.w && im.h ? { r, s, f: sampleFrame(im) } : null;
-}
-$('spTile').addEventListener('pointerdown', e => {
-  if (e.button !== 0) return;
-  const g = spShown();
-  if (!g) return;
-  spWheelEnd();
-  const tile = $('spTile');
-  spg = Object.assign(g, { size: tile.clientWidth, x0: e.clientX, y0: e.clientY, moved: false, c0: sampleCrop(g.s, g.f.W, g.f.H) });
-  tile.setPointerCapture(e.pointerId);
-});
-$('spTile').addEventListener('pointermove', e => {
-  const g = spg;
-  if (!g) return;
-  const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
-  if (!g.moved && Math.abs(dx) + Math.abs(dy) < 4) return;
-  g.moved = true;
-  $('spTile').classList.add('panning');
-  g.c = panCrop(Object.assign({}, g.c0), g.f.W, g.f.H, dx / g.size, dy / g.size);
-  const img = $('spTile').querySelector('img');
-  if (img) layoutFrame(img, g.size, g.f, g.c);
-});
-['pointerup', 'pointercancel'].forEach(type => $('spTile').addEventListener(type, () => {
-  const g = spg;
-  spg = null;
-  $('spTile').classList.remove('panning');
-  if (!g || !g.moved) return;                           // a plain click: the click handler opens the viewer
-  skipSpClick = true;
-  setTimeout(() => { skipSpClick = false; }, 0);
-  if (g.c) setSampleCrop(g.r, g.s, g.c);
-}));
-$('spTile').addEventListener('wheel', e => {
-  if (!e.ctrlKey && !e.metaKey) return;
-  e.preventDefault();                                   // no browser zoom
-  if (spg) return;
-  const g = spShown();
-  if (!g) return;
-  if (spz && spz.s !== g.s) spWheelEnd();
-  if (!spz) spz = Object.assign(g, { c: sampleCrop(g.s, g.f.W, g.f.H) });
-  const tile = $('spTile'), b = tile.getBoundingClientRect(), size = tile.clientWidth;
-  zoomCrop(spz.c, spz.f.W, spz.f.H, wheelFactor(e), (e.clientX - b.left - tile.clientLeft) / size, (e.clientY - b.top - tile.clientTop) / size);
-  const img = tile.querySelector('img');
-  if (img) layoutFrame(img, size, spz.f, spz.c);
-  clearTimeout(spz.timer);
-  spz.timer = setTimeout(spWheelEnd, 400);              // save once the wheel goes quiet
-}, { passive: false });
-function spWheelEnd(){
-  const z = spz;
-  spz = null;
-  if (!z) return;
-  clearTimeout(z.timer);
-  setSampleCrop(z.r, z.s, z.c);
-}
-
 /* ---- sample titles: click to edit; Enter / click away keeps it, Esc cancels ---- */
-[['spTitle', () => samplePanelRow()], ['ivSTitle', () => viewer && viewer.kind === 'sample' && byId(viewer.id)]].forEach(([id, rowOf]) => {
+[['ivSTitle', () => viewer && viewer.kind === 'sample' && byId(viewer.id)]].forEach(([id, rowOf]) => {
   const el = $(id);
   const sampleOf = () => { const r = rowOf(); return r && (r.samples || []).find(x => x.id === el.dataset.sid) ? r : null; };
   el.addEventListener('keydown', e => {
@@ -2419,24 +2156,7 @@ function spWheelEnd(){
   });
 });
 
-/* ← → step the panel's photos: not while typing, in a dropdown, or with a pop-up open */
-document.addEventListener('keydown', e => {
-  if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
-  const r = samplePanelRow(), a = document.activeElement;
-  if (!r || viewer || order || detail || !$('setModal').classList.contains('hidden') || typing() || (a && a.tagName === 'SELECT') ||
-      isDatePickerOpen() || combo.isOpen()) return;
-  e.preventDefault();
-  sampleStep(r, e.key === 'ArrowLeft' ? -1 : 1);
-});
-/* the notes boxes can be resized: the spacer follows the panel's height */
-new ResizeObserver(() => {
-  const r = samplePanelRow();
-  if (!r || xpPending) return;
-  const h = $('spInner').offsetHeight;
-  if (h && h !== gapT[r.id]) { gapT[r.id] = h; xpSync(false); }
-}).observe($('spInner'));
-
-/* the viewer's sample mode: the shown photo's notes and 样品通过 (same data as the panel) */
+/* the viewer's sample mode: the shown photo's notes and 样品通过 */
 $('ivNote').addEventListener('input', () => {
   const r = viewer && viewer.kind === 'sample' && byId(viewer.id);
   const s = r && (r.samples || []).find(x => x.id === $('ivNote').dataset.sid);
@@ -3171,7 +2891,7 @@ hubEmbed.listen((m, frame) => {
 function saveStep1(){
   saveSettings();
   hubEmbed.broadcast('settings-changed', settings);       // sent with the message: the panel never reads a half-written file
-  if (panelId && panelKind === 'quote') toast('售价已按新参数更新');
+  if (panelId) toast('售价已按新参数更新');
 }
 document.querySelectorAll('[data-p]').forEach(el => el.addEventListener('change', () => {
   const v = parseFloat(el.value);
@@ -3309,7 +3029,10 @@ $('facList').addEventListener('click', e => {
 (async function init(){
   try {
     settings = await api.settings();
-    rows = (await api.rows()).map(ROWS.normalize);
+    const raw = await api.rows();
+    rows = raw.map(ROWS.normalize);
+    /* 总备注 (sampleNotes) was removed on 2026-10-19 together with the 样品 panel: drop the saved text */
+    raw.forEach((x, k) => { if (x && 'sampleNotes' in x) saveRow(rows[k]); });
   } catch (e) {
     $('emptyBox').innerHTML = '<b>未连接到本地服务</b>请双击项目文件夹中的 启动.bat 打开本页面。';
     $('emptyBox').classList.remove('hidden');

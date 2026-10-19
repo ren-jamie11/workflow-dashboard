@@ -23,7 +23,7 @@ function newRow(category) {
     id: newId(), name: '', factory: '', category: category || '', material: '', sku: '', parentAsin: '',
     status: STATUSES[0], liveDate: '', step1Confirmed: false, deliveryDate: '',
     thumb: null, createdAt: Date.now(),
-    sampleNotes: '', samples: []     // 上架 → 样品: 总备注 + [{id, note, ok}] per photo (photos in rows/<id>/samples.json)
+    samples: []     // 上架 → 样品: [{id, title, note, ok, crop?, proto?}] per photo (photos in rows/<id>/samples.json)
   };
 }
 
@@ -32,6 +32,7 @@ function normalize(r) {
   const d = newRow();
   const out = Object.assign(d, r);
   if (out.status === '生产中') out.status = '已下单';     // status removed 2026-09-29
+  delete out.sampleNotes;                               // 总备注 removed 2026-10-19
   if (!STATUSES.includes(out.status)) out.status = STATUSES[0];
   return out;
 }

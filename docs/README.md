@@ -21,7 +21,7 @@ opens the browser. Close the console window to stop the server. Use Chrome or Ed
 启动.bat
 app/
   server.py            static files + JSON API (below)
-  index.html           Hub: main table, 报价 / 样品 panel, 下单 pop-up, image viewer, Settings modal (tabs 通用 / 报价 / 下单 / 工厂 / 上架)
+  index.html           Hub: main table, 报价 panel, 下单 pop-up, image viewer (图片 and 样品 modes), Settings modal (tabs 通用 / 报价 / 下单 / 工厂 / 上架)
   tools/step1..3.html  copies of the original tools, adapted for embedded mode   (stages 2–4)
   tools/pricing-detail.html  copy of Updated Pricing.html: the 报价 → 查看详情 pop-up (what-if, never saves)
   tools/vendor/        exceljs.min.js, moved out of the Step 2 original unchanged
@@ -70,8 +70,8 @@ settings.json         { categories:["XK","MUG"], materials:["树脂","金属","�
                         step2:{operator,store}, step3:{targetDays:90, invTargetDays:180} }
 rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, status, liveDate,
                         step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt, orderFolder,
-                        sampleNotes, samples }
-                      the 上架 → 样品 panel: sampleNotes = 总备注; samples = [{id, title, note, ok, crop?, proto?}] per sample
+                        samples }
+                      上架 → 样品: samples = [{id, title, note, ok, crop?, proto?}] per sample
                       photo, in photo order (its title, notes, 样品通过, square position — shared/crop.js, none = the whole
                       photo — and linked prototype: proto = a fingerprint (hash) of that 图片's data URL, since 图片 have no ids
                       and get reordered; the 上架 pill's mark reads samples, so the table never loads the photos). Rows saved
@@ -82,7 +82,7 @@ rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, 
 rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
 rows/<id>/images.json { main:{url,w,h}, extra:[{url,w,h,crop}] }  the row's images: main + up to 8 more (image viewer,
                       下单计划 picker)
-rows/<id>/samples.json { images:[{id,url,w,h}] }  the row's sample photos (up to 9; 样品 panel and its viewer only), never
+rows/<id>/samples.json { images:[{id,url,w,h}] }  the row's sample photos (up to 9; the 样品 viewer only), never
                       rewritten while typing. No 主图, no positions; independent of images.json. Photos without an id
                       (first version) get one when first loaded
 rows/<id>/order-qty.json { qty:{<尺寸 / 规格, lower-case>: 下单数量} }  the picker's remembered 下单数量 per 报价 line (hub writes it)
@@ -127,7 +127,7 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
 - Sort tier `ROWS.stage(r)` = furthest step reached: 0 待报价 · 1 报价✓ · 2 已下单 · 3 已上架 (status wins, so
   已下单 without 报价 is tier 2). Within a tier a row that skipped 报价 sorts first (less progress): the sort key
   is `ROWS.progress(r)` = stage × 2 + (报价 done ? 1 : 0).
-- Soft lock: clicking a locked 下单 shows `confirm('前一步未完成，仍要打开？')` and then opens it (上架 = 样品 never asks, S1). The 下单
+- Soft lock: clicking a locked 下单 shows `confirm('前一步未完成，仍要打开？')` and then opens it (上架 = the 样品 viewer never asks, S1). The 下单
   pop-up's ← → don't ask; its header shows `报价未完成` instead.
 - ~~The 上架时间 date is always typed by hand. The picker opens on `deliveryDate + liveOffsetDays`, or
   the current month if there's no delivery date.~~ *(Changed 2026-10-16: the table column is 交货日期 = `deliveryDate`,
@@ -178,22 +178,21 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
 | G8 | A row whose 报价 panel is open keeps its sort position until the panel has closed, then moves. A row that lands in a new spot after a stage / 上架时间 change flashes briefly (`moveRow` / `flashRow` in index.html). *(2026-09-29)* |
 
 ### 上架 → 样品 (scoping, 2026-10-19)
+Checking received samples against the prototype before a product ships. Everything happens in the image viewer's **样品
+mode**; there is no expanded row for 上架 (an in-row 样品 panel existed for a day and was removed: the viewer was more useful).
 | # | Decision |
 |---|---|
-| S1 | Clicking **上架** expands a **样品** panel under the row (the 报价 panel's machinery; hub HTML, no iframe). No soft lock. Step 3 inventory ([stage-4-step3.md](stage-4-step3.md)) will join this panel later |
-| S2 | One expanded panel in the whole table. A pill opens its own panel, or switches the open one (same row or another); the open pill again closes it. The open panel's pill is ringed |
-| S3 | A row's blank-space click (G7) opens the latest stage: status ≥ 已下单 → 样品, else 报价; with any panel open on that row it closes. Never the 下单 pop-up |
-| S4 | Layout, side by side: photo column (the sample's title, the shown photo with `N 张` and a ✓ badge when approved, `‹ 2 / 6 ›` under it) · **样品备注（<title or 第 n 张>）** · **总备注** (30%); foot: `已收样，已通过 k / N` + the shown photo's 样品通过. Boxes resizable *(revised 2026-10-19: one notes box per photo; title above the photo)* |
-| S5 | Each sample photo has its own notes (`meta.samples[i].note`); **总备注** (`meta.sampleNotes`) is for the whole product. All autosaved with the row. No photos: `+ 样品图`, the per-photo box disabled (`先上传样品图片…`), 总备注 usable, no 样品通过 |
-| S6 | ‹ › and ← → step the panel's photos (keys only while no pop-up is open and focus isn't in a text box / dropdown). The tile opens the viewer on that photo; the panel shows the viewer's last photo when it closes. Adding photos shows the first new one |
-| S6b | Up to 9 photos (`samples.json`) in the image viewer's sample mode: ‹ › and ← → step photos (never rows; not while typing), + tile, per-photo delete (the last one too; its notes and mark go with it). No 主图 / 设为主图 / paste hint. Under the grid: the shown photo's notes box + 样品通过; approved tiles get a green ✓. Paste or drop anywhere on the 样品 panel adds photos |
-| S6c | The panel's and the viewer's notes boxes are the same data: typing in one shows in the other at once |
-| S7 | Mark on the 上架 pill: none = no photos · yellow = photos, not all approved · green = **every** photo approved |
-| S8 | **样品通过** toggles the shown photo, no confirm: light green with a green border (`✓ 样品通过`) until approved, then solid green (`✓ 已通过`). Status, sort order and the journey don't change |
-| S9 | The first version's row-level 样品通过 is dropped (all photos start unapproved); its notes became 总备注 |
-| S10 | Every sample photo has its own square position (`samples[i].crop`), as the row's 图片: press + drag moves, Ctrl + wheel zooms around the pointer, saved automatically — on the panel tile (a click without moving opens the viewer) and in the viewer's frame; the grid tiles show each square. A photo starts **whole** (zoomed out, white padding) |
-| S11 | Each sample has a title (`samples[i].title`, e.g. `蓝色 4x6`; empty → grey `样品 n`). Panel: above the photo. Viewer: the big title top right, with `<product> · <SKU>` on the grey line under it. Click to edit; Enter / click away keeps it, Esc cancels; panel and viewer stay in sync |
-| S12 | Sample viewer sidebar, under the notes + 样品通过: **原型图** = all of the row's 图片 (主图 first, tagged 主图), at their 图片 positions, view only. Clicking one **links it to the shown sample** (saved in `samples[i].proto`) and shows them side by side: the sample left (still movable / zoomable), the prototype right (view only), each labelled; clicking another re-links. Each sample shows its own prototype as you step with ← → / ‹ ›; an unlinked sample shows the single frame. × on the prototype, or the highlighted tile again, removes the link; Esc just closes the viewer. Linked sample tiles in the grid show the prototype as a small badge (bottom right). A deleted / replaced 图片 leaves its samples unlinked; 设为主图 keeps links *(revised 2026-10-19: was one compare for the whole viewer)* |
+| S1 | Clicking **上架** opens the image viewer in 样品 mode on the photo it last showed (this session). No soft lock (samples often come before the order). Step 3 inventory ([stage-4-step3.md](stage-4-step3.md)) is still to be placed |
+| S2 | Only 报价 expands under its row; its pill is ringed while open |
+| S3 | A row's blank-space click (G7) always toggles 报价, whatever the status; the 样品 viewer opens only from the 上架 pill |
+| S4 | Up to 9 sample photos (`samples.json`): ‹ › and ← → step photos (never rows; not while typing), + tile, paste / drop anywhere in the viewer adds, per-photo delete (the last one too; its title, notes, mark and link go with it). No 主图 / 设为主图 / paste hint |
+| S5 | Each photo has a **title** (`samples[i].title`, e.g. `蓝色 4x6`; empty → grey `样品 n`): the big title top right, `<product> · <SKU>` on the grey line under it. Click to edit; Enter / click away keeps it, Esc cancels |
+| S6 | Each photo has its own **notes** (`samples[i].note`, `样品备注（<title or 第 n 张>）` under the grid), autosaved with the row. There is no whole-product note (总备注 was removed with the panel, saved text included) |
+| S7 | Mark on the 上架 pill: none = no photos · yellow = photos, not all approved · green = **every** photo approved. The pill's tooltip says `已收样，已通过 k / N` |
+| S8 | **样品通过** toggles the shown photo, no confirm: light green with a green border (`✓ 样品通过`) until approved, then solid green (`✓ 已通过`). Grid tiles show no mark (a ✓ badge was tried and removed). Status, sort order and the journey don't change |
+| S9 | The first version's row-level 样品通过 was dropped (all photos started unapproved) |
+| S10 | Every sample photo has its own square position (`samples[i].crop`), as the row's 图片: press + drag moves, Ctrl + wheel zooms around the pointer, saved automatically; grid tiles show each square. A photo starts **whole** (zoomed out, white padding) |
+| S12 | **原型图** (under the notes) = all of the row's 图片 (主图 first, tagged 主图), at their 图片 positions, view only. Clicking one **links it to the shown sample** (`samples[i].proto`) and shows them side by side: the sample left (still movable / zoomable), the prototype right (view only), each labelled; clicking another re-links. Each sample shows its own prototype as you step; an unlinked sample shows the single frame. × on the prototype, or the highlighted tile again, removes the link; Esc just closes the viewer. A deleted / replaced 图片 leaves its samples unlinked; 设为主图 keeps links (the link is a fingerprint of the image, not its position) |
 
 ### 材质 (2026-09-29)
 | # | Decision |
