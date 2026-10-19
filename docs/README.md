@@ -70,16 +70,19 @@ settings.json         { categories:["XK","MUG"], materials:["树脂","金属","�
                         step2:{operator,store}, step3:{targetDays:90, invTargetDays:180} }
 rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, status, liveDate,
                         step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt, orderFolder,
-                        sampleNotes, sampleOk, sampleCount }
-                      sample* = the 上架 → 样品 panel: the notes box, 样品通过, the number of sample photos (the 上架
-                      pill's mark reads it, so the table never loads the photos)
+                        sampleNotes, samples }
+                      the 上架 → 样品 panel: sampleNotes = 总备注; samples = [{id, note, ok}] per sample photo, in photo order
+                      (its notes and 样品通过; the 上架 pill's mark reads it, so the table never loads the photos). Rows saved
+                      by the first version (2026-10-19) have sampleOk / sampleCount instead: loading the photos replaces them
+                      (sampleOk is dropped, every photo starts unapproved)
                       orderFolder = the product's folder in 下单计划/, named after the product the first time it is
                       needed and never renamed (a clash with another row adds " 2")
 rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
 rows/<id>/images.json { main:{url,w,h}, extra:[{url,w,h,crop}] }  the row's images: main + up to 8 more (image viewer,
                       下单计划 picker)
-rows/<id>/samples.json { images:[{url,w,h}] }  the row's sample photos (up to 9; 样品 panel and its viewer only). No 主图,
-                      no positions; independent of images.json
+rows/<id>/samples.json { images:[{id,url,w,h}] }  the row's sample photos (up to 9; 样品 panel and its viewer only), never
+                      rewritten while typing. No 主图, no positions; independent of images.json. Photos without an id
+                      (first version) get one when first loaded
 rows/<id>/order-qty.json { qty:{<尺寸 / 规格, lower-case>: 下单数量} }  the picker's remembered 下单数量 per 报价 line (hub writes it)
 rows/<id>/order-files.json { files:{<file name>:{submitted, deliveryDate}} }  the 已下单 marks of the row's Excel files (hub
                       writes it); deliveryDate = the form's 交货日期 when that file was generated. Keyed by name: a file
@@ -178,11 +181,14 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
 | S1 | Clicking **上架** expands a **样品** panel under the row (the 报价 panel's machinery; hub HTML, no iframe). No soft lock. Step 3 inventory ([stage-4-step3.md](stage-4-step3.md)) will join this panel later |
 | S2 | One expanded panel in the whole table. A pill opens its own panel, or switches the open one (same row or another); the open pill again closes it. The open panel's pill is ringed |
 | S3 | A row's blank-space click (G7) opens the latest stage: status ≥ 已下单 → 样品, else 报价; with any panel open on that row it closes. Never the 下单 pop-up |
-| S4 | Layout: sample-photo tile left (first photo + `N 张`, or `+ 样品图`), notes box right (resizable), then the state + **✓ 样品通过** |
-| S5 | Notes = one plain text box (`meta.sampleNotes`), autosaved with the row |
-| S6 | Up to 9 sample photos (`samples.json`), in the image viewer's sample mode: shown whole, ‹ › and ← → step photos (never rows), + tile, per-image delete (the last one too). No 主图 / positions / 设为主图. Paste or drop anywhere on the 样品 panel adds photos |
-| S7 | Mark on the 上架 pill: yellow = ≥ 1 sample photo, not approved · green = approved · none otherwise |
-| S8 | **✓ 样品通过** / **撤销通过** toggle `meta.sampleOk`, each with a confirm. Status, sort order and the journey don't change |
+| S4 | Layout, side by side: photo column (`样品图片 ‹ 2 / 6 ›` + the shown photo, `N 张`, ✓ badge when approved) · **样品备注（第 n 张）** · **总备注** (30%); foot: `已收样，已通过 k / N` + the shown photo's 样品通过. Boxes resizable *(revised 2026-10-19: one notes box per photo)* |
+| S5 | Each sample photo has its own notes (`meta.samples[i].note`); **总备注** (`meta.sampleNotes`) is for the whole product. All autosaved with the row. No photos: `+ 样品图`, the per-photo box disabled (`先上传样品图片…`), 总备注 usable, no 样品通过 |
+| S6 | ‹ › and ← → step the panel's photos (keys only while no pop-up is open and focus isn't in a text box / dropdown). The tile opens the viewer on that photo; the panel shows the viewer's last photo when it closes. Adding photos shows the first new one |
+| S6b | Up to 9 photos (`samples.json`) in the image viewer's sample mode: shown whole, ‹ › and ← → step photos (never rows; not while typing), + tile, per-photo delete (the last one too; its notes and mark go with it). No 主图 / positions / 设为主图 / paste hint. Under the grid: the shown photo's notes box + 样品通过; approved tiles get a green ✓. Paste or drop anywhere on the 样品 panel adds photos |
+| S6c | The panel's and the viewer's notes boxes are the same data: typing in one shows in the other at once |
+| S7 | Mark on the 上架 pill: none = no photos · yellow = photos, not all approved · green = **every** photo approved |
+| S8 | **样品通过** toggles the shown photo, no confirm: light green with a green border (`✓ 样品通过`) until approved, then solid green (`✓ 已通过`). Status, sort order and the journey don't change |
+| S9 | The first version's row-level 样品通过 is dropped (all photos start unapproved); its notes became 总备注 |
 
 ### 材质 (2026-09-29)
 | # | Decision |

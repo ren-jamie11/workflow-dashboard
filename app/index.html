@@ -96,7 +96,7 @@ tr.row.draft .step,tr.row.draft .step:hover{color:#cbd5e1;border-color:#f1f5f9;b
 .step.locked{color:#cbd5e1;border-color:#f1f5f9;background:#fff}
 .step{position:relative}
 .step.on{box-shadow:0 0 0 2px rgba(79,70,229,.25)}       /* its panel is open */
-/* 样品 mark on the 上架 pill: yellow = sample photos, not yet approved · green = approved */
+/* 样品 mark on the 上架 pill: yellow = sample photos, not all approved · green = every photo approved */
 .smark{position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;border:2px solid #fff;box-sizing:border-box}
 .smark.wait{background:#f59e0b}
 .smark.ok{background:#16a34a}
@@ -122,11 +122,30 @@ tr.xp-spacer td{padding:0;border:0}
 .xp-panel iframe.ready{opacity:1}
 .xp-foot{display:flex;align-items:center;gap:1rem;margin-top:.6rem}
 .xp-foot .hint{margin:0}
-/* 上架 → 样品 panel (hub HTML, no iframe): sample photos tile · notes; status + 样品通过 underneath */
+/* 上架 → 样品 panel (hub HTML, no iframe): photo (‹ n / N ›) · its notes · 总备注; 已通过 k / N + this photo's 样品通过 */
 .sp-body{display:flex;gap:1rem;align-items:flex-start}
 .sp-col{display:flex;flex-direction:column;gap:.35rem}
-.sp-col .form-label{margin:0;font-size:.78rem}
+.sp-col .form-label{margin:0;font-size:.78rem;height:22px;display:flex;align-items:center;gap:.35rem;white-space:nowrap}
 .sp-col.notes{flex:1;min-width:0}
+.sp-col.general{flex:0 0 30%;min-width:0}
+.sp-nav{width:22px;height:22px;border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--dark);font-size:.95rem;line-height:1;
+  cursor:pointer;padding:0;font-family:inherit}
+.sp-nav:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+.sp-nav:disabled{opacity:.35;cursor:default}
+.sp-pos{font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums;min-width:2.6em;text-align:center}
+.sp-col textarea{height:128px;min-height:80px;resize:vertical;font-size:.88rem;line-height:1.5;padding:.5rem .65rem}
+.sp-col textarea:disabled{background:#f8fafc;cursor:not-allowed}
+/* 样品通过: not approved = light green with a green border; approved = solid green */
+.btn-okish{background:#f0fdf4;color:#15803d;border:1px solid #16a34a}
+.btn-okish:hover{background:#dcfce7}
+/* an approved photo's tile: green ✓ badge, top left (the delete × is top right) */
+.ok-badge{position:absolute;z-index:1;top:4px;left:4px;width:18px;height:18px;border-radius:50%;background:#16a34a;color:#fff;
+  font-size:.7rem;line-height:18px;text-align:center;font-weight:700;box-shadow:0 0 0 2px #fff;pointer-events:none}
+/* 样品 mode of the image viewer: the shown photo's notes + 样品通过 under the grid */
+.iv-note{display:flex;flex-direction:column;gap:.45rem;margin-top:.4rem}
+.iv-note .form-label{margin:0;font-size:.78rem}
+.iv-note textarea{height:180px;resize:vertical;font-size:.86rem;line-height:1.5;padding:.5rem .6rem}
+.iv-note .btn{align-self:flex-start}
 .sp-tile{position:relative;width:128px;height:128px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;overflow:hidden;
   display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;font-size:.8rem;padding:0;font-family:inherit;flex:none}
 .sp-tile:hover,.sp-tile:focus-visible,.sp-tile.over{border-color:var(--primary);color:var(--primary);background:#eef2ff;outline:none}
@@ -134,7 +153,6 @@ tr.xp-spacer td{padding:0;border:0}
 .sp-tile.has{border-style:solid;border-color:var(--line);background:#fff;cursor:zoom-in}
 .sp-tile img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .sp-tile .tag{position:absolute;left:4px;bottom:4px;font-size:.68rem;line-height:1.4;background:rgba(15,23,42,.72);color:#fff;border-radius:3px;padding:0 .35rem}
-#spNotes{height:128px;min-height:80px;resize:vertical;font-size:.88rem;line-height:1.5;padding:.5rem .65rem}
 .sp-state{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--muted);margin-right:auto}
 .sp-state .smark{position:static;border:0;width:9px;height:9px}
 .btn-ok{background:#16a34a;color:#fff;border:1px solid #16a34a}
@@ -353,17 +371,22 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
             中统一修改，所有产品实时生效。</span>
         </div>
       </div>
-      <!-- 上架：样品（备注 + 样品图片） -->
+      <!-- 上架：样品（每张样品图片的备注 + 总备注） -->
       <div class="xp-inner hidden" id="spInner">
         <div class="sp-body">
           <div class="sp-col">
-            <span class="form-label">样品图片</span>
+            <span class="form-label">样品图片
+              <button type="button" class="sp-nav" id="spPrev" title="上一张（←）">‹</button><span class="sp-pos" id="spPos"></span><button type="button" class="sp-nav" id="spNext" title="下一张（→）">›</button></span>
             <button type="button" class="sp-tile" id="spTile"></button>
           </div>
           <div class="sp-col notes">
-            <label class="form-label" for="spNotes">样品备注</label>
-            <textarea id="spNotes" class="form-control" spellcheck="false"
-              placeholder="例：蓝色、绿色很好，黄色需要修改。已通知工厂，等待新样品。"></textarea>
+            <label class="form-label" for="spNote" id="spNoteLabel">样品备注</label>
+            <textarea id="spNote" class="form-control" spellcheck="false"></textarea>
+          </div>
+          <div class="sp-col general">
+            <label class="form-label" for="spGeneral">总备注</label>
+            <textarea id="spGeneral" class="form-control" spellcheck="false"
+              placeholder="整个产品的备注，例：已通知工厂，等待新样品。"></textarea>
           </div>
         </div>
         <div class="xp-foot">
@@ -461,6 +484,12 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
         <button type="button" class="btn btn-ghost btn-sm" id="ivMakeMain" title="与主图交换位置，表格缩略图随之更新">设为主图</button>
       </div>
       <div class="hint" id="ivHint"></div>
+      <!-- 样品 mode: the shown photo's notes (same data as the table panel) + 样品通过 -->
+      <div class="iv-note hidden" id="ivNoteBox">
+        <label class="form-label" for="ivNote" id="ivNoteLabel">样品备注</label>
+        <textarea id="ivNote" class="form-control" spellcheck="false" placeholder="这张样品的备注"></textarea>
+        <button type="button" class="btn btn-sm" id="ivOk"></button>
+      </div>
     </div>
   </div>
 </div>
@@ -756,9 +785,13 @@ const STEP_TIPS = {
   done: '已完成', next: '下一步', open: '可打开', locked: '前一步未完成'
 };
 const STEP_PANEL = { quote: 'quote', live: 'sample' };   // pill → the panel it expands (下单 opens a pop-up instead)
-/* 样品 state of a row: ok = approved · wait = sample photos, not approved yet · none */
-const sampleState = r => r.sampleOk ? 'ok' : r.sampleCount > 0 ? 'wait' : 'none';
-const SAMPLE_TIPS = { ok: '样品已通过', wait: '已收样，待确认', none: '未收到样品' };
+/* 样品 of a row: meta.samples [{id, note, ok}] per photo. Rows from before per-photo notes only have sampleCount until their
+   photos are first loaded (loadSamples rebuilds samples) */
+const sampleN = r => r.samples && r.samples.length ? r.samples.length : r.sampleCount || 0;
+const sampleOkN = r => (r.samples || []).filter(s => s.ok).length;
+/* ok = every photo approved · wait = photos, not all approved · none = no photos */
+const sampleState = r => { const n = sampleN(r); return !n ? 'none' : sampleOkN(r) === n ? 'ok' : 'wait'; };
+const sampleTip = r => ({ ok: '样品全部通过', wait: '已收样，已通过 ' + sampleOkN(r) + ' / ' + sampleN(r), none: '未收到样品' })[sampleState(r)];
 function rowHtml(r){
   const id = esc(r.id);
   const j = ROWS.journey(r);
@@ -769,7 +802,7 @@ function rowHtml(r){
     '<button type="button" class="step ' + s.state + (r.id === expandedId && STEP_PANEL[s.key] === expandedKind ? ' on' : '') +
     '" data-act="step" data-step="' + s.key + '" data-id="' + id +
     '" title="' + (draft ? '请先添加图片和类目' : s.label + '：' + STEP_TIPS[s.state] +
-      (s.key === 'live' ? ' · 样品：' + SAMPLE_TIPS[ss] : '')) + '"' + (draft ? ' disabled' : '') + '>' +
+      (s.key === 'live' ? ' · 样品：' + sampleTip(r) : '')) + '"' + (draft ? ' disabled' : '') + '>' +
     (s.state === 'done' ? '✓ ' : '') + s.label +
     (s.key === 'live' && ss !== 'none' && !draft ? '<span class="smark ' + ss + '"></span>' : '') + '</button>'
   ).join('');
@@ -1572,10 +1605,11 @@ function tableOrder(){
 }
 const viewerOrder = () => tableOrder().filter(r => r.thumb);   // the image viewer: rows with an image
 
-function openViewer(r, kind){
+/* idx: the sample photo to start on (sample mode) */
+function openViewer(r, kind, idx){
   viewerSaveNow();
   const sample = kind === 'sample';
-  const v = viewer = { id: r.id, kind: sample ? 'sample' : 'img', idx: 0, list: null, ver: 0, f: null, c: null, drag: null, saveTimer: null };
+  const v = viewer = { id: r.id, kind: sample ? 'sample' : 'img', idx: sample && idx || 0, list: null, ver: 0, f: null, c: null, drag: null, saveTimer: null };
   $('ivBack').classList.remove('hidden');
   $('ivFrame').classList.toggle('plain', sample);
   $('ivFrame').title = sample ? '' : '按住拖动调整位置，Ctrl+滚轮缩放';
@@ -1592,9 +1626,11 @@ function openViewer(r, kind){
 function closeViewer(){
   if (!viewer) return;
   viewerSaveNow();
-  const id = viewer.id;
+  const id = viewer.id, wasSample = viewer.kind === 'sample';
   viewer = null; gridKey = '';
   $('ivBack').classList.add('hidden');
+  const sr = wasSample && panelKind === 'sample' && panelId === id && byId(id);
+  if (sr) renderSample(sr);                            // the panel shows the photo the viewer was on
   $('iv').classList.remove('over');
   $('ivFrameImg').removeAttribute('src');
   const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
@@ -1621,8 +1657,12 @@ function renderViewer(){
   if (!viewer) return;
   const r = byId(viewer.id);
   if (!r) return closeViewer();
-  const list = viewer.list, cur = list && list[viewer.idx];
   const sample = viewer.kind === 'sample';
+  if (sample && viewer.list) {                          // the panel shows the same photo
+    viewer.idx = Math.max(0, Math.min(viewer.idx, viewer.list.length - 1));
+    sampleIdx.set(r.id, viewer.idx);
+  }
+  const list = viewer.list, cur = list && list[viewer.idx];
   const order = viewerOrder(), pos = sample ? -1 : order.indexOf(r);
   const ids = [r.sku, r.parentAsin].filter(Boolean).map(esc).join(' · ');
   $('ivTitle').textContent = rowLabel(r) + (sample ? ' · 样品图片' : '');
@@ -1645,12 +1685,14 @@ function renderViewer(){
     }).catch(() => {});
   }
 
-  const key = viewer.kind + '#' + viewer.id + '#' + viewer.ver + '#' + (list ? list.length : -1);
-  if (key !== gridKey && sample) {                      // sample photos: plain tiles, any one can be deleted
+  const oks = sample ? (r.samples || []).map(s => s.ok ? 1 : 0).join('') : '';
+  const key = viewer.kind + '#' + viewer.id + '#' + viewer.ver + '#' + (list ? list.length : -1) + '#' + oks;
+  if (key !== gridKey && sample) {                      // sample photos: plain tiles (✓ = approved), any one can be deleted
     gridKey = key;
     $('ivGrid').innerHTML = !list ? '' : list.map((x, i) =>
       '<div class="iv-tile" data-iv="pick" data-i="' + i + '" title="样品图片 ' + (i + 1) + '">' +
         '<img src="' + x.url + '" alt="" draggable="false">' +
+        (r.samples[i] && r.samples[i].ok ? '<span class="ok-badge" title="已通过">✓</span>' : '') +
         '<button type="button" class="del" data-iv="del" data-i="' + i + '" title="删除这张样品图片">×</button>' +
       '</div>').join('') +
       (list.length < IMG_LIMIT ? '<button type="button" class="iv-tile add" data-iv="add" title="添加样品图片（可多选，最多 ' + IMG_LIMIT + ' 张）">+</button>' : '');
@@ -1667,8 +1709,16 @@ function renderViewer(){
   }
   $('ivGrid').querySelectorAll('.iv-tile[data-i]').forEach(t => t.classList.toggle('on', +t.dataset.i === viewer.idx));
   $('ivActions').classList.toggle('hidden', !cur || viewer.idx === 0 || sample);
-  $('ivHint').textContent = sample ? '粘贴或拖入图片即可添加样品图片，最多 ' + IMG_LIMIT + ' 张。按 ← → 切换图片。'
-    : '粘贴或拖入图片即可添加（拖到主图上即替换主图），每个产品最多 ' + IMG_LIMIT + ' 张。';
+  $('ivHint').classList.toggle('hidden', sample);
+  $('ivHint').textContent = '粘贴或拖入图片即可添加（拖到主图上即替换主图），每个产品最多 ' + IMG_LIMIT + ' 张。';
+  /* sample mode: the shown photo's notes and 样品通过 (the same data as the table panel) */
+  const s = sample && cur ? r.samples[viewer.idx] : null;
+  $('ivNoteBox').classList.toggle('hidden', !s);
+  if (s) {
+    $('ivNoteLabel').textContent = '样品备注（第 ' + (viewer.idx + 1) + ' 张）';
+    fillNote($('ivNote'), s);
+    okButton($('ivOk'), s, viewer.idx);
+  }
 }
 /* size the square to the stage and place the image in it (a stand-in shows while the full image decodes) */
 function layoutViewerFrame(){
@@ -1821,7 +1871,7 @@ async function viewerReplaceMain(file){
 async function viewerDelete(i){
   if (viewer && viewer.kind === 'sample') {             // any sample photo may go, the last one too
     const r = byId(viewer.id);
-    if (r && viewer.list && !viewerBusy && confirm('删除这张样品图片？')) await deleteSample(r, i);
+    if (r && viewer.list && !viewerBusy && confirm('删除这张样品图片及其备注？')) await deleteSample(r, i);
     return;
   }
   const r = viewer && byId(viewer.id), list = viewer && viewer.list;
@@ -1892,32 +1942,53 @@ $('ivBack').addEventListener('mousedown', e => { if (e.target === $('ivBack')) c
 document.addEventListener('keydown', e => {
   if (!viewer) return;
   if (e.key === 'Escape') { e.preventDefault(); closeViewer(); }
+  else if (typing()) return;                            // ← → move the cursor in the notes box
   else if (e.key === 'ArrowLeft') { e.preventDefault(); viewerRow(-1); }
   else if (e.key === 'ArrowRight') { e.preventDefault(); viewerRow(1); }
 });
 
-/* ============ 上架 → 样品: notes + sample photos ============
-   meta: sampleNotes (the notes box, saved with the row), sampleOk (样品通过), sampleCount (photos; the 上架 pill's mark reads it,
-   so the table never loads the photos). rows/<id>/samples.json {images:[{url,w,h}]}: up to IMG_LIMIT photos, read when the
-   panel or the viewer needs them. Independent of the row's 图片: no 主图, no positions. Approval never changes status */
+/* ============ 上架 → 样品: notes + 样品通过 per photo, and one 总备注 ============
+   rows/<id>/samples.json {images:[{id,url,w,h}]}: up to IMG_LIMIT photos (several MB: read when the panel or the viewer needs
+   them, never rewritten while typing). meta.samples [{id, note, ok}] in the same order: each photo's notes and 样品通过, small
+   enough to autosave with the row and to give the 上架 pill its mark without loading photos. meta.sampleNotes = 总备注.
+   Independent of the row's 图片: no 主图, no positions. Approval never changes status */
 const samplesPath = r => 'rows/' + r.id + '/samples.json';
-const sampleCache = new Map();    // row id → [{url,w,h}], kept in step with every write
+const sampleCache = new Map();    // row id → [{id,url,w,h}], kept in step with every write
+const sampleIdx = new Map();      // row id → the photo the panel shows (this session; the viewer moves it too)
 const saveSamples = (r, list) => api.put(samplesPath(r), { images: list });
+const newSampleId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 let sampleBusy = false;           // one add / delete at a time (panel and viewer)
 
+/* meta.samples in photo order: each photo keeps its {note, ok} by id, a new one starts empty and unapproved.
+   Drops the fields of the first version (sampleOk: one mark per row; sampleCount). True when anything changed */
+function syncSampleMeta(r, list){
+  const by = new Map((r.samples || []).map(s => [s.id, s]));
+  const next = list.map(im => { const s = by.get(im.id) || {}; return { id: im.id, note: s.note || '', ok: !!s.ok }; });
+  const changed = JSON.stringify(next) !== JSON.stringify(r.samples || []) || 'sampleCount' in r || 'sampleOk' in r;
+  r.samples = next;
+  delete r.sampleCount;
+  delete r.sampleOk;
+  return changed;
+}
 async function loadSamples(r){
   if (sampleCache.has(r.id)) return sampleCache.get(r.id);
   const d = await api.get(samplesPath(r)) || {};
   if (sampleCache.has(r.id)) return sampleCache.get(r.id);    // another call finished first
   const list = (Array.isArray(d.images) ? d.images : []).filter(x => x && x.url);
+  const noId = list.filter(im => !im.id);                       // photos from the first version
+  noId.forEach(im => { im.id = newSampleId(); });
   sampleCache.set(r.id, list);
-  if ((r.sampleCount || 0) !== list.length) { r.sampleCount = list.length; saveRow(r); render(); }   // keep the mark honest
+  if (noId.length) saveSamples(r, list).catch(() => {});
+  if (syncSampleMeta(r, list)) { saveRow(r); render(); }
   return list;
 }
 /* the row whose 样品 panel is open (null when none) */
 const samplePanelRow = () => expandedId && expandedKind === 'sample' && panelId === expandedId ? byId(expandedId) : null;
+/* the photo index the panel shows, within 0 … n-1 */
+const sampleAt = (r, n) => Math.max(0, Math.min(sampleIdx.get(r.id) || 0, n - 1));
 
-/* add image files as sample photos (stored like the row's images: longest side IMG_STORE_MAX). Resolves to the number added */
+/* add image files as sample photos (stored like the row's images: longest side IMG_STORE_MAX); the panel moves to the
+   first new one. Resolves to the number added */
 async function addSamples(r, files){
   const imgs = files.filter(f => f && /^image\//.test(f.type));
   if (!imgs.length) { toast('请选择图片文件', true); return 0; }
@@ -1927,11 +1998,12 @@ async function addSamples(r, files){
     const list = await loadSamples(r);
     const room = IMG_LIMIT - list.length;
     if (room <= 0) { toast('每个产品最多 ' + IMG_LIMIT + ' 张样品图片', true); return 0; }
-    const take = imgs.slice(0, room);
-    for (const f of take) list.push(drawScaled(await loadImg(await readFile(f)), IMG_STORE_MAX, 0.85));
+    const take = imgs.slice(0, room), first = list.length;
+    for (const f of take) list.push(Object.assign({ id: newSampleId() }, drawScaled(await loadImg(await readFile(f)), IMG_STORE_MAX, 0.85)));
     await saveSamples(r, list);
-    r.sampleCount = list.length;
+    syncSampleMeta(r, list);
     saveRow(r); render();
+    sampleIdx.set(r.id, first);
     sampleChanged(r);
     toast(imgs.length > room
       ? '已添加 ' + take.length + ' 张；每个产品最多 ' + IMG_LIMIT + ' 张样品图片，其余 ' + (imgs.length - room) + ' 张未添加'
@@ -1945,6 +2017,7 @@ async function addSamples(r, files){
     sampleBusy = false;
   }
 }
+/* a photo goes with its notes and its mark */
 async function deleteSample(r, i){
   if (sampleBusy) return;
   sampleBusy = true;
@@ -1953,8 +2026,9 @@ async function deleteSample(r, i){
     if (!list[i]) return;
     list.splice(i, 1);
     await saveSamples(r, list);
-    r.sampleCount = list.length;
+    syncSampleMeta(r, list);
     saveRow(r); render();
+    if ((sampleIdx.get(r.id) || 0) > i) sampleIdx.set(r.id, sampleIdx.get(r.id) - 1);
     sampleChanged(r);
     toast('已删除样品图片');
   } catch (e) {
@@ -1964,56 +2038,128 @@ async function deleteSample(r, i){
     sampleBusy = false;
   }
 }
-/* after a write to row r's sample photos: redraw the panel and the viewer where they show them */
+/* after photos were added / deleted: redraw the panel and the viewer where they show them */
 function sampleChanged(r){
   if (panelKind === 'sample' && panelId === r.id) renderSample(r);
   viewerChanged(r, 'sample');
 }
+/* after a 样品通过 change: the panel, the viewer and the pill */
+function sampleRefresh(r){
+  render();
+  if (panelKind === 'sample' && panelId === r.id) renderSample(r);
+  if (viewer && viewer.kind === 'sample' && viewer.id === r.id) renderViewer();
+}
+function toggleSampleOk(r, s){
+  if (!s) return;
+  s.ok = !s.ok;
+  saveRow(r);
+  sampleRefresh(r);
+}
+/* a photo's notes, typed in the panel or the viewer: both boxes show the same text */
+function setSampleNote(r, s, text){
+  s.note = text;
+  saveRow(r);                                           // debounced; flushed on pagehide
+  [$('spNote'), $('ivNote')].forEach(b => { if (b.dataset.sid === s.id && b.value !== text) b.value = text; });
+}
+/* show photo s's notes in a box; the text being typed is left alone */
+function fillNote(box, s){
+  const sid = s ? s.id : '';
+  if (box.dataset.sid !== sid || document.activeElement !== box) box.value = s ? s.note : '';
+  box.dataset.sid = sid;
+}
+/* 样品通过 button: light green until approved, then solid green */
+function okButton(btn, s, i){
+  btn.classList.toggle('hidden', !s);
+  if (!s) return;
+  btn.textContent = s.ok ? '✓ 已通过' : '✓ 样品通过';
+  btn.className = 'btn btn-sm ' + (s.ok ? 'btn-ok' : 'btn-okish');
+  btn.title = '第 ' + (i + 1) + ' 张：' + (s.ok ? '已通过，点击撤销' : '点击标记为通过');
+}
 
-/* fill the 样品 panel; fresh = a newly shown row (the notes box gets its text; otherwise it is left alone while typing) */
+/* fill the 样品 panel; fresh = a newly shown row (总备注 gets its text; otherwise it is left alone while typing) */
 function renderSample(r, fresh){
-  if (fresh) $('spNotes').value = r.sampleNotes || '';
-  const list = sampleCache.get(r.id), n = list ? list.length : r.sampleCount || 0;
+  if (fresh) $('spGeneral').value = r.sampleNotes || '';
+  const list = sampleCache.get(r.id), n = list ? list.length : sampleN(r);
+  if (!list && n) loadSamples(r).then(() => { if (panelKind === 'sample' && panelId === r.id) renderSample(r); }).catch(() => {});
+  const i = sampleAt(r, n), im = list && list[i], s = list ? r.samples[i] : null;
   const tile = $('spTile');
   tile.classList.toggle('has', n > 0);
   tile.title = n ? '点击查看样品图片 · 可在此处粘贴或拖入图片添加' : '点击上传样品图片（可多选），也可在此处粘贴或拖入';
   tile.innerHTML = !n ? '+ 样品图'
-    : (list ? '<img src="' + list[0].url + '" alt="" draggable="false">' : '') + '<span class="tag">' + n + ' 张</span>';
-  if (!list && n) loadSamples(r).then(() => { if (panelKind === 'sample' && panelId === r.id) renderSample(r); }).catch(() => {});
+    : (im ? '<img src="' + im.url + '" alt="" draggable="false">' : '') + (s && s.ok ? '<span class="ok-badge">✓</span>' : '') +
+      '<span class="tag">' + n + ' 张</span>';
+  ['spPrev', 'spPos', 'spNext'].forEach(id => $(id).classList.toggle('hidden', !n));
+  $('spPos').textContent = (i + 1) + ' / ' + n;
+  $('spPrev').disabled = i <= 0;
+  $('spNext').disabled = i >= n - 1;
+  $('spNoteLabel').textContent = n ? '样品备注（第 ' + (i + 1) + ' 张）' : '样品备注';
+  const box = $('spNote');
+  box.disabled = !s;
+  box.placeholder = !n ? '先上传样品图片，再为每张图片写备注' : !s ? '加载中…' : '这张样品的备注，例：颜色很好，但右上角图案不够密';
+  fillNote(box, s);
   const st = sampleState(r);
-  $('spState').innerHTML = '<span class="smark ' + st + '"></span>' + SAMPLE_TIPS[st];
-  $('spOk').textContent = r.sampleOk ? '撤销通过' : '✓ 样品通过';
-  $('spOk').className = 'btn btn-sm ' + (r.sampleOk ? 'btn-ghost' : 'btn-ok');
+  $('spState').innerHTML = '<span class="smark ' + st + '"></span>' + sampleTip(r);
+  okButton($('spOk'), s, i);
+}
+function sampleStep(r, d){
+  const list = sampleCache.get(r.id);
+  if (!list) return;
+  const i = sampleAt(r, list.length) + d;
+  if (i < 0 || i >= list.length) return;
+  sampleIdx.set(r.id, i);
+  renderSample(r);
 }
 
-$('spNotes').addEventListener('input', () => {        // autosaved with the row (debounced; flushed on pagehide)
+$('spNote').addEventListener('input', () => {
+  const r = samplePanelRow(), s = r && (r.samples || []).find(x => x.id === $('spNote').dataset.sid);
+  if (s) setSampleNote(r, s, $('spNote').value);
+});
+$('spGeneral').addEventListener('input', () => {      // 总备注: autosaved with the row
   const r = samplePanelRow();
   if (!r) return;
-  r.sampleNotes = $('spNotes').value;
+  r.sampleNotes = $('spGeneral').value;
   saveRow(r);
 });
+$('spPrev').addEventListener('click', () => { const r = samplePanelRow(); if (r) sampleStep(r, -1); });
+$('spNext').addEventListener('click', () => { const r = samplePanelRow(); if (r) sampleStep(r, 1); });
 $('spTile').addEventListener('click', () => {
   const r = samplePanelRow();
   if (!r) return;
-  const list = sampleCache.get(r.id);
-  if (list ? list.length : r.sampleCount > 0) openViewer(r, 'sample');
+  const list = sampleCache.get(r.id), n = list ? list.length : sampleN(r);
+  if (n) openViewer(r, 'sample', sampleAt(r, n));
   else pickImage(files => addSamples(r, files), true);
 });
 $('spOk').addEventListener('click', () => {
-  const r = samplePanelRow();
-  if (!r || !confirm(r.sampleOk ? '撤销样品通过？' : '确认样品通过？')) return;
-  r.sampleOk = !r.sampleOk;
-  saveRow(r); render();
-  renderSample(r);
-  toast(r.sampleOk ? '样品已通过' : '已撤销样品通过');
+  const r = samplePanelRow(), list = r && sampleCache.get(r.id);
+  if (list) toggleSampleOk(r, r.samples[sampleAt(r, list.length)]);
 });
-/* the notes box can be resized: the spacer follows the panel's height */
+/* ← → step the panel's photos: not while typing, in a dropdown, or with a pop-up open */
+document.addEventListener('keydown', e => {
+  if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+  const r = samplePanelRow(), a = document.activeElement;
+  if (!r || viewer || order || detail || !$('setModal').classList.contains('hidden') || typing() || (a && a.tagName === 'SELECT') ||
+      isDatePickerOpen() || combo.isOpen()) return;
+  e.preventDefault();
+  sampleStep(r, e.key === 'ArrowLeft' ? -1 : 1);
+});
+/* the notes boxes can be resized: the spacer follows the panel's height */
 new ResizeObserver(() => {
   const r = samplePanelRow();
   if (!r || xpPending) return;
   const h = $('spInner').offsetHeight;
   if (h && h !== gapT[r.id]) { gapT[r.id] = h; xpSync(false); }
 }).observe($('spInner'));
+
+/* the viewer's sample mode: the shown photo's notes and 样品通过 (same data as the panel) */
+$('ivNote').addEventListener('input', () => {
+  const r = viewer && viewer.kind === 'sample' && byId(viewer.id);
+  const s = r && (r.samples || []).find(x => x.id === $('ivNote').dataset.sid);
+  if (s) setSampleNote(r, s, $('ivNote').value);
+});
+$('ivOk').addEventListener('click', () => {
+  const r = viewer && viewer.kind === 'sample' && byId(viewer.id);
+  if (r && viewer.list) toggleSampleOk(r, r.samples[viewer.idx]);
+});
 
 /* ============ 下单 pop-up (Step 2) ============
    A row's 下单计划 are its Excel files: 下单计划/<r.orderFolder>/*.xlsx. The folder name is fixed the first time it is needed
