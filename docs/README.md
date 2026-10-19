@@ -21,7 +21,7 @@ opens the browser. Close the console window to stop the server. Use Chrome or Ed
 启动.bat
 app/
   server.py            static files + JSON API (below)
-  index.html           Hub: main table, 报价 panel, 下单 pop-up, image viewer, Settings modal (tabs 通用 / 报价 / 下单 / 工厂 / 上架)
+  index.html           Hub: main table, 报价 / 样品 panel, 下单 pop-up, image viewer, Settings modal (tabs 通用 / 报价 / 下单 / 工厂 / 上架)
   tools/step1..3.html  copies of the original tools, adapted for embedded mode   (stages 2–4)
   tools/pricing-detail.html  copy of Updated Pricing.html: the 报价 → 查看详情 pop-up (what-if, never saves)
   tools/vendor/        exceljs.min.js, moved out of the Step 2 original unchanged
@@ -69,12 +69,17 @@ settings.json         { categories:["XK","MUG"], materials:["树脂","金属","�
                           {exchangeRate,shippingPrice,…} loads as fx / shipRmbKg, the rest dropped — api.settings()),
                         step2:{operator,store}, step3:{targetDays:90, invTargetDays:180} }
 rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, status, liveDate,
-                        step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt, orderFolder }
+                        step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt, orderFolder,
+                        sampleNotes, sampleOk, sampleCount }
+                      sample* = the 上架 → 样品 panel: the notes box, 样品通过, the number of sample photos (the 上架
+                      pill's mark reads it, so the table never loads the photos)
                       orderFolder = the product's folder in 下单计划/, named after the product the first time it is
                       needed and never renamed (a clash with another row adds " 2")
 rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
 rows/<id>/images.json { main:{url,w,h}, extra:[{url,w,h,crop}] }  the row's images: main + up to 8 more (image viewer,
                       下单计划 picker)
+rows/<id>/samples.json { images:[{url,w,h}] }  the row's sample photos (up to 9; 样品 panel and its viewer only). No 主图,
+                      no positions; independent of images.json
 rows/<id>/order-qty.json { qty:{<尺寸 / 规格, lower-case>: 下单数量} }  the picker's remembered 下单数量 per 报价 line (hub writes it)
 rows/<id>/order-files.json { files:{<file name>:{submitted, deliveryDate}} }  the 已下单 marks of the row's Excel files (hub
                       writes it); deliveryDate = the form's 交货日期 when that file was generated. Keyed by name: a file
@@ -111,12 +116,13 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
   ('' when none). The dropdown can always override the status. (生产中 was removed on 2026-09-29; a stored 生产中 loads as 已下单.)
 - Journey steps are **报价 — 下单 — 上架**. A step is:
   - **done**: 报价 when `step1Confirmed` (set by 保存 in the 报价 panel); 下单 when status ≥ 已下单; 上架 when status = 已上架
+    (样品通过 never changes it)
   - **next**: the first step that isn't done
   - **locked**: 下单 until 报价 is done; 上架 until 下单 is done
 - Sort tier `ROWS.stage(r)` = furthest step reached: 0 待报价 · 1 报价✓ · 2 已下单 · 3 已上架 (status wins, so
   已下单 without 报价 is tier 2). Within a tier a row that skipped 报价 sorts first (less progress): the sort key
   is `ROWS.progress(r)` = stage × 2 + (报价 done ? 1 : 0).
-- Soft lock: clicking a locked step shows `confirm('前一步未完成，仍要打开？')` and then opens it. The 下单
+- Soft lock: clicking a locked 下单 shows `confirm('前一步未完成，仍要打开？')` and then opens it (上架 = 样品 never asks, S1). The 下单
   pop-up's ← → don't ask; its header shows `报价未完成` instead.
 - ~~The 上架时间 date is always typed by hand. The picker opens on `deliveryDate + liveOffsetDays`, or
   the current month if there's no delivery date.~~ *(Changed 2026-10-16: the table column is 交货日期 = `deliveryDate`,
@@ -165,6 +171,18 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
 | G6 | Clicking a category header (`XK 5 个`) collapses / expands its rows; **全部收起 / 全部展开** at the right of the filter bar does all groups. Session only (a reload shows everything). Filters and search don't auto-expand (the header count still shows the matches). Collapsing a group closes a 报价 panel open inside it; adding a row, or a SKU / 类目 change that moves a row into a collapsed group, expands that group. The image viewer's ← → skip collapsed groups. *(2026-09-29)* |
 | G7 | A click on a row's blank space toggles 报价, except within 1px of a field, button or sub-line (near misses), and only when press and release are on the same spot, once per double-click, and not when the click only closes a date picker / dropdown or leaves a text box. The 报价 pill always toggles. *(2026-09-29)* |
 | G8 | A row whose 报价 panel is open keeps its sort position until the panel has closed, then moves. A row that lands in a new spot after a stage / 上架时间 change flashes briefly (`moveRow` / `flashRow` in index.html). *(2026-09-29)* |
+
+### 上架 → 样品 (scoping, 2026-10-19)
+| # | Decision |
+|---|---|
+| S1 | Clicking **上架** expands a **样品** panel under the row (the 报价 panel's machinery; hub HTML, no iframe). No soft lock. Step 3 inventory ([stage-4-step3.md](stage-4-step3.md)) will join this panel later |
+| S2 | One expanded panel in the whole table. A pill opens its own panel, or switches the open one (same row or another); the open pill again closes it. The open panel's pill is ringed |
+| S3 | A row's blank-space click (G7) opens the latest stage: status ≥ 已下单 → 样品, else 报价; with any panel open on that row it closes. Never the 下单 pop-up |
+| S4 | Layout: sample-photo tile left (first photo + `N 张`, or `+ 样品图`), notes box right (resizable), then the state + **✓ 样品通过** |
+| S5 | Notes = one plain text box (`meta.sampleNotes`), autosaved with the row |
+| S6 | Up to 9 sample photos (`samples.json`), in the image viewer's sample mode: shown whole, ‹ › and ← → step photos (never rows), + tile, per-image delete (the last one too). No 主图 / positions / 设为主图. Paste or drop anywhere on the 样品 panel adds photos |
+| S7 | Mark on the 上架 pill: yellow = ≥ 1 sample photo, not approved · green = approved · none otherwise |
+| S8 | **✓ 样品通过** / **撤销通过** toggle `meta.sampleOk`, each with a confirm. Status, sort order and the journey don't change |
 
 ### 材质 (2026-09-29)
 | # | Decision |

@@ -7,6 +7,9 @@ Context: [README.md](README.md). This assumes Stages 1–3 work (`embed.js`, `sk
 > once and switched with `load-row`, ← → between products, × / Esc / backdrop close. Read "workspace.html" below as
 > "the hub (`index.html`)", and "refresh the sidebar" as "re-render the table". Confirm this when scoping Stage 4.
 
+> **Changed 2026-10-19:** clicking 上架 now expands the **样品** panel under the row (sample notes + photos, S1–S8 in
+> [README.md](README.md)). Step 3 inventory should join that panel (e.g. a section or button there) rather than replace it.
+
 ## Goal
 The **上架** step shows the Step 3 inventory dashboard filtered to that row's SKUs, with a seasonality
 curve for that row. Uploading a sales export updates every row: status becomes 已上架 where sales

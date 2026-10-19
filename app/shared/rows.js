@@ -22,7 +22,8 @@ function newRow(category) {
   return {
     id: newId(), name: '', factory: '', category: category || '', material: '', sku: '', parentAsin: '',
     status: STATUSES[0], liveDate: '', step1Confirmed: false, deliveryDate: '',
-    thumb: null, createdAt: Date.now()
+    thumb: null, createdAt: Date.now(),
+    sampleNotes: '', sampleOk: false, sampleCount: 0     // 上架 → 样品 panel (photos in rows/<id>/samples.json)
   };
 }
 
