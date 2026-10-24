@@ -4,6 +4,11 @@ Context: [README.md](README.md). This assumes Stage 1 (hub, server, `api.js`, `r
 
 > **2026-10-14:** the calculation, columns, Settings → 报价 fields and 导入 changed — see *报价 = Updated Pricing*
 > (P1–P5) in [README.md](README.md). The text below describes the original build.
+>
+> **2026-10-24:** a new table (and 清空) starts with **3** empty rows, not 6 (`DEFAULT_ROWS`). A free-text
+> **产品规格** box sits in a `tfoot` row spanning the 尺寸 / 规格 … 高 columns (left edge of the 尺寸 input to right edge of the 高 input) for product specs (边框宽度, 重量, 玻璃 / 亚克力, 配件, 其他要求…). It starts
+> blank and grows with its text. It is saved as `specs` beside `rows` in `rows/<id>/step1.json` and in the 保存 file, and
+> 清空 leaves it alone. It is shown only in 报价, and the readers of step1.json (下单 picker, 从报价更新) still read only `.rows`.
 
 ## Goal
 Clicking **报价** in a row's journey (or expanding the row) shows that product's price table inline.
