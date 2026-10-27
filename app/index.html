@@ -224,7 +224,7 @@ tr.xp-spacer td{padding:0;border:0}
 .s2-btn:disabled{opacity:.35;cursor:default}
 .s2-btn.close{margin-left:.35rem;font-size:1.15rem}
 #s2Frame{flex:1;min-height:0;width:100%;border:0;display:block;background:#f1f5f9}
-/* 报价 → 查看详情 pop-up: Updated Pricing for one 报价 line at a time, ‹ › switch lines (buttons only: ← → step tiers in the tool) */
+/* 报价 → 查看详情 pop-up: Pricer Updated for one 报价 line at a time, ‹ › switch lines (buttons only: ← → step tiers in the tool) */
 .s2.pd{max-width:1240px}
 .pd-pos{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:3.6em;text-align:center}
 #pdFrame{flex:1;min-height:0;width:100%;border:0;display:block;background:#f1f5f9}
@@ -407,15 +407,16 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
     </div>
     <div class="modal-body hidden" data-body="quote">
       <div class="set-grid">
-        <!-- 与 Updated Pricing.html 的 Assumptions 相同 -->
+        <!-- 与 Pricer Updated.html 的 Assumptions 相同 -->
         <div><label class="form-label">美元对人民币汇率</label><input type="number" min="0" step="0.01" class="form-control" data-p="fx"></div>
         <div><label class="form-label">头程运费 (￥/kg)</label><input type="number" min="0" step="0.1" class="form-control" data-p="shipRmbKg"></div>
+        <div><label class="form-label">FBA 燃油附加费 (%)</label><input type="number" min="0" step="0.1" class="form-control" data-p="fuel"></div>
         <div><label class="form-label">亚马逊佣金 (%)</label><input type="number" min="0" step="0.5" class="form-control" data-p="comm"></div>
         <div><label class="form-label">广告预算 (%)</label><input type="number" min="0" step="0.5" class="form-control" data-p="ads"></div>
         <div><label class="form-label">仓储 / 退货 (%)</label><input type="number" min="0" step="0.5" class="form-control" data-p="wh"></div>
         <div><label class="form-label">目标毛利率 (%)</label><input type="number" min="0" step="0.5" class="form-control" data-p="target"></div>
       </div>
-      <div class="hint" style="margin-top:1rem">建议售价 = 达到目标毛利率的最低售价（佣金 / 广告 / 仓储按售价的百分比计）。修改后所有产品的售价立即按新参数重算。
+      <div class="hint" style="margin-top:1rem">建议售价 = 达到目标毛利率的最低售价（佣金 / 广告 / 仓储按售价的百分比计）。燃油附加费按 FBA 配送费的百分比计，计入尾程运费。旺季在每个产品的报价表中切换。修改后所有产品的售价立即按新参数重算。
         <button type="button" class="menu-link" id="p1Reset">恢复默认值</button></div>
     </div>
     <div class="modal-body" data-body="general">
@@ -555,7 +556,7 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
   </div>
 </div>
 
-<!-- 报价 → 查看详情：Updated Pricing 试算（不保存） -->
+<!-- 报价 → 查看详情：Pricer Updated 试算（不保存） -->
 <div class="iv-back hidden" id="pdBack">
   <div class="s2 pd" role="dialog" aria-modal="true" aria-labelledby="pdTitle">
     <div class="s2-head">
@@ -1094,7 +1095,7 @@ hubEmbed.listen((m, frame) => {
     }
   } else if (m.type === 'pricing-detail' && frame === xpFrame) {   // 查看详情 in 报价
     const r = byId(m.row);
-    if (r && m.data && m.data.lines && m.data.lines.length) openDetail(r, m.data.lines);
+    if (r && m.data && m.data.lines && m.data.lines.length) openDetail(r, m.data.lines, !!m.data.peak);
   }
 });
 
@@ -2482,7 +2483,8 @@ function openPicker(r){
       .filter(x => ['sku', 'price', 'l', 'w', 'h'].some(k => String(x[k] == null ? '' : x[k]).trim()));
     const known = mq && mq.qty ? mq.qty : {};
     const qty = new Map(lines.map(l => [l, qtyKey(l) && known[qtyKey(l)] != null ? String(known[qtyKey(l)]) : '']));
-    order.pick = { r, list, slots: list.map((im, i) => ({ im, name: '', main: !i })), lines, on: new Set(lines), qty };   // every image + every line
+    order.pick = { r, list, slots: list.map((im, i) => ({ im, name: '', main: !i })), lines, on: new Set(lines), qty,   // every image + every line
+                   peak: !!(s1 && s1.peak) };                                                                       // 报价's 旺季 switch
     renderPicker();
   }).catch(() => {});
 }
@@ -2526,7 +2528,7 @@ function renderPickLines(){
       '<th>尺寸 / 规格</th><th>工厂价 (￥)</th><th>内盒尺寸</th><th>建议售价 ($)</th><th style="width:130px">下单数量</th></tr></thead><tbody>' +
     pk.lines.map((l, i) => {
       const L = parseFloat(l.l), W = parseFloat(l.w), H = parseFloat(l.h), fp = parseFloat(l.price);   // as in the 报价 panel
-      const r = L > 0 && W > 0 && H > 0 ? PRICING.computeRow(isNaN(fp) ? 0 : fp, L, W, H, P) : null;
+      const r = L > 0 && W > 0 && H > 0 ? PRICING.computeRow(isNaN(fp) ? 0 : fp, L, W, H, P, pk.peak) : null;
       const sale = r && r.price != null ? r.price.toFixed(2) : '';   // oversize: no price
       const on = pk.on.has(l);
       return '<tr class="' + (on ? '' : 'off') + '" data-pk="line" data-i="' + i + '">' +
@@ -2866,13 +2868,13 @@ document.querySelector('.tabs').addEventListener('click', e => {
   if (t && !t.disabled) showTab(t.dataset.tab);
 });
 
-/* ---- 报价 → 查看详情: tools/pricing-detail.html (a copy of Updated Pricing.html) for the 报价 table's lines.
-   A what-if sandbox: it starts from the line and 设置 → 报价, and nothing is written back. ---- */
+/* ---- 报价 → 查看详情: tools/pricing-detail.html (a copy of Pricer Updated.html) for the 报价 table's lines.
+   A what-if sandbox: it starts from the line, the table's 旺季 switch and 设置 → 报价, and nothing is written back. ---- */
 const pdFrame = $('pdFrame');
-let detail = null;          // { id, lines:[{sku, price, l, w, h}], i, ready }
-function openDetail(r, lines){
+let detail = null;          // { id, lines:[{sku, price, l, w, h}], peak, i, ready }
+function openDetail(r, lines, peak){
   if (viewer) closeViewer();
-  detail = { id: r.id, lines, i: 0, ready: false };
+  detail = { id: r.id, lines, peak, i: 0, ready: false };
   $('pdBack').classList.remove('hidden');
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   pdFrame.src = 'tools/pricing-detail.html';            // fresh each time: the sandbox starts from 设置 → 报价
@@ -2895,11 +2897,11 @@ function renderDetailHead(){
   $('pdPrev').disabled = detail.i === 0;
   $('pdNext').disabled = detail.i === n - 1;
 }
-/* first = the pop-up just opened: also send 设置 → 报价 (after that, line switches keep the pop-up's own assumptions) */
+/* first = the pop-up just opened: also send 设置 → 报价 and 旺季 (after that, line switches keep the pop-up's own assumptions and season) */
 function sendLine(first){
   if (!detail || !detail.ready) return;
   const l = detail.lines[detail.i];
-  hubEmbed.send(pdFrame, 'load-line', Object.assign({ unitRmb: l.price, l: l.l, w: l.w, h: l.h }, first ? { settings: settings.step1 } : {}));
+  hubEmbed.send(pdFrame, 'load-line', Object.assign({ unitRmb: l.price, l: l.l, w: l.w, h: l.h }, first ? { settings: settings.step1, peak: detail.peak } : {}));
 }
 function stepDetail(d){
   if (!detail) return;

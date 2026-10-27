@@ -106,6 +106,14 @@ body{background:transparent}
 .saved-note b{color:var(--dark);font-weight:500}
 .actions .push{margin-left:auto;display:flex;gap:.75rem;align-items:center}
 #saveBtn{min-width:5.2rem;justify-content:center}
+/* HUB: 旺季 switch (as in Pricer Updated.html), left of 查看详情 */
+.season{display:flex;align-items:center;gap:.5rem}
+.season-label{font-size:.88rem;font-weight:500;color:var(--muted);cursor:pointer;user-select:none}
+.switch{position:relative;flex:none;width:44px;height:24px;padding:0;border:none;border-radius:999px;background:#94a3b8;cursor:pointer;transition:background .2s}
+.switch .knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--primary)}
+.switch[aria-checked="true"] .knob{transform:translateX(20px)}
+.switch:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(79,70,229,.25)}
 /* HUB: 产品规格 notes under the rows, spanning 尺寸 / 规格 … 高 (same padding as tbody td, so the edges line up);
    grows with its text so the hub panel grows with it */
 .specs-row td{padding:1rem .35rem 0;vertical-align:top}
@@ -157,7 +165,11 @@ body{background:transparent}
       <!-- HUB: one table per row, autosaved; 保存 writes a file to 售价计算 Price Calcs -->
       <div class="push">
         <span class="saved-note" id="savedNote"></span>
-        <button type="button" class="btn btn-ghost" id="detailBtn" title="用 Updated Pricing 逐行查看费用明细、利润图和缩小包装的建议（仅试算，不保存）">查看详情</button><!-- HUB: replaces 导入 -->
+        <div class="season" title="旺季 FBA 配送费：10/15 – 次年 1/14（非旺季 1/15 – 10/14）"><!-- HUB: saved with the table -->
+          <label class="season-label" id="seasonLabel" for="seasonSwitch">旺季</label>
+          <button type="button" class="switch" id="seasonSwitch" role="switch" aria-checked="false" aria-labelledby="seasonLabel"><span class="knob"></span></button>
+        </div>
+        <button type="button" class="btn btn-ghost" id="detailBtn" title="用 Pricer Updated 逐行查看费用明细、利润图和缩小包装的建议（仅试算，不保存）">查看详情</button><!-- HUB: replaces 导入 -->
         <button type="button" class="btn btn-primary" id="saveBtn">保存</button>
       </div>
     </div>
@@ -172,14 +184,21 @@ body{background:transparent}
 (function(){
   const tbody = document.getElementById('tbody');
   const DEFAULT_ROWS = 3;   /* HUB: empty rows for a new table / after 清空 (was 6) */
-  /* HUB: 旺季 toggle lives in the hub's 设置 → 报价 */
-
-  /* HUB: 计算逻辑 lives in shared/pricing.js — Updated Pricing.html's model (the hub's 下单计划 picker shows 建议售价 too) */
+  /* HUB: 计算逻辑 lives in shared/pricing.js — Pricer Updated.html's model (the hub's 下单计划 picker shows 建议售价 too) */
   const computeRow = PRICING.computeRow;
 
   /* HUB: parameters are global and live — read from settings.step1 instead of the page */
   let P = {};
   function getParams(){ return PRICING.params(P); }
+
+  /* HUB: 旺季 is per product — saved in step1.json (peak) and read by the 下单计划 picker; starts off */
+  let peak = false;
+  const seasonSwitch = document.getElementById('seasonSwitch');
+  function drawSeason(){ seasonSwitch.setAttribute('aria-checked', peak); }
+  seasonSwitch.addEventListener('click', () => {
+    peak = !peak; drawSeason(); calcAll();
+    scheduleSave(); markDirty();
+  });
 
   function addRow(data){
     const tr = document.createElement('tr');
@@ -219,6 +238,7 @@ body{background:transparent}
       c.textContent = '—';
       c.classList.add('empty');
     });
+    tr.querySelector('.o-delivery').title = '';   /* HUB */
   }
 
   function calcAll(){
@@ -232,7 +252,7 @@ body{background:transparent}
       // 尺寸必须齐全且为正数，否则该行留空
       if (!(length > 0 && width > 0 && height > 0)) { clearRowOutputs(tr); return; }
 
-      const r = computeRow(isNaN(price) ? 0 : price, length, width, height, P);
+      const r = computeRow(isNaN(price) ? 0 : price, length, width, height, P, peak);
 
       const set = (sel, val) => {
         const c = tr.querySelector(sel);
@@ -242,8 +262,9 @@ body{background:transparent}
       set('.o-weight',   r.weightLb.toFixed(2));
       set('.o-ship',     r.shippingFee.toFixed(2));
 
-      /* HUB: oversize (not small / large standard) or no solution → no 尾程 / 成本 / 售价, as in Updated Pricing */
+      /* HUB: oversize (not small / large standard) or no solution → no 尾程 / 成本 / 售价, as in Pricer Updated */
       const dc = tr.querySelector('.o-delivery');
+      dc.title = '';
       if (r.oversize) {
         ['.o-cost','.o-price'].forEach(sel => { const c = tr.querySelector(sel); c.textContent = '—'; c.classList.add('empty'); });
         dc.classList.remove('empty');
@@ -259,7 +280,9 @@ body{background:transparent}
         tr.classList.add('warn');
         return;
       }
-      set('.o-delivery', r.deliveryFee.toFixed(2));
+      set('.o-delivery', r.deliveryFee.toFixed(2));   /* HUB: FBA fee + fuel surcharge */
+      dc.title = (peak ? '旺季' : '非旺季') + ' FBA 配送费 $' + r.baseFee.toFixed(2) +
+        ' + 燃油附加费 $' + r.fuel.toFixed(2) + '（' + getParams().fuel + '%）';
       set('.o-cost',     r.cost.toFixed(2));
       set('.o-price',    r.price.toFixed(2));
       tr.classList.remove('warn');
@@ -308,7 +331,7 @@ body{background:transparent}
     if (rows && rows.length) rows.forEach(r => addRow(r));
     else for(let i=0;i<DEFAULT_ROWS;i++) addRow();
   }
-  const payload = () => ({ rows: readRows(), specs: specsEl.value });
+  const payload = () => ({ rows: readRows(), specs: specsEl.value, peak });
   function hasContent(){
     return readRows().some(r => ROW_FIELDS.some(([k]) => String(r[k] || '').trim()));
   }
@@ -354,7 +377,7 @@ body{background:transparent}
       const clean = s => String(s || '').trim().replace(/[\/:*?"<>|]/g, '_');
       const label = clean(meta.name) || [clean(meta.category), clean(meta.factory)].filter(Boolean).join('_');
       const fname = [label || '未命名', clean(meta.sku)].filter(Boolean).join('_') + '_售价.json';
-      const body = { name: meta.name || '', sku: meta.sku || '', savedAt: Date.now(), params: getParams(), rows: readRows(), specs: specsEl.value };
+      const body = { name: meta.name || '', sku: meta.sku || '', savedAt: Date.now(), params: getParams(), peak, rows: readRows(), specs: specsEl.value };
       const saved = await api.output('售价计算 Price Calcs', fname,
         new Blob([JSON.stringify(body, null, 2)], { type: 'application/json' }));
       b.textContent = '✓';
@@ -364,8 +387,8 @@ body{background:transparent}
     } finally { b.disabled = false; }
   });
 
-  /* HUB: 查看详情 (replaces 导入) → the hub opens Updated Pricing over the page for the lines with L/W/H, one at a time.
-     A what-if pop-up: nothing comes back to this table. */
+  /* HUB: 查看详情 (replaces 导入) → the hub opens Pricer Updated over the page for the lines with L/W/H, one at a time,
+     in this table's season. A what-if pop-up: nothing comes back to this table. */
   document.getElementById('detailBtn').addEventListener('click', () => {
     const lines = readRows()
       .map(r => ({ sku: String(r.sku || '').trim(), price: parseFloat(r.price), l: parseFloat(r.l), w: parseFloat(r.w), h: parseFloat(r.h) }))
@@ -373,7 +396,7 @@ body{background:transparent}
       .map(r => Object.assign(r, { price: isNaN(r.price) ? 0 : r.price }));   // as calcAll: no 工厂价 = 0
     if (!lines.length) return note('请先填写长宽高');
     note('');
-    embed.post('pricing-detail', { lines });
+    embed.post('pricing-detail', { lines, peak });
   });
 
   /* 设置 → 报价 修改后实时重算 */
@@ -387,10 +410,12 @@ body{background:transparent}
       const saved = await api.get(DATA_PATH);
       writeRows(saved && saved.rows);
       specsEl.value = (saved && saved.specs) || '';
+      peak = !!(saved && saved.peak);
     } catch (e) {
       writeRows(null);
     }
     fitSpecs();
+    drawSeason();
     calcAll();
     embed.autoHeight();   /* HUB: first height only once the rows are in, so the hub panel opens in one move */
   })();

@@ -1,0 +1,910 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>FBA Fee Calculator</title>
+<style>
+/* Layout: one input card on top, then two result cards side by side (fee | tier-down cuts), stacking on narrow screens. Matches the FBA pricing calculator's look. */
+:root{
+  --primary:#4f46e5; --primary-dark:#4338ca; --on-primary:#ffffff; --secondary:#10b981; --cost:#b91c1c;
+  --bg:#f1f5f9; --surface:#ffffff; --surface-2:#f8fafc; --tint:#eef2ff;
+  --dark:#1e293b; --muted:#64748b; --faint:#94a3b8; --line:#e2e8f0; --line-soft:#f1f5f9;
+  --warn-bg:#fffbeb; --warn-line:#fcd34d; --warn-text:#92400e;
+  --good-bg:#ecfdf5; --good-text:#047857;
+  --bad-bg:#fef2f2; --bad-text:#b91c1c;
+  --focus:rgba(79,70,229,.14);
+  --radius:12px;
+  --shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+  --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --primary:#818cf8; --primary-dark:#a5b4fc; --on-primary:#0f172a; --secondary:#34d399; --cost:#f87171;
+    --bg:#0f172a; --surface:#1e293b; --surface-2:#172235; --tint:#262a52;
+    --dark:#e2e8f0; --muted:#94a3b8; --faint:#64748b; --line:#334155; --line-soft:#283548;
+    --warn-bg:#2b2412; --warn-line:#a16207; --warn-text:#fcd34d;
+    --good-bg:#06302a; --good-text:#6ee7b7;
+    --bad-bg:#3a1a1d; --bad-text:#fca5a5;
+    --focus:rgba(129,140,248,.28);
+    --shadow:0 4px 8px -2px rgba(0,0,0,.45);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --primary:#818cf8; --primary-dark:#a5b4fc; --on-primary:#0f172a; --secondary:#34d399; --cost:#f87171;
+  --bg:#0f172a; --surface:#1e293b; --surface-2:#172235; --tint:#262a52;
+  --dark:#e2e8f0; --muted:#94a3b8; --faint:#64748b; --line:#334155; --line-soft:#283548;
+  --warn-bg:#2b2412; --warn-line:#a16207; --warn-text:#fcd34d;
+  --good-bg:#06302a; --good-text:#6ee7b7;
+  --bad-bg:#3a1a1d; --bad-text:#fca5a5;
+  --focus:rgba(129,140,248,.28);
+  --shadow:0 4px 8px -2px rgba(0,0,0,.45);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{font-family:var(--font);background:var(--bg);color:var(--dark);line-height:1.6;margin:0;font-size:15px}
+.container{max-width:1120px;margin:0 auto;padding-block:2rem;padding-inline:clamp(16px,3vw,1.5rem)}
+.card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:1.6rem;min-width:0}
+.card-header{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.25rem 1rem;border-bottom:1px solid var(--line);padding-bottom:1rem;margin-bottom:1.25rem}
+h1{font-size:1.4rem;font-weight:600;color:var(--primary);margin:0;text-wrap:balance}
+.sub{font-size:.8rem;color:var(--muted)}
+
+/* inputs */
+.inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1.1rem}
+.label-row{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.35rem;min-height:1.6rem}
+.form-label{display:block;font-size:.82rem;font-weight:500;color:var(--muted)}
+.opt{color:var(--faint);font-weight:400}
+.form-control{width:100%;padding:.6rem .75rem;border:1px solid var(--line);border-radius:8px;font-size:.95rem;font-family:inherit;background:var(--surface);color:var(--dark);font-variant-numeric:tabular-nums}
+.form-control::placeholder{color:var(--faint)}
+.form-control:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--focus)}
+.input-group{display:flex;gap:.4rem}
+.input-group .form-control:first-child{flex:1;min-width:0}
+.unit-select{width:auto;flex:none;padding-right:.4rem;cursor:pointer}
+.unit-toggle{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.unit-toggle button{padding:.1rem .45rem;background:var(--surface);border:none;cursor:pointer;font-family:inherit;font-size:.72rem;color:var(--muted);transition:.15s}
+.unit-toggle button+button{border-left:1px solid var(--line)}
+.unit-toggle button.active{background:var(--primary);color:var(--on-primary);font-weight:600}
+.unit-toggle button:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+
+.actions{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1.25rem;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.7rem 1.5rem;border-radius:8px;font-weight:500;font-size:.95rem;font-family:inherit;cursor:pointer;border:none;transition:.2s}
+.btn-primary{background:var(--primary);color:var(--on-primary)}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-ghost{background:var(--surface);color:var(--muted);border:1px solid var(--line)}
+.btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+.btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus)}
+.season{margin-left:auto;display:flex;align-items:center;gap:.6rem}
+.season-label{font-size:.88rem;font-weight:500;color:var(--muted);cursor:pointer;user-select:none}
+.switch{position:relative;flex:none;width:44px;height:24px;padding:0;border:none;border-radius:999px;background:var(--faint);cursor:pointer;transition:background .2s}
+.switch .knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--primary)}
+.switch[aria-checked="true"] .knob{transform:translateX(20px)}
+.switch:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus)}
+.error{font-size:.85rem;color:var(--bad-text);background:var(--bad-bg);border-radius:8px;padding:.5rem .75rem}
+
+/* results */
+.results{display:grid;grid-template-columns:minmax(0,1fr);gap:1.5rem;margin-top:1.5rem}
+.section-label{font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:.9rem}
+.fee{font-size:2.4rem;font-weight:700;line-height:1.05;color:var(--cost);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.fee.none{color:var(--faint)}
+.fee-sub{font-size:.85rem;color:var(--muted);margin-top:.35rem}
+.fee-row{display:flex;flex-wrap:wrap;align-items:center;gap:1rem 3rem}
+.stats{flex:1;min-width:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem 2rem;margin:0;padding-left:3rem;border-left:1px solid var(--line)}
+.stats dt{font-size:.78rem;color:var(--muted)}
+.stats dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
+.stats dd small{color:var(--muted);font-weight:400}
+@media (max-width:640px){.stats{padding-left:0;border-left:none;padding-top:1rem;border-top:1px solid var(--line);flex-basis:100%}}
+.facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.55rem 1.25rem;margin:1.4rem 0 0;padding-top:1.2rem;border-top:1px solid var(--line);font-size:.9rem}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0;text-align:right;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.facts dd small{color:var(--muted);font-weight:400}
+.pill{display:inline-block;font-size:.75rem;font-weight:600;border-radius:999px;padding:.05rem .55rem;background:var(--tint);color:var(--primary)}
+.notes{display:flex;flex-direction:column;gap:.5rem;margin-top:1rem}
+.note{font-size:.8rem;line-height:1.45;color:var(--warn-text);background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:8px;padding:.45rem .65rem}
+.note.info{color:var(--muted);background:var(--surface-2);border-color:var(--line)}
+
+.target{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:.85rem 1rem}
+.t-label{font-size:.75rem;color:var(--muted)}
+.t-val{font-weight:600;font-variant-numeric:tabular-nums}
+.save{display:inline-block;margin-left:.3rem;font-size:.75rem;font-weight:600;color:var(--good-text);background:var(--good-bg);border-radius:999px;padding:.05rem .5rem;white-space:nowrap}
+
+.table-wrap{overflow-x:auto;margin-top:1.1rem}
+table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:420px}
+thead th{background:var(--surface-2);color:var(--muted);font-weight:600;font-size:.76rem;text-align:left;padding:.6rem .7rem;border-bottom:2px solid var(--line);white-space:nowrap}
+thead th.num,td.num{text-align:right}
+tbody td.num{white-space:nowrap}
+tbody td{padding:.7rem;border-bottom:1px solid var(--line-soft);font-variant-numeric:tabular-nums;vertical-align:middle}
+td.cut{font-weight:700;color:var(--primary);white-space:nowrap}
+td.cut.na{font-weight:400;color:var(--faint);white-space:normal;font-size:.82rem}
+tr.all td{background:var(--tint)}
+tr.all td:first-child{font-weight:600}
+.side-name{font-weight:500}
+.side-name small{display:block;color:var(--muted);font-weight:400;font-size:.75rem}
+.hint{margin:1rem 0 0;font-size:.8rem;color:var(--muted)}
+.empty-msg{font-size:.92rem;color:var(--dark);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:1rem}
+.empty-msg strong{color:var(--primary)}
+/* tier train */
+.train-nav{display:flex;align-items:flex-start;gap:.5rem;margin-bottom:1.1rem}
+.arrow{flex:none;width:36px;height:36px;margin-top:.15rem;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;font-size:1rem;font-family:inherit;display:grid;place-items:center;transition:.15s}
+.arrow:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+.arrow:disabled{opacity:.35;cursor:default}
+.arrow:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus);border-color:var(--primary)}
+.train-scroll{position:relative;flex:1;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.train{display:flex;list-style:none;margin:0;padding:0}
+.train li{position:relative;flex:1 0 96px;display:flex;justify-content:center}
+.train li+li::before{content:'';position:absolute;top:calc(.5rem + 6px);right:50%;width:100%;height:2px;background:var(--line)}
+.train li.passed+li.passed::before{background:var(--primary)}
+.stop{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:.05rem;padding:.5rem .3rem .25rem;background:none;border:none;border-radius:8px;font:inherit;color:inherit;text-align:center}
+button.stop{cursor:pointer}
+button.stop:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);background:var(--surface);margin-bottom:.4rem;transition:.15s}
+button.stop:hover .dot{border-color:var(--primary)}
+.train li.passed .dot{border-color:var(--primary)}
+.train li.now .dot{background:var(--faint);border-color:var(--faint)}
+.train li.sel .dot{background:var(--primary);border-color:var(--primary);box-shadow:0 0 0 4px var(--focus)}
+.s-fee{font-weight:700;font-size:.95rem;font-variant-numeric:tabular-nums;line-height:1.3}
+.train li.sel .s-fee{color:var(--primary)}
+.train li.now .s-fee{color:var(--muted)}
+.s-tier{font-size:.72rem;color:var(--muted);white-space:nowrap;line-height:1.3}
+.s-tag{font-size:.64rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);min-height:1.1rem}
+.train li.best .s-tag{color:var(--good-text)}
+/* fee reference table */
+details.ref{padding:0}
+details.ref summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem .75rem;padding:1.1rem 1.6rem;font-weight:600;color:var(--primary);user-select:none}
+details.ref summary::-webkit-details-marker{display:none}
+details.ref summary>span:first-child::before{content:'';display:inline-block;width:.42em;height:.42em;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);margin:0 .7rem .12em .1rem;transition:transform .2s}
+details.ref[open] summary>span:first-child::before{transform:rotate(45deg)}
+details.ref summary:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;border-radius:var(--radius)}
+.ref-sub{font-size:.8rem;font-weight:400;color:var(--muted)}
+.ref-wrap{margin:0 1.6rem;border-top:1px solid var(--line);padding-top:1rem}
+details.ref .hint{margin:.75rem 1.6rem 1.4rem}
+table.fees td{padding:.5rem .7rem}
+table.fees td.tier{font-weight:600;vertical-align:top;border-right:1px solid var(--line-soft);white-space:nowrap}
+table.fees td.wt{white-space:nowrap;color:var(--muted)}
+table.fees th.cur-col{color:var(--primary)}
+table.fees tr.cur td:not(.tier){background:var(--tint)}
+table.fees tr.cur td.wt{color:var(--dark);font-weight:600;box-shadow:inset 3px 0 0 var(--primary)}
+table.fees td.cur-cell{font-weight:700;color:var(--cost)}
+.foot a{color:var(--primary)}
+.foot{font-size:.75rem;color:var(--faint);margin:1.5rem 0 0;max-width:80ch}
+/* settings */
+.head-right{display:flex;align-items:center;gap:.75rem;margin-left:auto}
+.gear-wrap{position:relative}
+.gear{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:grid;place-items:center;transition:.15s}
+.gear:hover,.gear[aria-expanded="true"]{border-color:var(--primary);color:var(--primary)}
+.gear:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus)}
+.settings{position:absolute;right:0;top:calc(100% + 8px);z-index:20;width:300px;max-width:calc(100vw - 32px);background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 25px -5px rgba(0,0,0,.18);padding:1rem}
+.settings h2{font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 .75rem}
+.set-grid{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:.5rem .75rem;align-items:center}
+.set-grid label{font-size:.85rem;color:var(--dark)}
+.set-grid .form-control{padding:.35rem .5rem;font-size:.88rem;text-align:right}
+.set-foot{display:flex;justify-content:space-between;align-items:center;margin-top:.85rem;padding-top:.75rem;border-top:1px solid var(--line);font-size:.75rem;color:var(--faint)}
+.linkbtn{background:none;border:none;padding:0;font:inherit;font-size:.8rem;color:var(--primary);cursor:pointer}
+.linkbtn:hover{text-decoration:underline}
+
+/* profitability */
+.profit-top{display:flex;flex-wrap:wrap;align-items:flex-start;gap:1rem 2.5rem;margin-bottom:1.5rem}
+.price-box{width:auto;min-width:300px}
+.price-box .form-control{width:240px}
+.price-box .price-cap{flex-wrap:nowrap;white-space:nowrap}
+.kpis{margin-top:1.75rem}
+@media (max-width:560px){.kpis{margin-top:0} .price-box .form-control{width:100%} .price-box .price-cap{flex-wrap:wrap}}
+.price-box .form-control{font-size:1.65rem;font-weight:700;padding:0 .75rem;height:3.1rem}
+.price-cap{display:flex;flex-wrap:wrap;align-items:center;gap:.15rem .4rem;margin-top:.4rem;font-size:.78rem;color:var(--muted);line-height:1.4}
+.price-cap b{color:var(--dark);font-weight:600;font-variant-numeric:tabular-nums}
+.price-cap .status{margin-left:0}
+.price-cap .linkbtn{font-size:.78rem}
+.kpis{display:flex;flex-wrap:wrap;align-items:flex-start;gap:1rem 3rem;margin-top:0!important}
+.fs-label{font-size:.82rem;font-weight:500;color:var(--muted);white-space:nowrap;min-height:1.6rem;margin-bottom:.35rem;display:flex;align-items:center}
+.fs-num{position:relative;cursor:help;outline:none}
+.fs-num:focus-visible{box-shadow:0 0 0 3px var(--focus);border-radius:4px}
+.fs-tip{position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);z-index:10;display:none;flex-direction:column;gap:.1rem;white-space:nowrap;font-size:.78rem;font-weight:500;letter-spacing:0;line-height:1.4;color:var(--dark);background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 20px -6px rgba(0,0,0,.2);padding:.3rem .6rem}
+.fs-tip span{color:var(--muted);font-weight:400}
+.fs-num:hover .fs-tip,.fs-num:focus .fs-tip{display:flex}
+.fs-fee{font-size:1.4rem;font-weight:700;line-height:1.2;color:var(--cost);font-variant-numeric:tabular-nums;letter-spacing:-.01em;min-height:3.1rem;display:flex;align-items:center}
+.fs-sub{display:flex;flex-wrap:wrap;align-items:center;gap:.15rem .5rem;margin-top:.4rem;font-size:.78rem;color:var(--muted);line-height:1.4;white-space:nowrap}
+.train.mini{flex:1 1 400px;min-width:0;max-width:600px;margin-left:.5rem;margin-top:calc(1.95rem + 1.55rem - .5rem - 7px)}
+@media (max-width:900px){.train.mini{margin-left:0}}
+@media (max-width:560px){.train.mini{margin-top:0;flex-basis:100%}}
+.kpis{flex:1 1 auto;min-width:0;column-gap:2.5rem!important}
+.train.mini li{flex:1 0 90px}
+.train.mini .s-tag{display:none}
+.train.mini .s-tier{font-size:.7rem}
+.train.mini .s-fee{font-size:.78rem;font-weight:600;color:var(--muted)}
+.train.mini li.sel .s-fee{color:var(--primary)}
+.kpi dt{font-size:.78rem;color:var(--muted)}
+.kpi dd{margin:0;font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.3}
+.kpi dd small{font-size:.8rem;font-weight:500;color:var(--muted)}
+.kpi .good{color:var(--good-text)} .kpi .bad{color:var(--bad-text)}
+.c-val.neg b{color:var(--bad-text)}
+.status{display:inline-block;font-size:.72rem;font-weight:600;border-radius:999px;padding:.05rem .5rem;margin-left:.35rem;vertical-align:middle}
+.status.ok{background:var(--good-bg);color:var(--good-text)}
+.status.no{background:var(--bad-bg);color:var(--bad-text)}
+.chart{display:grid;grid-template-columns:minmax(120px,186px) minmax(0,1fr) 144px;column-gap:0;grid-auto-flow:row dense;font-size:.88rem}
+.chart .row{display:contents}
+.c-label,.c-val,.c-track{padding:.4rem 0}
+.c-label{line-height:1.25;align-self:center;padding-right:1rem}
+.c-label small{display:block;color:var(--muted);font-size:.72rem}
+.c-val{padding-left:1rem;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;align-self:center}
+.c-val b{font-weight:600}
+.c-val span{color:var(--muted);display:inline-block;min-width:3.4em}
+.c-track{position:relative;align-self:stretch;display:flex;align-items:center}
+.c-track::after{content:'';position:absolute;top:0;bottom:0;left:var(--t,0);border-left:1.5px dashed var(--faint);opacity:.8;pointer-events:none}
+.bar{position:absolute;height:22px;border-radius:4px;min-width:2px}
+.row.price .c-label,.row.price .c-val b{font-weight:700}
+.row.price .bar{background:var(--line)}
+.row.margin .c-label{font-weight:600}
+.row.sep>*{border-top:1px solid var(--line);margin-top:.3rem;padding-top:.7rem}
+.t-tag{position:absolute;top:-1.15rem;left:var(--t,0);transform:translateX(-50%);font-size:.68rem;color:var(--muted);white-space:nowrap}
+.chart-wrap{position:relative;padding-top:1.1rem}
+.scen{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.4rem 1rem;font-size:.85rem;color:var(--dark);background:var(--tint);border:1px solid var(--line);border-left:3px solid var(--primary);border-radius:8px;padding:.55rem .8rem;margin-bottom:1rem}
+.chart-foot{margin:1rem 0 0;font-size:.78rem;color:var(--muted)}
+@media (max-width:560px){
+  .chart{grid-template-columns:minmax(0,1fr) auto}
+  .c-label{grid-column:1} .c-val{grid-column:2}
+  .c-track{grid-column:1 / -1;height:26px;padding:0}
+  .c-label,.c-val{padding:.5rem 0 .15rem}
+  .row.sep>.c-track{border-top:none;margin-top:0;padding-top:0}
+  .price-box{width:100%}
+  .t-tag{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="container">
+  <div class="card">
+    <div class="card-header">
+      <h1>FBA Profitability Calculator</h1>
+      <div class="head-right">
+        <span class="sub" id="seasonSub">US non-peak fees, Jan 15 – Oct 14, 2026 · excluding apparel</span>
+        <div class="gear-wrap">
+          <button type="button" class="gear" id="gearBtn" aria-label="Assumptions" aria-expanded="false" aria-controls="settings" title="Assumptions">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+          <div class="settings" id="settings" hidden>
+            <h2>Assumptions</h2>
+            <div class="set-grid" id="setGrid"></div>
+            <div class="set-foot"><span>Saved in this browser</span><button type="button" class="linkbtn" id="resetSet">Reset defaults</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <form id="form" class="inputs" novalidate>
+      <div>
+        <div class="label-row"><label class="form-label" for="unitRmb">Unit cost (RMB)</label></div>
+        <input type="number" step="any" min="0" id="unitRmb" class="form-control" value="15">
+      </div>
+      <div>
+        <div class="label-row"><label class="form-label" for="len">Package length (cm)</label></div>
+        <input type="number" step="any" min="0" id="len" class="form-control" value="20.5">
+      </div>
+      <div>
+        <div class="label-row"><label class="form-label" for="wid">Package width (cm)</label></div>
+        <input type="number" step="any" min="0" id="wid" class="form-control" value="5.5">
+      </div>
+      <div>
+        <div class="label-row"><label class="form-label" for="hgt">Package height (cm)</label></div>
+        <input type="number" step="any" min="0" id="hgt" class="form-control" value="25.5">
+      </div>
+      <button type="submit" hidden></button>
+    </form>
+
+    <div class="actions">
+      <button type="button" class="btn btn-primary" id="calcBtn">Calculate</button>
+      <button type="button" class="btn btn-ghost" id="clearBtn">Clear</button>
+      <div class="season">
+        <label class="season-label" id="seasonLabel" for="seasonSwitch">Peak</label>
+        <button type="button" class="switch" id="seasonSwitch" role="switch" aria-checked="false" aria-labelledby="seasonLabel" title="Peak fees: Oct 15 – Jan 14"><span class="knob"></span></button>
+      </div>
+    </div>
+    <div class="error" id="error" hidden style="margin-top:1rem"></div>
+  </div>
+
+  <div class="results" id="results">
+    <section class="card" id="profitCard">
+      <div class="section-label">Profitability</div>
+      <div class="profit-top">
+        <div class="price-box">
+          <div class="label-row"><label class="form-label" for="price">Retail price ($)</label></div>
+          <input type="number" step="0.01" min="0" id="price" class="form-control">
+          <div class="price-cap" id="priceCap" hidden></div>
+        </div>
+        <dl class="kpis" id="kpis"></dl>
+      </div>
+      <div id="chartBox" aria-live="polite"></div>
+    </section>
+    <section class="card" id="improveCard" aria-live="polite"></section>
+    <details class="card ref" id="refTable">
+      <summary><span>Fee table reference</span><span class="ref-sub" id="refSub">US non-peak, Jan 15 – Oct 14, 2026 · excluding apparel</span></summary>
+      <div class="table-wrap ref-wrap"><table class="fees" id="feeTable"></table></div>
+      <p class="hint">Amazon's published base rates. The fuel and logistics-related surcharge (3.5% of the fee since Apr 17, 2026; adjustable in Assumptions) is added on top in the profitability and savings figures. Your current tier is highlighted.</p>
+    </details>
+  </div>
+
+  <p class="foot">Sources: <a href="https://sellercentral.amazon.com/help/hub/reference/external/GABBX6GZPA8MSZGW" target="_blank" rel="noopener">2026 US FBA fulfillment fee changes</a> and <a href="https://sellercentral.amazon.com/help/hub/reference/external/GG5KW835AHDJCH8W" target="_blank" rel="noopener">Product size tiers</a> (Amazon Seller Central). Dimensional weight = length × width × height (in) ÷ 139. Fees here assume dimensional weight is at least the actual weight; Amazon bills large standard on whichever is higher. From Apr 17, 2026 a 3.5% fuel and logistics-related surcharge applies to US FBA fulfillment fees; costs, minimum price and shrink savings include it.</p>
+</div>
+
+<script>
+(function(){
+  const EPS = 1e-6;
+  const OZ_PER = { oz:1, lb:16, kg:35.27396195, g:0.03527396195 };
+
+  // Fee season. Peak runs Oct 15 – Jan 14.
+  const SEASONS = {
+    nonpeak:{ name:'non-peak', range:'Jan 15 – Oct 14, 2026' },
+    peak:   { name:'peak',     range:'Oct 15, 2026 – Jan 14, 2027' }
+  };
+  let SEASON = 'nonpeak';   // Peak switch starts off
+
+  // `fees` / `over` always return the rates for the selected SEASON.
+  const TIERS = {
+    small: {
+      name:'Small standard',
+      limits:[2,4,6,8,10,12,14,16],
+      labels:['2 oz or less','2+ to 4 oz','4+ to 6 oz','6+ to 8 oz','8+ to 10 oz','10+ to 12 oz','12+ to 14 oz','14+ to 16 oz'],
+      feesBy:{
+        nonpeak:{
+          low: [2.43,2.49,2.56,2.66,2.77,2.82,2.92,2.95],
+          mid: [3.32,3.42,3.45,3.54,3.68,3.78,3.91,3.96],
+          high:[3.58,3.68,3.71,3.80,3.94,4.04,4.17,4.22]
+        },
+        peak:{
+          low: [2.62,2.68,2.76,2.86,2.98,3.03,3.14,3.17],
+          mid: [3.51,3.61,3.65,3.74,3.89,3.99,4.13,4.18],
+          high:[3.77,3.87,3.91,4.00,4.15,4.25,4.39,4.44]
+        }
+      },
+      get fees(){ return this.feesBy[SEASON]; }
+    },
+    large: {
+      name:'Large standard',
+      limits:[4,8,12,16,20,24,28,32,36,40,44,48],
+      labels:['4 oz or less','4+ to 8 oz','8+ to 12 oz','12+ to 16 oz','1+ to 1.25 lb','1.25+ to 1.5 lb','1.5+ to 1.75 lb','1.75+ to 2 lb','2+ to 2.25 lb','2.25+ to 2.5 lb','2.5+ to 2.75 lb','2.75+ to 3 lb'],
+      feesBy:{
+        nonpeak:{
+          low: [2.91,3.13,3.38,3.78,4.22,4.60,4.75,5.00,5.10,5.28,5.44,5.85],
+          mid: [3.73,3.95,4.20,4.60,5.04,5.42,5.57,5.82,5.92,6.10,6.26,6.67],
+          high:[3.99,4.21,4.46,4.86,5.30,5.68,5.83,6.08,6.18,6.36,6.52,6.93]
+        },
+        peak:{
+          low: [3.15,3.39,3.66,4.07,4.52,4.91,5.07,5.33,5.47,5.67,5.84,6.26],
+          mid: [3.97,4.21,4.48,4.89,5.34,5.73,5.89,6.15,6.29,6.49,6.66,7.08],
+          high:[4.23,4.47,4.74,5.15,5.60,5.99,6.15,6.41,6.55,6.75,6.92,7.34]
+        }
+      },
+      overBy:{                                   // + $0.08 per 4 oz above 3 lb, up to 20 lb (both seasons)
+        nonpeak:{ low:6.15, mid:6.97, high:7.23 },
+        peak:   { low:6.69, mid:7.51, high:7.77 }
+      },
+      get fees(){ return this.feesBy[SEASON]; },
+      get over(){ return this.overBy[SEASON]; },
+      maxOz:320
+    }
+  };
+  const BAND_LABEL = { low:'Under $10', mid:'$10–$50', high:'Over $50' };
+
+  const fmtLb = v => String(+v.toFixed(2));
+  const money = v => '$' + v.toFixed(2);
+  const oz2 = v => v.toFixed(2) + ' oz';
+  const lb3 = v => (v/16).toFixed(2) + ' lb';
+  const ceil2 = v => Math.ceil(v*100 - 1e-7)/100;
+
+  function overLabel(n){ return fmtLb(3+(n-1)/4) + '+ to ' + fmtLb(3+n/4) + ' lb'; }
+
+  // Weight band for a shipping weight (oz). Returns current fee and the next band down.
+  function bandOf(tierKey, oz, pb){
+    const T = TIERS[tierKey];
+    for (let i=0;i<T.limits.length;i++){
+      if (oz <= T.limits[i] + EPS){
+        return {
+          label:T.labels[i], fee:T.fees[pb][i],
+          lower: i===0 ? null : { oz:T.limits[i-1], label:T.labels[i-1], fee:T.fees[pb][i-1] }
+        };
+      }
+    }
+    if (tierKey==='large' && oz <= T.maxOz + EPS){
+      const n = Math.ceil((oz-48)/4 - EPS);
+      const fee = T.over[pb] + n*0.08;
+      const lower = n===1
+        ? { oz:48, label:T.labels[11], fee:T.fees[pb][11] }
+        : { oz:48+(n-1)*4, label:overLabel(n-1), fee:T.over[pb] + (n-1)*0.08 };
+      return { label:overLabel(n), fee, lower };
+    }
+    return null;
+  }
+
+  // Dimensional weight in oz. (Amazon's 2 in minimum width/height applies only to bulky and extra-large tiers, not standard.)
+  function dimOz(cm){
+    return cm[0]*cm[1]*cm[2]/Math.pow(2.54,3)/139*16;
+  }
+  function rawDimOz(cm){ return cm[0]*cm[1]*cm[2]/Math.pow(2.54,3)/139*16; }
+
+  // Smallest reduction x in [0, hi] with fn(x) <= target (fn non-increasing). null if unreachable.
+  function solve(fn, hi, target){
+    if (hi <= 0 || fn(hi) > target + EPS) return null;
+    let lo = 0;
+    for (let k=0;k<80;k++){ const mid=(lo+hi)/2; if (fn(mid) <= target + EPS) hi = mid; else lo = mid; }
+    return hi;
+  }
+
+  function priceBand(p){
+    if (!(p >= 0) || isNaN(p)) return { key:'mid', defaulted:true };
+    if (p < 10) return { key:'low', defaulted:false };
+    if (p <= 50) return { key:'mid', defaulted:false };
+    return { key:'high', defaulted:false };
+  }
+
+  function compute(dims, unitOz, price){
+    const inch = dims.map(c=>c/2.54).sort((a,b)=>b-a);
+    const [l,m,s] = inch;
+    const pb = priceBand(price);
+    const notes = [];
+    const fitsSmall = l<=15+EPS && m<=12+EPS && s<=0.75+EPS;
+    const fitsLarge = l<=18+EPS && m<=14+EPS && s<=8+EPS;
+    const dim = dimOz(dims);
+    let tier, shipOz, basis;
+
+    if (fitsSmall && (unitOz==null || unitOz <= 16+EPS)){
+      tier='small';
+      if (unitOz==null){
+        shipOz = rawDimOz(dims); basis='Estimate (no weight entered)';
+        notes.push({warn:true, text:'Small standard fees are billed on actual weight. This estimate uses dimensional weight instead.'});
+      } else { shipOz = unitOz; basis='Unit weight'; }
+    } else if (fitsLarge){
+      tier='large';
+      shipOz = Math.max(unitOz ?? 0, dim);
+      basis = (unitOz!=null && unitOz > dim) ? 'Unit weight' : 'Dimensional weight';
+      if (shipOz > TIERS.large.maxOz + EPS) tier = null;
+    } else tier = null;
+
+
+    if (!tier){
+      return { tier:null, inch, dim, unitOz, notes };
+    }
+    const band = bandOf(tier, shipOz, pb.key);
+    return { tier, inch, dim, unitOz, shipOz, basis, band, pb:pb.key, notes, price: pb.defaulted || !(price > 0) ? null : price };
+  }
+
+  /* ---------- rendering ---------- */
+  const improveCard = document.getElementById('improveCard');
+  const errBox = document.getElementById('error');
+  const sideNames = ['Length','Width','Height'];
+
+
+  const SEC_LABEL = 'Shrink to a cheaper tier';
+  function msg(html){ return `<div class="section-label">${SEC_LABEL}</div><div class="empty-msg">${html}</div>`; }
+  const fitsSmallDims = cm => { const s = cm.map(c=>c/2.54).sort((a,b)=>b-a); return s[0]<=15+EPS && s[1]<=12+EPS && s[2]<=0.75+EPS; };
+
+  // Tiers below the current one, down to the last one you can actually reach, capped at MAX_STEPS
+  // (going more than two tiers down is rarely feasible in practice).
+  const MAX_STEPS = 2;
+  function buildSteps(r, dims){
+    const steps = []; let stop = null; let b = r.band;
+    while (b.lower && steps.length < MAX_STEPS){
+      const tgt = b.lower.oz;
+      const step = { oz:tgt, label:b.lower.label, fee:b.lower.fee };
+      if (r.tier==='small'){
+        if (r.unitOz==null){ step.kind='noweight'; steps.push(step); break; }
+        step.kind='weight'; step.weightCut = r.unitOz - tgt;
+      } else {
+        if (r.unitOz!=null && r.unitOz > tgt + EPS){
+          if (!steps.length){ step.kind='weightbound'; step.weightCut = r.unitOz - tgt; steps.push(step); }
+          else stop = 'weight';
+          break;
+        }
+        step.sides = dims.map((d,i)=> solve(c => dimOz(dims.map((v,j)=> j===i ? v-c : v)), d-0.01, tgt));
+        step.all = solve(c => dimOz(dims.map(v=>v-c)), Math.min(...dims)-0.01, tgt);
+        if (step.sides.every(x=>x==null) && step.all==null){
+          if (!steps.length){ step.kind='unreachable'; steps.push(step); }
+          else stop = 'floor';
+          break;
+        }
+        step.kind='box';
+      }
+      steps.push(step);
+      b = bandOf(r.tier, tgt, r.pb);
+    }
+    return { steps, stop };
+  }
+
+  let S = null; // { r, dims, steps, stop, sel }   sel = -1 means "Now" (current package)
+
+  // The tier picked in the train, if it's one reached by shrinking the box. Drives the profitability chart.
+  function scenario(){
+    if (!S || S.sel < 0) return null;
+    const st = S.steps[S.sel];
+    return st && st.kind==='box' ? st : null;
+  }
+
+  function renderImprove(r, dims){
+    S = null;
+    if (!r.tier){ improveCard.innerHTML = msg('Shrink suggestions are only available for small and large standard packages.'); return; }
+    if (r.tier==='small'){ improveCard.innerHTML = msg('Small standard fees are billed on actual weight, so a smaller box won\'t lower the fee.'); return; }
+    if (!r.band.lower){ improveCard.innerHTML = msg(`You're already in the lowest weight tier for ${TIERS[r.tier].name.toLowerCase()} (<strong>${r.band.label}</strong>).`); return; }
+    const { steps, stop } = buildSteps(r, dims);
+    S = { r, dims, steps, stop, sel:-1 };
+    drawImprove();
+  }
+
+  function cutTable(step, dims, r){
+    const smallTag = cm => (r.unitOz==null || r.unitOz<=16+EPS) && fitsSmallDims(cm) ? '<small style="display:block;color:var(--warn-text);font-size:.72rem;font-weight:400">Would fit small standard size</small>' : '';
+    const rows = dims.map((d,i)=>{
+      const x = step.sides[i];
+      if (x==null) return `<tr><td><span class="side-name">${sideNames[i]}</span></td><td class="num">${d} cm</td><td class="cut na" colspan="2">Not reachable with this side alone.</td></tr>`;
+      const c = ceil2(x);
+      const nd = dims.map((v,j)=> j===i ? v-c : v);
+      return `<tr><td><span class="side-name">${sideNames[i]}</span></td><td class="num">${d} cm</td><td class="num cut">−${c.toFixed(2)} cm</td><td class="num">${(d-c).toFixed(2)} cm${smallTag(nd)}</td></tr>`;
+    }).join('');
+    let allRow;
+    if (step.all==null){
+      allRow = `<tr class="all"><td>All three sides</td><td class="num">—</td><td class="cut na" colspan="2">Not reachable.</td></tr>`;
+    } else {
+      const c = ceil2(step.all);
+      const nd = dims.map(v=>v-c);
+      allRow = `<tr class="all"><td>All three sides<small style="display:block;color:var(--muted);font-weight:400;font-size:.75rem">same cut on each</small></td><td class="num">—</td><td class="num cut">−${c.toFixed(2)} cm each</td><td class="num">${nd.map(v=>v.toFixed(2)).join(' × ')}${smallTag(nd)}</td></tr>`;
+    }
+    return `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Side</th><th class="num">Now</th><th class="num">Minimum cut</th><th class="num">New size (cm)</th></tr></thead>
+          <tbody>${rows}${allRow}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // Tier-line stops (Now + cheaper tiers). Shared by the shrink section and the mini line next to the retail price.
+  function trainNodes(){
+    const { r, steps, sel } = S;
+    const last = steps.length - 1;
+    const bestOk = ['box','weight'].includes(steps[last].kind);
+    return [`<li class="now passed${sel===-1?' sel':''}"><button type="button" class="stop" data-i="-1" aria-current="${sel===-1}" aria-label="Current tier, ${r.band.label}, ${money(r.band.fee)}"><span class="dot"></span><span class="s-fee">${money(r.band.fee)}</span><span class="s-tier">${r.band.label}</span><span class="s-tag">Now</span></button></li>`]
+      .concat(steps.map((s,i)=>{
+        const cls = [i<=sel?'passed':'', i===sel?'sel':'', (i===last && bestOk)?'best':''].join(' ');
+        const tag = (i===last && bestOk) ? 'Best' : '';
+        return `<li class="${cls}"><button type="button" class="stop" data-i="${i}" aria-current="${i===sel}" aria-label="${s.label}, ${money(s.fee)}"><span class="dot"></span><span class="s-fee">${money(s.fee)}</span><span class="s-tier">${s.label}</span><span class="s-tag">${tag}</span></button></li>`;
+      })).join('');
+  }
+
+  function drawImprove(focusSel){
+    const { r, dims, steps, stop, sel } = S;
+    const step = steps[sel];
+    const last = steps.length - 1;
+    const nodes = trainNodes();
+
+    let body;
+    if (sel===-1) body = '';
+    else if (step.kind==='noweight') body = `<div class="empty-msg">Small standard fees are billed on actual weight, so a smaller box won't lower the fee.</div>`;
+    else if (step.kind==='weight') body = `<div class="empty-msg">Small standard fees use unit weight only, so a smaller box won't change the fee. Cut at least <strong>${oz2(step.weightCut)}</strong> of product or packaging weight to reach this tier.</div>`;
+    else if (step.kind==='weightbound') body = `<div class="empty-msg">Your unit weight (${oz2(r.unitOz)}) is already above ${oz2(step.oz)}, so shrinking the box can't drop the tier. You'd need to cut at least <strong>${oz2(step.weightCut)}</strong> of weight.</div>`;
+    else if (step.kind==='unreachable') body = `<div class="empty-msg">Shrinking the box can't reach this tier.</div>`;
+    else body = cutTable(step, dims, r);
+
+    let endNote = '';
+    if (sel===last && stop==='weight') endNote = ` Lower tiers need a lighter package: your unit weight is ${oz2(r.unitOz)}.`;
+    else if (sel===last && stop==='floor') endNote = ` Lower tiers can't be reached by shrinking the box.`;
+    const hint = sel===-1 ? '' : step.kind==='box'
+      ? `<p class="hint">Cuts are rounded up to 0.01 cm and put you exactly at the tier line. Amazon measures the box itself, so leave a few millimetres of margin.${endNote}</p>`
+      : (endNote ? `<p class="hint">${endNote.trim()}</p>` : '');
+
+    // Savings at the selected tier: fee drop plus the cheaper sea/air freight of the smaller box.
+    let detail;
+    if (sel===-1){
+      detail = `<div class="empty-msg">You're looking at your <strong>current package</strong> (${r.band.label}, ${money(r.band.fee)}). Press → or pick a cheaper tier to see the box cuts and how the profitability chart changes.</div>`;
+    } else {
+      const shipSave = step.kind==='box' ? (volKgOf(dims) - volKgOf(dims, step)) * A.shipRmbKg / A.fx : 0;
+      const save = (r.band.fee - step.fee)*(1 + A.fuel/100) + shipSave;   // fee drop incl. its fuel surcharge
+      detail = `
+      <div class="target">
+        <div><div class="t-label">Selected tier</div><div class="t-val">${step.label}</div></div>
+        <div><div class="t-label">New fee</div><div class="t-val">${money(step.fee)}<span class="save">Save ${money(save)}${shipSave>0.005?' incl. shipping':''}${r.price ? ` (+${(save/r.price*100).toFixed(1)}% margin)` : '/unit'}</span></div></div>
+        <div><div class="t-label">Target shipping weight</div><div class="t-val">≤ ${oz2(step.oz)} <small style="color:var(--muted);font-weight:400">now ${oz2(r.shipOz)}</small></div></div>
+      </div>
+      <div style="margin-top:1rem">${body}</div>`;
+    }
+
+    improveCard.innerHTML = `
+      <div class="section-label">${SEC_LABEL}</div>
+      <div class="train-nav">
+        <button type="button" class="arrow" id="prevT" aria-label="Previous tier" ${sel===-1?'disabled':''}>←</button>
+        <div class="train-scroll" id="trainScroll"><ol class="train">${nodes}</ol></div>
+        <button type="button" class="arrow" id="nextT" aria-label="Next cheaper tier" ${sel===last?'disabled':''}>→</button>
+      </div>
+      ${detail}
+      ${hint}`;
+
+    const sc = document.getElementById('trainScroll');
+    const selNode = sc.querySelector('li.sel');
+    if (selNode) sc.scrollLeft = selNode.offsetLeft - sc.clientWidth/2 + selNode.offsetWidth/2;
+    if (focusSel){
+      const el = focusSel==='stop' ? sc.querySelector('li.sel .stop') : document.getElementById(focusSel);
+      if (el && !el.disabled) el.focus(); else sc.querySelector('li.sel .stop')?.focus();
+    }
+  }
+
+  function selectStep(i, focus){
+    if (!S) return;
+    const n = Math.max(-1, Math.min(S.steps.length-1, i));
+    if (n===S.sel && !focus) return;
+    S.sel = n; drawImprove(focus);
+    renderProfit();
+  }
+  improveCard.addEventListener('click', e=>{
+    if (!S) return;
+    if (e.target.closest('#prevT')) return selectStep(S.sel-1, 'prevT');
+    if (e.target.closest('#nextT')) return selectStep(S.sel+1, 'nextT');
+    const b = e.target.closest('button.stop');
+    if (b) selectStep(+b.dataset.i, 'stop');
+  });
+  improveCard.addEventListener('keydown', e=>{
+    if (!S || !e.target.closest('.train-nav')) return;
+    if (e.key==='ArrowRight'){ e.preventDefault(); selectStep(S.sel+1, 'stop'); }
+    if (e.key==='ArrowLeft'){ e.preventDefault(); selectStep(S.sel-1, 'stop'); }
+    if (e.key==='Home'){ e.preventDefault(); selectStep(-1, 'stop'); }
+    if (e.key==='End'){ e.preventDefault(); selectStep(S.steps.length-1, 'stop'); }
+  });
+
+
+  /* ---------- fee reference table ---------- */
+  function renderFeeTable(r){
+    const curKey = r && r.tier ? (TIERS[r.tier].labels.includes(r.band.label) ? r.tier+'-'+TIERS[r.tier].labels.indexOf(r.band.label) : 'large-over') : null;
+    const pb = r && r.tier ? r.pb : null;
+    const cols = ['low','mid','high'];
+    let h = `<thead><tr><th>Size tier</th><th>Shipping weight</th>${cols.map(c=>`<th class="num${c===pb?' cur-col':''}">${c==='low'?'&lt;$10':c==='mid'?'$10–$50':'&gt;$50'}</th>`).join('')}</tr></thead><tbody>`;
+    const row = (key, tierCell, label, vals) => `<tr class="${key===curKey?'cur':''}">${tierCell}<td class="wt">${label}</td>${cols.map((c,j)=>`<td class="num${key===curKey&&c===pb?' cur-cell':''}">${vals[j]}</td>`).join('')}</tr>`;
+    ['small','large'].forEach(t=>{
+      const T = TIERS[t], n = T.labels.length + (t==='large'?1:0);
+      T.labels.forEach((lab,i)=>{
+        h += row(t+'-'+i, i===0?`<td class="tier" rowspan="${n}">${T.name}</td>`:'', lab, cols.map(c=>money(T.fees[c][i])));
+      });
+      if (t==='large') h += row('large-over','', '3+ lb to 20 lb', cols.map(c=>`${money(T.over[c])} + $0.08 per 4 oz above 3 lb`));
+    });
+    document.getElementById('feeTable').innerHTML = h + '</tbody>';
+  }
+
+  /* ---------- assumptions ---------- */
+  const DEFAULTS = { fx:6.7, shipRmbKg:6, fuel:3.5, comm:15, ads:12, wh:5, target:18 };
+  const SET_FIELDS = [
+    ['fx','RMB / USD exchange rate','0.01'],
+    ['shipRmbKg','Shipping cost (RMB / kg)','0.1'],
+    ['fuel','FBA fuel surcharge (% of fee)','0.1'],
+    ['comm','Amazon commission (%)','0.5'],
+    ['ads','Ad budget (%)','0.5'],
+    ['wh','Warehousing / returns (%)','0.5'],
+    ['target','Target gross margin (%)','0.5']
+  ];
+  const LS_KEY = 'fbaProfitAssumptions';
+  let A = { ...DEFAULTS };
+  try { const saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (saved) for (const k in DEFAULTS) if (typeof saved[k]==='number' && isFinite(saved[k])) A[k] = saved[k]; } catch(e){}
+  function saveA(){ try { localStorage.setItem(LS_KEY, JSON.stringify(A)); } catch(e){} }
+
+  const setGrid = document.getElementById('setGrid');
+  function drawSettings(){
+    setGrid.innerHTML = SET_FIELDS.map(([k,lab,st])=>`<label for="set-${k}">${lab}</label><input type="number" min="0" step="${st}" id="set-${k}" data-k="${k}" class="form-control" value="${A[k]}">`).join('');
+  }
+  drawSettings();
+  setGrid.addEventListener('input', e=>{
+    const k = e.target.dataset.k; if (!k) return;
+    const v = parseFloat(e.target.value);
+    if (!(v >= 0) || (k==='fx' && v===0)) return; // ignore incomplete/invalid entries
+    A[k] = v; saveA(); refreshProfit();
+  });
+  const gearBtn = document.getElementById('gearBtn'), settingsEl = document.getElementById('settings');
+  function toggleSettings(open){ settingsEl.hidden = !open; gearBtn.setAttribute('aria-expanded', open); if (open) setGrid.querySelector('input').focus(); }
+  gearBtn.addEventListener('click', ()=> toggleSettings(settingsEl.hidden));
+  document.addEventListener('click', e=>{ if (!settingsEl.hidden && !e.target.closest('.gear-wrap')) toggleSettings(false); });
+  document.addEventListener('keydown', e=>{ if (e.key==='Escape' && !settingsEl.hidden){ toggleSettings(false); gearBtn.focus(); } });
+  document.getElementById('resetSet').addEventListener('click', ()=>{ A = { ...DEFAULTS }; saveA(); drawSettings(); refreshProfit(); });
+
+  /* ---------- profitability ---------- */
+  // All per-unit costs in USD at a given retail price.
+  // Volumetric shipping weight (kg, L×W×H ÷ 5000). With a shrink scenario, the box is cut until its
+  // dimensional weight sits exactly on the target tier line, so its volume (and freight cost) is fixed by that line,
+  // whichever side(s) you cut.
+  function volKgOf(dims, scen){
+    const cm3 = scen ? scen.oz/16 * 139 * Math.pow(2.54,3) : dims[0]*dims[1]*dims[2];
+    return cm3/5000;
+  }
+
+  // All per-unit costs in USD at a given retail price. `scen` (optional) = a selected cheaper tier { oz, label }.
+  function costsAt(dims, unitRmb, price, scen){
+    const r = compute(dims, null, price);
+    if (!r.tier) return null;
+    const volKg = volKgOf(dims, scen);
+    const c = {
+      r, volKg, scen: scen || null,
+      unit: unitRmb / A.fx,
+      ship: volKg * A.shipRmbKg / A.fx,
+      fee: scen ? bandOf(r.tier, scen.oz, r.pb).fee : r.band.fee,
+      comm: price * A.comm/100,
+      ads: price * A.ads/100,
+      wh: price * A.wh/100
+    };
+    c.fuel = c.fee * A.fuel/100;   // fuel & logistics surcharge: % of the fulfillment fee (US, from Apr 17, 2026)
+    c.total = c.unit + c.ship + c.fee + c.fuel + c.comm + c.ads + c.wh;
+    c.margin = price - c.total;
+    c.pct = price > 0 ? c.margin / price : 0;
+    return c;
+  }
+
+  // Lowest price (to the cent) whose gross margin meets the target.
+  // The fulfillment fee depends on the price band, so solve per band and keep the first one that's consistent.
+  function minPrice(dims, unitRmb, scen){
+    const varPct = (A.comm + A.ads + A.wh + A.target)/100;
+    if (varPct >= 1) return { err:'Commission, ads, warehousing and target margin add up to 100% or more, so no price can reach the target.' };
+    const fixed = unitRmb/A.fx + volKgOf(dims, scen)*A.shipRmbKg/A.fx;
+    for (const probe of [5, 20, 60]){            // representative price in each band: <$10, $10–$50, >$50
+      const r = compute(dims, null, probe);
+      if (!r.tier) return { err:'oversize' };
+      const fee = scen ? bandOf(r.tier, scen.oz, r.pb).fee : r.band.fee;
+      let p = ceil2((fixed + fee*(1 + A.fuel/100))/(1 - varPct));
+      for (let k=0;k<3;k++){                     // confirm at the rounded price with that price's real fee
+        const c = costsAt(dims, unitRmb, p, scen);
+        if (c.pct >= A.target/100 - 1e-9) return { price:p };
+        p = ceil2(p + 0.01);
+      }
+    }
+    return { err:'No price found.' };
+  }
+
+  const COLORS = { unit:'#991b1b', ship:'#dc2626', fee:'#ea580c', fuel:'#f97316', comm:'#f59e0b', ads:'#fbbf24', wh:'#fde047', margin:'#10b981', loss:'#ef4444' };
+  const priceEl = document.getElementById('price');
+  const kpis = document.getElementById('kpis'), chartBox = document.getElementById('chartBox'), priceCap = document.getElementById('priceCap');
+  let P = null; // { dims, unitRmb, min }
+
+  let capMin = null; // minimum price shown in the caption (follows the selected tier); used by the Reset link
+
+  // Small caption under the price input: minimum price for the target margin at the selected size/weight tier,
+  // target status, and a reset link.
+  function drawPriceCap(price, ok, minP){
+    capMin = minP;
+    if (minP == null){ priceCap.hidden = true; return; }
+    const atMin = Math.abs(price - minP) < 0.005;
+    const pill = ok == null ? '' : `<span class="status ${ok?'ok':'no'}">${ok?'Meets target':'Below target'}</span>`;
+    priceCap.innerHTML = `<span>Min. <b>${money(minP)}</b> for ${fmtPct(A.target)} margin</span>${atMin ? '' : '<button type="button" class="linkbtn" id="useMin">Reset</button>'}${pill}`;
+    priceCap.hidden = false;
+  }
+
+  function renderProfit(){
+    if (!P){ kpis.innerHTML=''; priceCap.hidden = true; chartBox.innerHTML = `<div class="empty-msg">Enter unit cost and package size, then press <strong>Calculate</strong> to find the minimum price for your target margin.</div>`; return; }
+    if (P.min.err){
+      kpis.innerHTML=''; priceCap.hidden = true;
+      chartBox.innerHTML = `<div class="empty-msg">${P.min.err==='oversize' ? 'This package is outside standard size, so the fulfillment fee (and profitability) can\'t be calculated here.' : P.min.err}</div>`;
+      return;
+    }
+    const price = num('price');
+    const scen = scenario();
+    const minP = scen ? minPrice(P.dims, P.unitRmb, scen).price : P.min.price;
+    kpis.innerHTML = '';
+    if (!(price > 0)){ drawPriceCap(price, null, minP); chartBox.innerHTML = `<div class="empty-msg">Enter a retail price above $0 to see the breakdown.</div>`; return; }
+    const c = costsAt(P.dims, P.unitRmb, price, scen);
+    const base = scen ? costsAt(P.dims, P.unitRmb, price) : null;   // current package, for "was" values
+    const ok = c.pct >= A.target/100 - 1e-9;
+    drawPriceCap(price, ok, minP);
+    // FBA fee for the selected tier + a mini tier line synced with the shrink section's.
+    // Hovering the fee shows the shipping weight (oz under 1 lb, lb otherwise) and the fee as % of price.
+    const shipOz = scen ? scen.oz : c.r.shipOz;
+    const wtTxt = (scen ? '≤ ' : '') + (shipOz < 16 - EPS ? oz2(shipOz) : lb3(shipOz));
+    kpis.innerHTML = `
+      <div class="fee-sum">
+        <div class="fs-label">Fulfillment fee</div>
+        <div class="fs-fee"><span class="fs-num" tabindex="0" aria-describedby="fsTip">${money(c.fee)}<span class="fs-tip" id="fsTip" role="tooltip"><div>${wtTxt} <span>shipping weight</span></div><div>+${money(c.fuel)} <span>fuel surcharge (${fmtPct(A.fuel)})</span></div><div>${((c.fee+c.fuel)/price*100).toFixed(1)}% <span>of price incl. surcharge</span></div></span></span></div>
+        <div class="fs-sub"><span class="pill">${TIERS[c.r.tier].name}</span><span>${scen ? scen.label : c.r.band.label}</span></div>
+      </div>
+      ${S ? `<ol class="train mini" aria-label="Weight tier">${trainNodes()}</ol>` : ''}`;
+
+    const r = c.r;
+    const was = (k) => base && money(base[k]) !== money(c[k]) ? ` · was ${money(base[k])}` : '';
+    const rows = [
+      ['unit','Unit cost',`¥${P.unitRmb.toFixed(2)} ÷ ${A.fx}`, c.unit],
+      ['ship','Shipping to US',`${c.volKg.toFixed(2)} kg vol. × ¥${A.shipRmbKg}/kg${was('ship')}`, c.ship],
+      ['fee','Fulfillment fee',`${TIERS[r.tier].name} · ${scen ? scen.label : r.band.label}${was('fee')}`, c.fee],
+      ['fuel','Fuel & logistics surcharge',`${fmtPct(A.fuel)} of fulfillment fee${was('fuel')}`, c.fuel],
+      ['comm','Amazon commission',`${fmtPct(A.comm)} of price`, c.comm],
+      ['ads','Ad budget',`${fmtPct(A.ads)} of price`, c.ads],
+      ['wh','Warehousing / returns',`${fmtPct(A.wh)} of price`, c.wh]
+    ];
+    const scale = Math.max(price, c.total);
+    const W = v => (v/scale*100).toFixed(3)+'%';
+    const tPos = W(price*(1 - A.target/100));
+    const val = (v, cls='') => `<div class="c-val ${cls}"><b>${signMoney(v)}</b> <span>${(v<0?'−':'')+Math.abs(v/price*100).toFixed(1)}%</span></div>`;
+    let cum = 0, h = '';
+    h += `<div class="row price"><div class="c-label">Retail price</div><div class="c-track"><div class="bar" style="left:0;width:${W(price)}"></div></div><div class="c-val"><b>${money(price)}</b> <span>100%</span></div></div>`;
+    rows.forEach(([k,lab,sub,v],i)=>{
+      h += `<div class="row${i===0?' sep':''}"><div class="c-label">${lab}<small>${sub}</small></div><div class="c-track"><div class="bar" style="left:${W(cum)};width:${W(v)};background:${COLORS[k]}" title="${lab}: ${money(v)}"></div></div>${val(v)}</div>`;
+      cum += v;
+    });
+    const mLeft = Math.min(cum, price), mW = Math.abs(c.margin);
+    h += `<div class="row margin sep"><div class="c-label">Gross margin<small>target ${fmtPct(A.target)}</small></div><div class="c-track"><div class="bar" style="left:${W(mLeft)};width:${W(mW)};background:${c.margin>=0?COLORS.margin:COLORS.loss}"></div></div>${val(c.margin, c.margin>=0?'':'neg')}</div>`;
+    chartBox.innerHTML = `<div class="chart-wrap"><div class="chart" style="--t:${tPos}">${h}</div></div>`;
+  }
+  const fmtPct = v => (+v.toFixed(2)) + '%';
+  const signMoney = v => (v < 0 ? '−$' : '$') + Math.abs(v).toFixed(2);
+
+  // Re-render fee cards + chart for the current retail price.
+  function renderAll(){
+    if (!P) return;
+    const p = num('price');
+    const r = compute(P.dims, null, p > 0 ? p : NaN);
+    // Keep the selected tier when only the price or assumptions change.
+    const keep = S && S.sel >= 0 ? S.steps[S.sel].label : null;
+    renderImprove(r, P.dims);
+    if (S && keep){ const i = S.steps.findIndex(s => s.label === keep); if (i >= 0){ S.sel = i; drawImprove(); } }
+    renderFeeTable(r);
+    renderProfit();
+  }
+  // Assumptions changed: re-solve the minimum price, keep the user's retail price.
+  function refreshProfit(){
+    if (!P) return;
+    const wasMin = P.min.price != null && Math.abs(num('price') - P.min.price) < 0.005;
+    P.min = minPrice(P.dims, P.unitRmb);
+    if (wasMin && P.min.price != null) priceEl.value = P.min.price.toFixed(2);
+    renderAll();
+  }
+
+  /* ---------- inputs ---------- */
+  function num(id){ const v = document.getElementById(id).value.trim(); return v==='' ? NaN : parseFloat(v); }
+
+  function calculate(){
+    const dims = [num('len'), num('wid'), num('hgt')];
+    const unitRmb = num('unitRmb');
+    if (!(unitRmb >= 0)){ errBox.textContent = 'Enter a unit cost in RMB (0 or more).'; errBox.hidden = false; return; }
+    if (dims.some(d => !(d > 0))){
+      errBox.textContent = 'Enter a length, width and height greater than 0 cm.';
+      errBox.hidden = false; return;
+    }
+    errBox.hidden = true;
+    S = null; // new package: start back on the current tier
+    P = { dims, unitRmb, min: minPrice(dims, unitRmb) };
+    if (P.min.price != null) priceEl.value = P.min.price.toFixed(2);
+    renderAll();
+  }
+
+  priceEl.addEventListener('input', renderAll);
+  kpis.addEventListener('click', e=>{
+    const b = e.target.closest('button.stop'); if (!b || !S) return;
+    selectStep(+b.dataset.i);
+    kpis.querySelector('.mini li.sel .stop')?.focus();
+  });
+  kpis.addEventListener('keydown', e=>{
+    if (!S || !e.target.closest('.mini')) return;
+    const go = {ArrowRight:S.sel+1, ArrowLeft:S.sel-1, Home:-1, End:S.steps.length-1}[e.key];
+    if (go === undefined) return;
+    e.preventDefault(); selectStep(go); kpis.querySelector('.mini li.sel .stop')?.focus();
+  });
+  // ← / → anywhere on the page steps through the tiers (unless typing in a field or the settings panel is open).
+  document.addEventListener('keydown', e=>{
+    if (e.defaultPrevented || !S || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (e.key!=='ArrowRight' && e.key!=='ArrowLeft') return;
+    if (e.target.closest('input, textarea, select, [contenteditable]') || !settingsEl.hidden) return;
+    e.preventDefault();
+    selectStep(S.sel + (e.key==='ArrowRight' ? 1 : -1));
+  });
+  priceCap.addEventListener('click', e=>{ if (e.target.closest('#useMin') && P && capMin != null){ priceEl.value = capMin.toFixed(2); renderAll(); priceEl.focus(); } });
+  document.getElementById('calcBtn').addEventListener('click', calculate);
+  document.getElementById('form').addEventListener('submit', e=>{ e.preventDefault(); calculate(); });
+  document.getElementById('clearBtn').addEventListener('click', ()=>{
+    ['unitRmb','len','wid','hgt','price'].forEach(id=>document.getElementById(id).value='');
+    errBox.hidden = true; P = null;
+    renderFeeTable(null); renderProfit();
+    improveCard.innerHTML = msg('Shrink suggestions appear here after you calculate.');
+    document.getElementById('unitRmb').focus();
+  });
+
+  /* ---------- fee season ---------- */
+  const seasonSwitch = document.getElementById('seasonSwitch');
+  function drawSeason(){
+    seasonSwitch.setAttribute('aria-checked', SEASON === 'peak');
+    const s = SEASONS[SEASON];
+    document.getElementById('seasonSub').textContent = `US ${s.name} fees, ${s.range} · excluding apparel`;
+    document.getElementById('refSub').textContent = `US ${s.name}, ${s.range} · excluding apparel`;
+  }
+  seasonSwitch.addEventListener('click', ()=>{
+    SEASON = SEASON === 'peak' ? 'nonpeak' : 'peak'; drawSeason();
+    if (P) refreshProfit(); else renderFeeTable(null);   // re-solve min price; keep a custom retail price
+  });
+  drawSeason();
+
+  window.__fba = { setSeason:s=>{ SEASON=s; drawSeason(); refreshProfit(); }, compute, dimOz, solve, bandOf, costsAt, minPrice, A:()=>A };
+  calculate();
+})();
+</script>
+
+</body></html>
