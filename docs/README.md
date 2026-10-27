@@ -21,9 +21,9 @@ opens the browser. Close the console window to stop the server. Use Chrome or Ed
 启动.bat
 app/
   server.py            static files + JSON API (below)
-  index.html           Hub: main table, 报价 panel, 下单 pop-up, image viewer, Settings modal (tabs 通用 / 报价 / 下单 / 工厂 / 上架)
+  index.html           Hub: main table, 报价 panel, 下单 pop-up, image viewer (图片 and 样品 modes), Settings modal (tabs 通用 / 报价 / 下单 / 工厂 / 上架)
   tools/step1..3.html  copies of the original tools, adapted for embedded mode   (stages 2–4)
-  tools/pricing-detail.html  copy of Updated Pricing.html: the 报价 → 查看详情 pop-up (what-if, never saves)
+  tools/pricing-detail.html  copy of Pricer Updated.html: the 报价 → 查看详情 pop-up (what-if, never saves)
   tools/vendor/        exceljs.min.js, moved out of the Step 2 original unchanged
   shared/
     theme.css          tokens and components copied from the existing tools' :root
@@ -32,8 +32,8 @@ app/
     rows.js            status order, journey state, stage() sort tier, filter + sort (hub and sidebar)
     embed.js           iframe ↔ parent postMessage (resize, settings-changed, load-row, events)
     crop.js            square image positions (thumbCrop / crop): pan, zoom, render — hub and Step 2
-    pricing.js         报价 price calculation (Updated Pricing.html's fee / minimum-price logic, copied unchanged;
-                       computeRow wraps it) — Step 1 and the 下单计划 picker
+    pricing.js         报价 price calculation (Pricer Updated.html's fee / minimum-price logic, copied unchanged;
+                       computeRow wraps it and sets the season) — Step 1 and the 下单计划 picker
     datepicker.js      small popover calendar that can open on a given month
     combo.js           type-to-filter dropdown on a text input (existing values only; optional '+ 添加「X」' for 工厂)
     pinyin.js          pinyin matching for combo.js (shi / shimu / sm → 实木), ~5 KB, no dictionary
@@ -42,8 +42,8 @@ data/                  the saved data; back up this folder to back up everything
 下单计划/<product>/      Step 2 outputs: one folder per product (meta.orderFolder); the files are the record
 下单计划 Order Forms/    examples from before 2026-09-29; no longer used
 Step 1/2/3 - *.html    ORIGINALS: never edit; they are the reference implementation
-Updated Pricing.html   ORIGINAL: the Step 1 pricing reference since 2026-10-14 (Step 1 - Price Quotes (outdated).html
-                       is kept for history only)
+Pricer Updated.html    ORIGINAL: the Step 1 pricing reference since 2026-10-27 (peak fees + 3.5% fuel surcharge).
+                       Old Pricing.html (the 2026-10-14 reference) and Step 1 - Price Quotes (outdated).html are kept for history only
 ```
 
 ### Server API
@@ -65,16 +65,26 @@ browser.
 settings.json         { categories:["XK","MUG"], materials:["树脂","金属","实木","陶瓷","塑料"],
                         factories:[{name, taxRate, category, material}]   (工厂 list in a fixed order, new ones at the end; '' = not set),
                         rowFactoriesFilled   (the one-time 工厂 fill of existing rows ran; no longer used)
-                        step1:{fx,shipRmbKg,comm,ads,wh,target}   (Updated Pricing's Assumptions; older
+                        step1:{fx,shipRmbKg,fuel,comm,ads,wh,target}   (Pricer Updated's Assumptions; fuel missing → 3.5; older
                           {exchangeRate,shippingPrice,…} loads as fx / shipRmbKg, the rest dropped — api.settings()),
                         step2:{operator,store}, step3:{targetDays:90, invTargetDays:180} }
 rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, status, liveDate,
-                        step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt, orderFolder }
+                        step1Confirmed, deliveryDate, thumb, thumbCrop, imgCount, createdAt, orderFolder,
+                        samples, productNotes }
+                      上架 → 样品: productNotes = 产品备注 (one per product); samples = [{id, title, note, ok, crop?, proto?}] per sample
+                      photo, in photo order (its title, notes, 样品通过, square position — shared/crop.js, none = the whole
+                      photo — and linked prototype: proto = a fingerprint (hash) of that 图片's data URL, since 图片 have no ids
+                      and get reordered; the 上架 pill's mark reads samples, so the table never loads the photos). Rows saved
+                      by the first version (2026-10-19) have sampleOk / sampleCount instead: loading the photos replaces them
+                      (sampleOk is dropped, every photo starts unapproved)
                       orderFolder = the product's folder in 下单计划/, named after the product the first time it is
                       needed and never renamed (a clash with another row adds " 2")
-rows/<id>/step1.json  { rows:[{sku,price,l,w,h}] }
+rows/<id>/step1.json  { rows:[{sku,price,l,w,h}], specs, peak }   peak = the 旺季 switch (missing = non-peak)
 rows/<id>/images.json { main:{url,w,h}, extra:[{url,w,h,crop}] }  the row's images: main + up to 8 more (image viewer,
                       下单计划 picker)
+rows/<id>/samples.json { images:[{id,url,w,h}] }  the row's sample photos (up to 9; the 样品 viewer only), never
+                      rewritten while typing. No 主图, no positions; independent of images.json. Photos without an id
+                      (first version) get one when first loaded
 rows/<id>/order-qty.json { qty:{<尺寸 / 规格, lower-case>: 下单数量} }  the picker's remembered 下单数量 per 报价 line (hub writes it)
 rows/<id>/order-files.json { files:{<file name>:{submitted, deliveryDate}} }  the 已下单 marks of the row's Excel files (hub
                       writes it); deliveryDate = the form's 交货日期 when that file was generated. Keyed by name: a file
@@ -111,12 +121,13 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
   ('' when none). The dropdown can always override the status. (生产中 was removed on 2026-09-29; a stored 生产中 loads as 已下单.)
 - Journey steps are **报价 — 下单 — 上架**. A step is:
   - **done**: 报价 when `step1Confirmed` (set by 保存 in the 报价 panel); 下单 when status ≥ 已下单; 上架 when status = 已上架
+    (样品通过 never changes it)
   - **next**: the first step that isn't done
   - **locked**: 下单 until 报价 is done; 上架 until 下单 is done
 - Sort tier `ROWS.stage(r)` = furthest step reached: 0 待报价 · 1 报价✓ · 2 已下单 · 3 已上架 (status wins, so
   已下单 without 报价 is tier 2). Within a tier a row that skipped 报价 sorts first (less progress): the sort key
   is `ROWS.progress(r)` = stage × 2 + (报价 done ? 1 : 0).
-- Soft lock: clicking a locked step shows `confirm('前一步未完成，仍要打开？')` and then opens it. The 下单
+- Soft lock: clicking a locked 下单 shows `confirm('前一步未完成，仍要打开？')` and then opens it (上架 = the 样品 viewer never asks, S1). The 下单
   pop-up's ← → don't ask; its header shows `报价未完成` instead.
 - ~~The 上架时间 date is always typed by hand. The picker opens on `deliveryDate + liveOffsetDays`, or
   the current month if there's no delivery date.~~ *(Changed 2026-10-16: the table column is 交货日期 = `deliveryDate`,
@@ -165,6 +176,23 @@ were reset on 2026-09-29 (moved to `data/_backup-orders-2026-09-29/`); the Excel
 | G6 | Clicking a category header (`XK 5 个`) collapses / expands its rows; **全部收起 / 全部展开** at the right of the filter bar does all groups. Session only (a reload shows everything). Filters and search don't auto-expand (the header count still shows the matches). Collapsing a group closes a 报价 panel open inside it; adding a row, or a SKU / 类目 change that moves a row into a collapsed group, expands that group. The image viewer's ← → skip collapsed groups. *(2026-09-29)* |
 | G7 | A click on a row's blank space toggles 报价, except within 1px of a field, button or sub-line (near misses), and only when press and release are on the same spot, once per double-click, and not when the click only closes a date picker / dropdown or leaves a text box. The 报价 pill always toggles. *(2026-09-29)* |
 | G8 | A row whose 报价 panel is open keeps its sort position until the panel has closed, then moves. A row that lands in a new spot after a stage / 上架时间 change flashes briefly (`moveRow` / `flashRow` in index.html). *(2026-09-29)* |
+
+### 上架 → 样品 (scoping, 2026-10-19)
+Checking received samples against the prototype before a product ships. Everything happens in the image viewer's **样品
+mode**; there is no expanded row for 上架 (an in-row 样品 panel existed for a day and was removed: the viewer was more useful).
+| # | Decision |
+|---|---|
+| S1 | Clicking **上架** opens the image viewer in 样品 mode on the photo it last showed (this session). No soft lock (samples often come before the order). Step 3 inventory ([stage-4-step3.md](stage-4-step3.md)) is still to be placed |
+| S2 | Only 报价 expands under its row; its pill is ringed while open |
+| S3 | A row's blank-space click (G7) always toggles 报价, whatever the status; the 样品 viewer opens only from the 上架 pill |
+| S4 | Up to 9 sample photos (`samples.json`). With none, the big frame is the upload area (click, paste or drop): ‹ › and ← → step photos (never rows; not while typing), + tile, paste / drop anywhere in the viewer adds, per-photo delete (the last one too; its title, notes, mark and link go with it). No 主图 / 设为主图 / paste hint |
+| S5 | Each photo has a **title** (`samples[i].title`, e.g. `蓝色 4x6`; empty → grey `样品 n`): the big title top right, `<product> · <SKU>` on the grey line under it. Click to edit; Enter / click away keeps it, Esc cancels |
+| S6 | Each photo has its own **notes** (`samples[i].note`, `样品备注（<title or 第 n 张>）` under the grid), autosaved with the row. **产品备注** (`productNotes`, one per product, e.g. when the samples should arrive) sits under 原型图, shown with or without photos. *(The panel's 总备注 was removed with its saved text on 2026-10-19; 产品备注 replaced it the same day, starting empty)* |
+| S7 | Mark on the 上架 pill: none = no photos · yellow = photos, not all approved · green = **every** photo approved. The pill's tooltip says `已收样，已通过 k / N` |
+| S8 | **样品通过** toggles the shown photo, no confirm: light green with a green border (`✓ 样品通过`) until approved, then solid green (`✓ 已通过`). Grid tiles show no mark (a ✓ badge was tried and removed). Status, sort order and the journey don't change |
+| S9 | The first version's row-level 样品通过 was dropped (all photos started unapproved) |
+| S10 | Every sample photo has its own square position (`samples[i].crop`), as the row's 图片: press + drag moves, Ctrl + wheel zooms around the pointer, saved automatically; grid tiles show each square. A photo starts **whole** (zoomed out, white padding) |
+| S12 | **原型图** (under the notes) = all of the row's 图片 (主图 first, tagged 主图), at their 图片 positions, view only. Clicking one **links it to the shown sample** (`samples[i].proto`) and shows them side by side: the sample left (still movable / zoomable), the prototype right (view only), each labelled; clicking another re-links. Each sample shows its own prototype as you step; an unlinked sample shows the single frame. × on the prototype, or the highlighted tile again, removes the link; Esc just closes the viewer. A deleted / replaced 图片 leaves its samples unlinked; 设为主图 keeps links (the link is a fingerprint of the image, not its position) |
 
 ### 材质 (2026-09-29)
 | # | Decision |
@@ -216,6 +244,14 @@ a new one is built in a picker (images × 报价 lines) as one 货号 card with 
 | P3 | Outside small / large standard: `⚠ 超出标准尺寸`, no 尾程 / 成本 / 售价. 佣金 + 广告 + 仓储 + 目标 ≥ 100%: `无解` |
 | P4 | Settings → 报价 = Updated Pricing's Assumptions: 汇率 · 头程 ￥/kg · 佣金 % · 广告 % · 仓储/退货 % · 目标毛利率 % (6.7 / 6 / 15 / 12 / 5 / 18) |
 | P5 | **查看详情** (where 导入 was) opens `tools/pricing-detail.html` over the hub for the table's lines with L/W/H, ‹ › between lines (buttons only; ← → in the tool step tiers). A what-if sandbox: it starts from the line and 设置 → 报价; edits (inputs, ⚙ assumptions) stay in the pop-up and are kept across ‹ ›, gone on close. × / Esc / backdrop close |
+
+### 报价 = Pricer Updated (2026-10-27): peak season + fuel surcharge
+| # | Decision |
+|---|---|
+| P6 | `shared/pricing.js` and `tools/pricing-detail.html` follow `Pricer Updated.html`: non-peak and peak fee tables (peak = Oct 15 – Jan 14) and a fuel & logistics surcharge (% of the FBA fee, 3.5% since 2026-04-17) in 成本 and the minimum price. Logic copied unchanged |
+| P7 | **旺季** switch left of 查看详情, per product: saved in `step1.json` (`peak`) and the 售价计算 file; starts off (non-peak) for new / older tables. The 下单计划 picker's 建议售价 uses the product's season; 查看详情 opens in it (its own Peak switch then works as a what-if) |
+| P8 | 尾程运费 = FBA fee + fuel surcharge (one column); its tooltip shows the season, base fee and surcharge. 成本 = 工厂价$ + 头程 + 尾程 |
+| P9 | Settings → 报价 adds **FBA 燃油附加费 (%)** (default 3.5), live like the other assumptions; settings saved before it load with 3.5 |
 
 **Out of scope for now:** Amazon upload templates, price preview in the collapsed row, bundling
 several rows into one Excel, Step 3 numbers in the main table.

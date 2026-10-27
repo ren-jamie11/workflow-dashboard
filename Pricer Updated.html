@@ -70,6 +70,13 @@ h1{font-size:1.4rem;font-weight:600;color:var(--primary);margin:0;text-wrap:bala
 .btn-ghost{background:var(--surface);color:var(--muted);border:1px solid var(--line)}
 .btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
 .btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus)}
+.season{margin-left:auto;display:flex;align-items:center;gap:.6rem}
+.season-label{font-size:.88rem;font-weight:500;color:var(--muted);cursor:pointer;user-select:none}
+.switch{position:relative;flex:none;width:44px;height:24px;padding:0;border:none;border-radius:999px;background:var(--faint);cursor:pointer;transition:background .2s}
+.switch .knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--primary)}
+.switch[aria-checked="true"] .knob{transform:translateX(20px)}
+.switch:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus)}
 .error{font-size:.85rem;color:var(--bad-text);background:var(--bad-bg);border-radius:8px;padding:.5rem .75rem}
 
 /* results */
@@ -246,7 +253,7 @@ table.fees td.cur-cell{font-weight:700;color:var(--cost)}
     <div class="card-header">
       <h1>FBA Profitability Calculator</h1>
       <div class="head-right">
-        <span class="sub">US non-peak fees, Jan 15 – Oct 14, 2026 · excluding apparel</span>
+        <span class="sub" id="seasonSub">US non-peak fees, Jan 15 – Oct 14, 2026 · excluding apparel</span>
         <div class="gear-wrap">
           <button type="button" class="gear" id="gearBtn" aria-label="Assumptions" aria-expanded="false" aria-controls="settings" title="Assumptions">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -283,6 +290,10 @@ table.fees td.cur-cell{font-weight:700;color:var(--cost)}
     <div class="actions">
       <button type="button" class="btn btn-primary" id="calcBtn">Calculate</button>
       <button type="button" class="btn btn-ghost" id="clearBtn">Clear</button>
+      <div class="season">
+        <label class="season-label" id="seasonLabel" for="seasonSwitch">Peak</label>
+        <button type="button" class="switch" id="seasonSwitch" role="switch" aria-checked="false" aria-labelledby="seasonLabel" title="Peak fees: Oct 15 – Jan 14"><span class="knob"></span></button>
+      </div>
     </div>
     <div class="error" id="error" hidden style="margin-top:1rem"></div>
   </div>
@@ -302,13 +313,13 @@ table.fees td.cur-cell{font-weight:700;color:var(--cost)}
     </section>
     <section class="card" id="improveCard" aria-live="polite"></section>
     <details class="card ref" id="refTable">
-      <summary><span>Fee table reference</span><span class="ref-sub">US non-peak, Jan 15 – Oct 14, 2026 · excluding apparel</span></summary>
+      <summary><span>Fee table reference</span><span class="ref-sub" id="refSub">US non-peak, Jan 15 – Oct 14, 2026 · excluding apparel</span></summary>
       <div class="table-wrap ref-wrap"><table class="fees" id="feeTable"></table></div>
-      <p class="hint">Fuel and logistics-related surcharge not included. Your current tier is highlighted.</p>
+      <p class="hint">Amazon's published base rates. The fuel and logistics-related surcharge (3.5% of the fee since Apr 17, 2026; adjustable in Assumptions) is added on top in the profitability and savings figures. Your current tier is highlighted.</p>
     </details>
   </div>
 
-  <p class="foot">Sources: <a href="https://sellercentral.amazon.com/help/hub/reference/external/GABBX6GZPA8MSZGW" target="_blank" rel="noopener">2026 US FBA fulfillment fee changes</a> and <a href="https://sellercentral.amazon.com/help/hub/reference/external/GG5KW835AHDJCH8W" target="_blank" rel="noopener">Product size tiers</a> (Amazon Seller Central). Dimensional weight = length × width × height (in) ÷ 139. Fees here assume dimensional weight is at least the actual weight; Amazon bills large standard on whichever is higher.</p>
+  <p class="foot">Sources: <a href="https://sellercentral.amazon.com/help/hub/reference/external/GABBX6GZPA8MSZGW" target="_blank" rel="noopener">2026 US FBA fulfillment fee changes</a> and <a href="https://sellercentral.amazon.com/help/hub/reference/external/GG5KW835AHDJCH8W" target="_blank" rel="noopener">Product size tiers</a> (Amazon Seller Central). Dimensional weight = length × width × height (in) ÷ 139. Fees here assume dimensional weight is at least the actual weight; Amazon bills large standard on whichever is higher. From Apr 17, 2026 a 3.5% fuel and logistics-related surcharge applies to US FBA fulfillment fees; costs, minimum price and shrink savings include it.</p>
 </div>
 
 <script>
@@ -316,27 +327,55 @@ table.fees td.cur-cell{font-weight:700;color:var(--cost)}
   const EPS = 1e-6;
   const OZ_PER = { oz:1, lb:16, kg:35.27396195, g:0.03527396195 };
 
+  // Fee season. Peak runs Oct 15 – Jan 14.
+  const SEASONS = {
+    nonpeak:{ name:'non-peak', range:'Jan 15 – Oct 14, 2026' },
+    peak:   { name:'peak',     range:'Oct 15, 2026 – Jan 14, 2027' }
+  };
+  let SEASON = 'nonpeak';   // Peak switch starts off
+
+  // `fees` / `over` always return the rates for the selected SEASON.
   const TIERS = {
     small: {
       name:'Small standard',
       limits:[2,4,6,8,10,12,14,16],
       labels:['2 oz or less','2+ to 4 oz','4+ to 6 oz','6+ to 8 oz','8+ to 10 oz','10+ to 12 oz','12+ to 14 oz','14+ to 16 oz'],
-      fees:{
-        low: [2.43,2.49,2.56,2.66,2.77,2.82,2.92,2.95],
-        mid: [3.32,3.42,3.45,3.54,3.68,3.78,3.91,3.96],
-        high:[3.58,3.68,3.71,3.80,3.94,4.04,4.17,4.22]
-      }
+      feesBy:{
+        nonpeak:{
+          low: [2.43,2.49,2.56,2.66,2.77,2.82,2.92,2.95],
+          mid: [3.32,3.42,3.45,3.54,3.68,3.78,3.91,3.96],
+          high:[3.58,3.68,3.71,3.80,3.94,4.04,4.17,4.22]
+        },
+        peak:{
+          low: [2.62,2.68,2.76,2.86,2.98,3.03,3.14,3.17],
+          mid: [3.51,3.61,3.65,3.74,3.89,3.99,4.13,4.18],
+          high:[3.77,3.87,3.91,4.00,4.15,4.25,4.39,4.44]
+        }
+      },
+      get fees(){ return this.feesBy[SEASON]; }
     },
     large: {
       name:'Large standard',
       limits:[4,8,12,16,20,24,28,32,36,40,44,48],
       labels:['4 oz or less','4+ to 8 oz','8+ to 12 oz','12+ to 16 oz','1+ to 1.25 lb','1.25+ to 1.5 lb','1.5+ to 1.75 lb','1.75+ to 2 lb','2+ to 2.25 lb','2.25+ to 2.5 lb','2.5+ to 2.75 lb','2.75+ to 3 lb'],
-      fees:{
-        low: [2.91,3.13,3.38,3.78,4.22,4.60,4.75,5.00,5.10,5.28,5.44,5.85],
-        mid: [3.73,3.95,4.20,4.60,5.04,5.42,5.57,5.82,5.92,6.10,6.26,6.67],
-        high:[3.99,4.21,4.46,4.86,5.30,5.68,5.83,6.08,6.18,6.36,6.52,6.93]
+      feesBy:{
+        nonpeak:{
+          low: [2.91,3.13,3.38,3.78,4.22,4.60,4.75,5.00,5.10,5.28,5.44,5.85],
+          mid: [3.73,3.95,4.20,4.60,5.04,5.42,5.57,5.82,5.92,6.10,6.26,6.67],
+          high:[3.99,4.21,4.46,4.86,5.30,5.68,5.83,6.08,6.18,6.36,6.52,6.93]
+        },
+        peak:{
+          low: [3.15,3.39,3.66,4.07,4.52,4.91,5.07,5.33,5.47,5.67,5.84,6.26],
+          mid: [3.97,4.21,4.48,4.89,5.34,5.73,5.89,6.15,6.29,6.49,6.66,7.08],
+          high:[4.23,4.47,4.74,5.15,5.60,5.99,6.15,6.41,6.55,6.75,6.92,7.34]
+        }
       },
-      over:{ low:6.15, mid:6.97, high:7.23 }, // + $0.08 per 4 oz above 3 lb, up to 20 lb
+      overBy:{                                   // + $0.08 per 4 oz above 3 lb, up to 20 lb (both seasons)
+        nonpeak:{ low:6.15, mid:6.97, high:7.23 },
+        peak:   { low:6.69, mid:7.51, high:7.77 }
+      },
+      get fees(){ return this.feesBy[SEASON]; },
+      get over(){ return this.overBy[SEASON]; },
       maxOz:320
     }
   };
@@ -551,7 +590,7 @@ table.fees td.cur-cell{font-weight:700;color:var(--cost)}
       detail = `<div class="empty-msg">You're looking at your <strong>current package</strong> (${r.band.label}, ${money(r.band.fee)}). Press → or pick a cheaper tier to see the box cuts and how the profitability chart changes.</div>`;
     } else {
       const shipSave = step.kind==='box' ? (volKgOf(dims) - volKgOf(dims, step)) * A.shipRmbKg / A.fx : 0;
-      const save = r.band.fee - step.fee + shipSave;
+      const save = (r.band.fee - step.fee)*(1 + A.fuel/100) + shipSave;   // fee drop incl. its fuel surcharge
       detail = `
       <div class="target">
         <div><div class="t-label">Selected tier</div><div class="t-val">${step.label}</div></div>
@@ -621,10 +660,11 @@ table.fees td.cur-cell{font-weight:700;color:var(--cost)}
   }
 
   /* ---------- assumptions ---------- */
-  const DEFAULTS = { fx:6.7, shipRmbKg:6, comm:15, ads:12, wh:5, target:18 };
+  const DEFAULTS = { fx:6.7, shipRmbKg:6, fuel:3.5, comm:15, ads:12, wh:5, target:18 };
   const SET_FIELDS = [
     ['fx','RMB / USD exchange rate','0.01'],
     ['shipRmbKg','Shipping cost (RMB / kg)','0.1'],
+    ['fuel','FBA fuel surcharge (% of fee)','0.1'],
     ['comm','Amazon commission (%)','0.5'],
     ['ads','Ad budget (%)','0.5'],
     ['wh','Warehousing / returns (%)','0.5'],
@@ -677,7 +717,8 @@ table.fees td.cur-cell{font-weight:700;color:var(--cost)}
       ads: price * A.ads/100,
       wh: price * A.wh/100
     };
-    c.total = c.unit + c.ship + c.fee + c.comm + c.ads + c.wh;
+    c.fuel = c.fee * A.fuel/100;   // fuel & logistics surcharge: % of the fulfillment fee (US, from Apr 17, 2026)
+    c.total = c.unit + c.ship + c.fee + c.fuel + c.comm + c.ads + c.wh;
     c.margin = price - c.total;
     c.pct = price > 0 ? c.margin / price : 0;
     return c;
@@ -693,7 +734,7 @@ table.fees td.cur-cell{font-weight:700;color:var(--cost)}
       const r = compute(dims, null, probe);
       if (!r.tier) return { err:'oversize' };
       const fee = scen ? bandOf(r.tier, scen.oz, r.pb).fee : r.band.fee;
-      let p = ceil2((fixed + fee)/(1 - varPct));
+      let p = ceil2((fixed + fee*(1 + A.fuel/100))/(1 - varPct));
       for (let k=0;k<3;k++){                     // confirm at the rounded price with that price's real fee
         const c = costsAt(dims, unitRmb, p, scen);
         if (c.pct >= A.target/100 - 1e-9) return { price:p };
@@ -703,7 +744,7 @@ table.fees td.cur-cell{font-weight:700;color:var(--cost)}
     return { err:'No price found.' };
   }
 
-  const COLORS = { unit:'#991b1b', ship:'#dc2626', fee:'#ea580c', comm:'#f59e0b', ads:'#fbbf24', wh:'#fde047', margin:'#10b981', loss:'#ef4444' };
+  const COLORS = { unit:'#991b1b', ship:'#dc2626', fee:'#ea580c', fuel:'#f97316', comm:'#f59e0b', ads:'#fbbf24', wh:'#fde047', margin:'#10b981', loss:'#ef4444' };
   const priceEl = document.getElementById('price');
   const kpis = document.getElementById('kpis'), chartBox = document.getElementById('chartBox'), priceCap = document.getElementById('priceCap');
   let P = null; // { dims, unitRmb, min }
@@ -744,7 +785,7 @@ table.fees td.cur-cell{font-weight:700;color:var(--cost)}
     kpis.innerHTML = `
       <div class="fee-sum">
         <div class="fs-label">Fulfillment fee</div>
-        <div class="fs-fee"><span class="fs-num" tabindex="0" aria-describedby="fsTip">${money(c.fee)}<span class="fs-tip" id="fsTip" role="tooltip"><div>${wtTxt} <span>shipping weight</span></div><div>${(c.fee/price*100).toFixed(1)}% <span>of price</span></div></span></span></div>
+        <div class="fs-fee"><span class="fs-num" tabindex="0" aria-describedby="fsTip">${money(c.fee)}<span class="fs-tip" id="fsTip" role="tooltip"><div>${wtTxt} <span>shipping weight</span></div><div>+${money(c.fuel)} <span>fuel surcharge (${fmtPct(A.fuel)})</span></div><div>${((c.fee+c.fuel)/price*100).toFixed(1)}% <span>of price incl. surcharge</span></div></span></span></div>
         <div class="fs-sub"><span class="pill">${TIERS[c.r.tier].name}</span><span>${scen ? scen.label : c.r.band.label}</span></div>
       </div>
       ${S ? `<ol class="train mini" aria-label="Weight tier">${trainNodes()}</ol>` : ''}`;
@@ -755,6 +796,7 @@ table.fees td.cur-cell{font-weight:700;color:var(--cost)}
       ['unit','Unit cost',`¥${P.unitRmb.toFixed(2)} ÷ ${A.fx}`, c.unit],
       ['ship','Shipping to US',`${c.volKg.toFixed(2)} kg vol. × ¥${A.shipRmbKg}/kg${was('ship')}`, c.ship],
       ['fee','Fulfillment fee',`${TIERS[r.tier].name} · ${scen ? scen.label : r.band.label}${was('fee')}`, c.fee],
+      ['fuel','Fuel & logistics surcharge',`${fmtPct(A.fuel)} of fulfillment fee${was('fuel')}`, c.fuel],
       ['comm','Amazon commission',`${fmtPct(A.comm)} of price`, c.comm],
       ['ads','Ad budget',`${fmtPct(A.ads)} of price`, c.ads],
       ['wh','Warehousing / returns',`${fmtPct(A.wh)} of price`, c.wh]
@@ -846,7 +888,21 @@ table.fees td.cur-cell{font-weight:700;color:var(--cost)}
     document.getElementById('unitRmb').focus();
   });
 
-  window.__fba = { compute, dimOz, solve, bandOf, costsAt, minPrice, A:()=>A };
+  /* ---------- fee season ---------- */
+  const seasonSwitch = document.getElementById('seasonSwitch');
+  function drawSeason(){
+    seasonSwitch.setAttribute('aria-checked', SEASON === 'peak');
+    const s = SEASONS[SEASON];
+    document.getElementById('seasonSub').textContent = `US ${s.name} fees, ${s.range} · excluding apparel`;
+    document.getElementById('refSub').textContent = `US ${s.name}, ${s.range} · excluding apparel`;
+  }
+  seasonSwitch.addEventListener('click', ()=>{
+    SEASON = SEASON === 'peak' ? 'nonpeak' : 'peak'; drawSeason();
+    if (P) refreshProfit(); else renderFeeTable(null);   // re-solve min price; keep a custom retail price
+  });
+  drawSeason();
+
+  window.__fba = { setSeason:s=>{ SEASON=s; drawSeason(); refreshProfit(); }, compute, dimOz, solve, bandOf, costsAt, minPrice, A:()=>A };
   calculate();
 })();
 </script>

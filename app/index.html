@@ -94,6 +94,13 @@ tr.row.draft .step,tr.row.draft .step:hover{color:#cbd5e1;border-color:#f1f5f9;b
 .step.done:hover{background:var(--primary-dark)}
 .step.next{border-color:var(--primary);color:var(--primary);background:#eef2ff;font-weight:600}
 .step.locked{color:#cbd5e1;border-color:#f1f5f9;background:#fff}
+.step{position:relative}
+.step.on{box-shadow:0 0 0 2px rgba(79,70,229,.25)}       /* its 报价 panel is open */
+/* 样品 mark on the 上架 pill: yellow = sample photos, not all approved · green = every photo approved */
+.smark{position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;border:2px solid #fff;box-sizing:border-box}
+.smark.wait{background:#f59e0b}
+.smark.ok{background:#16a34a}
+.smark.none{background:#cbd5e1}
 
 .empty-box{text-align:center;padding:3rem 1rem;color:var(--muted);font-size:.9rem}
 .empty-box b{display:block;color:var(--dark);font-size:1rem;margin-bottom:.3rem;font-weight:600}
@@ -115,6 +122,22 @@ tr.xp-spacer td{padding:0;border:0}
 .xp-panel iframe.ready{opacity:1}
 .xp-foot{display:flex;align-items:center;gap:1rem;margin-top:.6rem}
 .xp-foot .hint{margin:0}
+/* a sample's title in the 样品 viewer: reads as a heading, click to edit (Enter / click away = keep, Esc = cancel) */
+.iv-title-in{font:inherit;color:var(--dark);border:1px solid transparent;background:transparent;box-sizing:border-box;text-overflow:ellipsis;
+  width:calc(100% - 2.6rem);margin-left:-.4rem;padding:.15rem .4rem;border-radius:6px;font-size:1rem;font-weight:600;line-height:1.4}
+.iv-title-in::placeholder{color:#94a3b8;font-weight:500}
+.iv-title-in:hover:not(:disabled){border-color:var(--line);background:#fff;cursor:text}
+.iv-title-in:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 2px rgba(79,70,229,.12)}
+/* 样品通过: not approved = light green with a green border; approved = solid green */
+.btn-okish{background:#f0fdf4;color:#15803d;border:1px solid #16a34a}
+.btn-okish:hover{background:#dcfce7}
+.btn-ok{background:#16a34a;color:#fff;border:1px solid #16a34a}
+.btn-ok:hover{background:#15803d;border-color:#15803d}
+/* 样品 mode of the image viewer: the shown photo's notes + 样品通过 under the grid */
+.iv-note{display:flex;flex-direction:column;gap:.45rem;margin-top:.4rem}
+.iv-note .form-label{margin:0;font-size:.78rem}
+.iv-note textarea{height:180px;resize:vertical;font-size:.86rem;line-height:1.5;padding:.5rem .6rem}
+.iv-note .btn{align-self:flex-start}
 
 /* settings */
 .set-sec + .set-sec{margin-top:1.4rem;padding-top:1.2rem;border-top:1px solid #f1f5f9}
@@ -166,6 +189,24 @@ tr.xp-spacer td{padding:0;border:0}
   box-shadow:0 2px 10px rgba(15,23,42,.08);cursor:grab;touch-action:none;user-select:none}
 .iv-frame.dragging{cursor:grabbing}
 .iv-frame img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-user-drag:none}
+/* 样品 viewer → 原型图 compare: the sample (left) and a prototype 图片 (right, view only), each labelled */
+.iv-frame.proto{cursor:default}
+.iv-flabel{position:absolute;z-index:1;left:8px;top:8px;max-width:calc(100% - 52px);font-size:.75rem;line-height:1.5;background:rgba(15,23,42,.72);
+  color:#fff;border-radius:4px;padding:.05rem .45rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.iv-pclose{position:absolute;z-index:1;top:8px;right:8px;width:30px;height:30px;border:1px solid var(--line);border-radius:7px;background:#fff;
+  color:var(--dark);font-size:1.05rem;line-height:1;cursor:pointer;padding:0;font-family:inherit}
+.iv-pclose:hover{border-color:var(--primary);color:var(--primary)}
+.iv-protos{display:flex;flex-direction:column;gap:.45rem;margin-top:.6rem;padding-top:.8rem;border-top:1px solid var(--line)}
+.iv-product textarea{height:120px;resize:vertical;font-size:.86rem;line-height:1.5;padding:.5rem .6rem}
+/* 样品 mode without photos: the big frame becomes the upload area */
+.iv-empty{position:absolute;inset:14px;border:2px dashed #cbd5e1;border-radius:10px;background:#f8fafc;color:var(--muted);font-family:inherit;
+  font-size:.85rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.35rem;cursor:pointer}
+.iv-empty:hover{border-color:var(--primary);color:var(--primary);background:#eef2ff}
+.iv-empty b{font-size:1rem;color:var(--dark);font-weight:600}
+.iv-empty:hover b{color:var(--primary)}
+.iv-empty .plus{font-size:2.4rem;line-height:1;font-weight:300}
+.iv-protos .form-label{margin:0;font-size:.78rem}
+.iv-protos .form-label .note{font-weight:400;color:#94a3b8;margin-left:.3rem}
 
 /* 下单 pop-up (Step 2): a compact header over the tool; ‹ (top left) goes back a view, × / Esc / backdrop close */
 .s2{background:#f1f5f9;border-radius:var(--radius);box-shadow:0 20px 40px rgba(15,23,42,.3);width:100%;height:100%;max-width:1700px;
@@ -183,7 +224,7 @@ tr.xp-spacer td{padding:0;border:0}
 .s2-btn:disabled{opacity:.35;cursor:default}
 .s2-btn.close{margin-left:.35rem;font-size:1.15rem}
 #s2Frame{flex:1;min-height:0;width:100%;border:0;display:block;background:#f1f5f9}
-/* 报价 → 查看详情 pop-up: Updated Pricing for one 报价 line at a time, ‹ › switch lines (buttons only: ← → step tiers in the tool) */
+/* 报价 → 查看详情 pop-up: Pricer Updated for one 报价 line at a time, ‹ › switch lines (buttons only: ← → step tiers in the tool) */
 .s2.pd{max-width:1240px}
 .pd-pos{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:3.6em;text-align:center}
 #pdFrame{flex:1;min-height:0;width:100%;border:0;display:block;background:#f1f5f9}
@@ -366,15 +407,16 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
     </div>
     <div class="modal-body hidden" data-body="quote">
       <div class="set-grid">
-        <!-- 与 Updated Pricing.html 的 Assumptions 相同 -->
+        <!-- 与 Pricer Updated.html 的 Assumptions 相同 -->
         <div><label class="form-label">美元对人民币汇率</label><input type="number" min="0" step="0.01" class="form-control" data-p="fx"></div>
         <div><label class="form-label">头程运费 (￥/kg)</label><input type="number" min="0" step="0.1" class="form-control" data-p="shipRmbKg"></div>
+        <div><label class="form-label">FBA 燃油附加费 (%)</label><input type="number" min="0" step="0.1" class="form-control" data-p="fuel"></div>
         <div><label class="form-label">亚马逊佣金 (%)</label><input type="number" min="0" step="0.5" class="form-control" data-p="comm"></div>
         <div><label class="form-label">广告预算 (%)</label><input type="number" min="0" step="0.5" class="form-control" data-p="ads"></div>
         <div><label class="form-label">仓储 / 退货 (%)</label><input type="number" min="0" step="0.5" class="form-control" data-p="wh"></div>
         <div><label class="form-label">目标毛利率 (%)</label><input type="number" min="0" step="0.5" class="form-control" data-p="target"></div>
       </div>
-      <div class="hint" style="margin-top:1rem">建议售价 = 达到目标毛利率的最低售价（佣金 / 广告 / 仓储按售价的百分比计）。修改后所有产品的售价立即按新参数重算。
+      <div class="hint" style="margin-top:1rem">建议售价 = 达到目标毛利率的最低售价（佣金 / 广告 / 仓储按售价的百分比计）。燃油附加费按 FBA 配送费的百分比计，计入尾程运费。旺季在每个产品的报价表中切换。修改后所有产品的售价立即按新参数重算。
         <button type="button" class="menu-link" id="p1Reset">恢复默认值</button></div>
     </div>
     <div class="modal-body" data-body="general">
@@ -402,13 +444,19 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
 <div class="iv-back hidden" id="ivBack">
   <div class="iv" id="iv" role="dialog" aria-modal="true" aria-labelledby="ivTitle">
     <div class="iv-stage" id="ivStage">
-      <div class="iv-frame" id="ivFrame" title="按住拖动调整位置，Ctrl+滚轮缩放"><img id="ivFrameImg" alt="" draggable="false"></div>
+      <div class="iv-frame" id="ivFrame" title="按住拖动调整位置，Ctrl+滚轮缩放"><img id="ivFrameImg" alt="" draggable="false"><span class="iv-flabel hidden" id="ivFrameLabel"></span>
+        <!-- 样品 mode without photos: the frame is the upload area -->
+        <button type="button" class="iv-empty hidden" id="ivEmpty"><span class="plus">+</span><b>上传样品图片</b>点击选择（可多选），也可粘贴或拖入图片</button></div>
+      <!-- 样品 mode: a prototype 图片 next to the sample (view only) -->
+      <div class="iv-frame proto hidden" id="ivProto" title="原型图（只读，在「图片」中修改）"><img id="ivProtoImg" alt="" draggable="false"><span class="iv-flabel" id="ivProtoLabel"></span>
+        <button type="button" class="iv-pclose" id="ivProtoClose" title="取消对应（这张样品不再与原型并排）">×</button></div>
       <button type="button" class="iv-nav prev" id="ivPrev" title="上一张">‹</button>
       <button type="button" class="iv-nav next" id="ivNext" title="下一张">›</button>
     </div>
     <div class="iv-side">
       <button type="button" class="iv-close" id="ivClose" title="关闭（Esc）">×</button>
       <div class="iv-title" id="ivTitle"></div>
+      <input type="text" class="iv-title-in hidden" id="ivSTitle" maxlength="40" spellcheck="false" autocomplete="off" title="点击修改样品名称，例：蓝色 4x6">
       <div class="iv-meta" id="ivMeta"></div>
       <div class="iv-count" id="ivCount"></div>
       <div class="iv-grid" id="ivGrid"></div>
@@ -416,6 +464,22 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
         <button type="button" class="btn btn-ghost btn-sm" id="ivMakeMain" title="与主图交换位置，表格缩略图随之更新">设为主图</button>
       </div>
       <div class="hint" id="ivHint"></div>
+      <!-- 样品 mode: the shown photo's notes (same data as the table panel) + 样品通过 -->
+      <div class="iv-note hidden" id="ivNoteBox">
+        <label class="form-label" for="ivNote" id="ivNoteLabel">样品备注</label>
+        <textarea id="ivNote" class="form-control" spellcheck="false" placeholder="这张样品的备注"></textarea>
+        <button type="button" class="btn btn-sm" id="ivOk"></button>
+      </div>
+      <!-- 样品 mode: the row's 图片 = the prototype; click one to compare side by side -->
+      <div class="iv-protos hidden" id="ivProtoBox">
+        <span class="form-label">原型图<span class="note">点击设为这张样品的对应原型</span></span>
+        <div class="iv-grid" id="ivProtoGrid"></div>
+      </div>
+      <!-- 样品 mode: notes for the whole product (e.g. when the samples should arrive) -->
+      <div class="iv-protos iv-product hidden" id="ivProductBox">
+        <label class="form-label" for="ivProduct">产品备注</label>
+        <textarea id="ivProduct" class="form-control" spellcheck="false" placeholder="整个产品的备注，例：工厂说样品 10/25 寄出，预计 11/1 到"></textarea>
+      </div>
     </div>
   </div>
 </div>
@@ -492,7 +556,7 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
   </div>
 </div>
 
-<!-- 报价 → 查看详情：Updated Pricing 试算（不保存） -->
+<!-- 报价 → 查看详情：Pricer Updated 试算（不保存） -->
 <div class="iv-back hidden" id="pdBack">
   <div class="s2 pd" role="dialog" aria-modal="true" aria-labelledby="pdTitle">
     <div class="s2-head">
@@ -710,15 +774,26 @@ const ST_CLASS = { '未下单': 'st0', '已下单': 'st1', '已上架': 'st3' };
 const STEP_TIPS = {
   done: '已完成', next: '下一步', open: '可打开', locked: '前一步未完成'
 };
+/* 样品 of a row: meta.samples [{id, note, ok}] per photo. Rows from before per-photo notes only have sampleCount until their
+   photos are first loaded (loadSamples rebuilds samples) */
+const sampleN = r => r.samples && r.samples.length ? r.samples.length : r.sampleCount || 0;
+const sampleOkN = r => (r.samples || []).filter(s => s.ok).length;
+/* ok = every photo approved · wait = photos, not all approved · none = no photos */
+const sampleState = r => { const n = sampleN(r); return !n ? 'none' : sampleOkN(r) === n ? 'ok' : 'wait'; };
+const sampleTip = r => ({ ok: '样品全部通过', wait: '已收样，已通过 ' + sampleOkN(r) + ' / ' + sampleN(r), none: '未收到样品' })[sampleState(r)];
 function rowHtml(r){
   const id = esc(r.id);
   const j = ROWS.journey(r);
   const draft = drafts.has(r.id);
+  const ss = sampleState(r);
   const steps = j.map((s, i) =>
     (i ? '<span class="ln' + (j[i - 1].state === 'done' ? ' on' : '') + '"></span>' : '') +
-    '<button type="button" class="step ' + s.state + '" data-act="step" data-step="' + s.key + '" data-id="' + id +
-    '" title="' + (draft ? '请先添加图片和类目' : s.label + '：' + STEP_TIPS[s.state]) + '"' + (draft ? ' disabled' : '') + '>' +
-    (s.state === 'done' ? '✓ ' : '') + s.label + '</button>'
+    '<button type="button" class="step ' + s.state + (r.id === expandedId && s.key === 'quote' ? ' on' : '') +
+    '" data-act="step" data-step="' + s.key + '" data-id="' + id +
+    '" title="' + (draft ? '请先添加图片和类目' : s.label + '：' + STEP_TIPS[s.state] +
+      (s.key === 'live' ? ' · 样品：' + sampleTip(r) : '')) + '"' + (draft ? ' disabled' : '') + '>' +
+    (s.state === 'done' ? '✓ ' : '') + s.label +
+    (s.key === 'live' && ss !== 'none' && !draft ? '<span class="smark ' + ss + '"></span>' : '') + '</button>'
   ).join('');
   const missing = [r.thumb ? '' : '图片', r.category ? '' : '类目'].filter(Boolean);
   const viewable = r.thumb && !draft;
@@ -822,16 +897,17 @@ document.addEventListener('click', e => {
   }
 });
 
-const STEP_STAGE = { live: '上架（Step 3）将在 Stage 4 接入' };
+/* 报价 expands its panel; 上架 opens the 样品 image viewer (never soft-locked: samples often come before the order);
+   下单 opens its pop-up */
 function stepClick(r, step){
   if (step === 'quote') return toggleExpand(r);
+  if (step === 'live') return openSamples(r);
   if (step === 'order') {
     if (drafts.has(r.id)) return toast('请先选择类目并添加图片', true);
     const s = ROWS.journey(r).find(x => x.key === 'order');
     if (s && s.state === 'locked' && !confirm('前一步未完成，仍要打开？')) return;   // soft lock
     return openOrder(r);
   }
-  toast(STEP_STAGE[step]);
 }
 
 /* ============ 报价：展开行 (one at a time) ============
@@ -1019,7 +1095,7 @@ hubEmbed.listen((m, frame) => {
     }
   } else if (m.type === 'pricing-detail' && frame === xpFrame) {   // 查看详情 in 报价
     const r = byId(m.row);
-    if (r && m.data && m.data.lines && m.data.lines.length) openDetail(r, m.data.lines);
+    if (r && m.data && m.data.lines && m.data.lines.length) openDetail(r, m.data.lines, !!m.data.peak);
   }
 });
 
@@ -1052,7 +1128,7 @@ $('tbody').addEventListener('click', e => {
   rowPress = null;
   if (!p || e.detail > 1 || hitRow(e.target, e.clientX, e.clientY) !== p.id || Math.abs(e.clientX - p.x) + Math.abs(e.clientY - p.y) >= 5) return;
   const r = byId(p.id);
-  if (r) toggleExpand(r);
+  if (r) toggleExpand(r);                               // S3: a row click always toggles 报价 (样品: the 上架 pill)
 });
 
 /* category headers: collapse / expand that group's rows. Nothing stays open inside a collapsed group */
@@ -1451,7 +1527,9 @@ function wheelEnd(noRender){
 }
 
 /* ============ image viewer ============ */
-/* {id, idx, list: null while loading | [{url,w,h,crop?}], ver, f: the shown image's frame | null, c: its crop, drag, saveTimer} */
+/* {id, kind, idx, list: null while loading | [{url,w,h,crop?}], ver, f: the shown image's frame | null, c: its crop, drag, saveTimer}
+   kind 'img' = the row's 图片 (主图, positions, 设为主图; ← → rows) · 'sample' = its 样品 photos (shown whole, no 主图,
+   no positions; ← → step photos). viewer.f stays null for samples, so the frame's drag / zoom handlers do nothing */
 let viewer = null;
 let viewerBusy = false;     // one add / delete at a time
 let gridKey = '';
@@ -1465,35 +1543,49 @@ function tableOrder(){
 }
 const viewerOrder = () => tableOrder().filter(r => r.thumb);   // the image viewer: rows with an image
 
-function openViewer(r){
+/* idx: the sample photo to start on (sample mode) */
+function openViewer(r, kind, idx){
   viewerSaveNow();
-  viewer = { id: r.id, idx: 0, list: null, ver: 0, f: null, c: null, drag: null, saveTimer: null };
+  const sample = kind === 'sample';
+  /* sample mode also has protos: the row's 图片 (null until loaded), proto: the one compared (index | null), pf: its decoded frame */
+  const v = viewer = { id: r.id, kind: sample ? 'sample' : 'img', idx: sample && idx || 0, list: null, ver: 0, f: null, c: null, drag: null, saveTimer: null,
+                       protos: null, proto: null, pf: null };
+  protoKey = '';
   $('ivBack').classList.remove('hidden');
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   renderViewer();
-  loadRowImages(r).catch(() => []).then(list => {
-    if (!viewer || viewer.id !== r.id) return;
+  (sample ? loadSamples(r) : loadRowImages(r)).catch(() => []).then(list => {
+    if (viewer !== v) return;
     viewer.list = list;
-    if (list.length && r.imgCount !== list.length) { r.imgCount = list.length; saveRow(r); render(); }
+    if (!sample && list.length && r.imgCount !== list.length) { r.imgCount = list.length; saveRow(r); render(); }
     renderViewer();
-    if (list.length && !r.thumbCrop) upgradeThumb(r, list[0]);
+    if (!sample && list.length && !r.thumbCrop) upgradeThumb(r, list[0]);
+  });
+  if (sample) loadRowImages(r).catch(() => []).then(list => {
+    if (viewer !== v) return;
+    viewer.protos = list;
+    renderViewer();
   });
 }
 function closeViewer(){
   if (!viewer) return;
   viewerSaveNow();
   const id = viewer.id;
-  viewer = null; gridKey = '';
+  viewer = null; gridKey = ''; protoKey = '';
   $('ivBack').classList.add('hidden');
+  $('ivProto').classList.add('hidden');
+  $('ivProtoImg').removeAttribute('src');
+  $('ivFrameLabel').classList.add('hidden');
+  ['left', 'right', 'marginLeft', 'marginRight'].forEach(k => { $('ivFrame').style[k] = ''; });
   $('iv').classList.remove('over');
   $('ivFrameImg').removeAttribute('src');
   const tr = $('tbody').querySelector('tr[data-row="' + id + '"]');
   if (tr) tr.scrollIntoView({ block: 'nearest' });
 }
-/* after a write to row r's images: redraw if the viewer shows r */
-function viewerChanged(r){
-  if (!viewer || viewer.id !== r.id) return;
-  viewer.list = imgCache.get(r.id) || viewer.list;
+/* after a write to row r's images (kind 'img') or sample photos ('sample'): redraw if the viewer shows them */
+function viewerChanged(r, kind){
+  if (!viewer || viewer.id !== r.id || viewer.kind !== (kind || 'img')) return;
+  viewer.list = (viewer.kind === 'sample' ? sampleCache : imgCache).get(r.id) || viewer.list;
   viewer.idx = Math.max(0, Math.min(viewer.idx, (viewer.list || []).length - 1));
   viewer.f = null;                                      // images (and their positions) may have moved: start again
   viewer.ver++;
@@ -1511,19 +1603,39 @@ function renderViewer(){
   if (!viewer) return;
   const r = byId(viewer.id);
   if (!r) return closeViewer();
+  const sample = viewer.kind === 'sample';
+  if (sample && viewer.list) {                          // the panel shows the same photo
+    viewer.idx = Math.max(0, Math.min(viewer.idx, viewer.list.length - 1));
+    sampleIdx.set(r.id, viewer.idx);
+  }
   const list = viewer.list, cur = list && list[viewer.idx];
-  const order = viewerOrder(), pos = order.indexOf(r);
+  const order = viewerOrder(), pos = sample ? -1 : order.indexOf(r);
   const ids = [r.sku, r.parentAsin].filter(Boolean).map(esc).join(' · ');
+  const s = sample && cur ? r.samples[viewer.idx] : null;
+  /* sample mode: the big title is the sample's (editable); the product goes on the grey line */
+  $('ivTitle').classList.toggle('hidden', sample);
+  $('ivSTitle').classList.toggle('hidden', !sample);
   $('ivTitle').textContent = rowLabel(r);
-  $('ivMeta').innerHTML = ids + (pos > -1 ? (ids ? '<br>' : '') + '产品 ' + (pos + 1) + ' / ' + order.length : '');
-  $('ivCount').textContent = !list ? '加载中…' : list.length ? '图片 ' + (viewer.idx + 1) + ' / ' + list.length : '没有找到原图';
+  if (sample) {
+    const st = $('ivSTitle');
+    st.disabled = !s;
+    st.placeholder = s ? '样品 ' + (viewer.idx + 1) : '样品图片';
+    fillField(st, s, 'title');
+  }
+  $('ivMeta').innerHTML = sample ? esc(rowLabel(r)) + (ids ? ' · ' + ids : '')
+    : ids + (pos > -1 ? (ids ? '<br>' : '') + '产品 ' + (pos + 1) + ' / ' + order.length : '');
+  $('ivCount').textContent = !list ? '加载中…'
+    : list.length ? (sample ? '样品 ' : '图片 ') + (viewer.idx + 1) + ' / ' + list.length
+    : sample ? '还没有样品图片' : '没有找到原图';
   $('ivPrev').disabled = !list || viewer.idx <= 0;
   $('ivNext').disabled = !list || viewer.idx >= list.length - 1;
 
-  /* every image sits in the square frame; the main image's square is the table thumb */
+  /* every image sits in the square frame; the main image's square is the table thumb. A sample photo has its size stored,
+     so it is placed at once (no decode): its own position, else the whole photo */
   if (viewer.f && viewer.f.main !== cur) viewer.f = null;
+  if (s && !viewer.f && cur.w && cur.h) { viewer.f = sampleFrame(cur); viewer.c = sampleCrop(s, cur.w, cur.h); }
   layoutViewerFrame();
-  if (cur && !viewer.f) {
+  if (cur && !viewer.f && !sample) {
     const id = r.id, isMain = viewer.idx === 0;
     decodeImg(cur).then(f => {
       if (!viewer || viewer.id !== id || viewer.f || !viewer.list || viewer.list[viewer.idx] !== cur) return;
@@ -1532,8 +1644,17 @@ function renderViewer(){
     }).catch(() => {});
   }
 
-  const key = viewer.id + '#' + viewer.ver + '#' + (list ? list.length : -1);
-  if (key !== gridKey) {                                // rebuild only when the images change
+  const oks = sample ? JSON.stringify((r.samples || []).map(x => [x.ok, x.title])) : '';
+  const key = viewer.kind + '#' + viewer.id + '#' + viewer.ver + '#' + (list ? list.length : -1) + '#' + oks;
+  if (key !== gridKey && sample) {                      // sample photos: plain tiles (✓ = approved), any one can be deleted
+    gridKey = key;
+    $('ivGrid').innerHTML = !list ? '' : list.map((x, i) =>
+      '<div class="iv-tile" data-iv="pick" data-i="' + i + '" title="' + esc(r.samples[i] && r.samples[i].title || '样品 ' + (i + 1)) + '">' +
+        '<img src="' + x.url + '" alt="" draggable="false"' + sampleTile(x, r.samples[i]) + '>' +
+        '<button type="button" class="del" data-iv="del" data-i="' + i + '" title="删除这张样品图片">×</button>' +
+      '</div>').join('') +
+      (list.length < IMG_LIMIT ? '<button type="button" class="iv-tile add" data-iv="add" title="添加样品图片（可多选，最多 ' + IMG_LIMIT + ' 张）">+</button>' : '');
+  } else if (key !== gridKey) {                         // rebuild only when the images change
     gridKey = key;
     $('ivGrid').innerHTML = !list ? '' : list.map((x, i) =>
       '<div class="iv-tile' + (i ? '' : ' main') + '" data-iv="pick" data-i="' + i + '" title="' +
@@ -1545,22 +1666,133 @@ function renderViewer(){
       (list.length < IMG_LIMIT ? '<button type="button" class="iv-tile add" data-iv="add" title="添加图片（可多选，最多 ' + IMG_LIMIT + ' 张）">+</button>' : '');
   }
   $('ivGrid').querySelectorAll('.iv-tile[data-i]').forEach(t => t.classList.toggle('on', +t.dataset.i === viewer.idx));
-  $('ivActions').classList.toggle('hidden', !cur || viewer.idx === 0);
+  $('ivActions').classList.toggle('hidden', !cur || viewer.idx === 0 || sample);
+  $('ivHint').classList.toggle('hidden', sample);
   $('ivHint').textContent = '粘贴或拖入图片即可添加（拖到主图上即替换主图），每个产品最多 ' + IMG_LIMIT + ' 张。';
+  /* sample mode: the shown photo's notes and 样品通过 (the same data as the table panel) */
+  $('ivNoteBox').classList.toggle('hidden', !s);
+  if (s) {
+    $('ivNoteLabel').textContent = '样品备注（' + sampleName(s, viewer.idx) + '）';
+    fillField($('ivNote'), s, 'note');
+    okButton($('ivOk'), s, viewer.idx);
+  }
+  /* sample mode without photos: no image in the frame (no broken-image icon), the frame is the upload area */
+  const none = sample && !!list && !list.length;
+  $('ivEmpty').classList.toggle('hidden', !none);
+  $('ivFrameImg').classList.toggle('hidden', sample && !cur);
+  $('ivFrame').title = none ? '' : '按住拖动调整位置，Ctrl+滚轮缩放';
+  /* 产品备注: one per product, shown in sample mode whether or not there are photos */
+  $('ivProductBox').classList.toggle('hidden', !sample);
+  if (sample) {
+    const pn = $('ivProduct');
+    if (pn.dataset.rid !== r.id || document.activeElement !== pn) pn.value = r.productNotes || '';
+    pn.dataset.rid = r.id;
+  }
+  renderProtos(r, s);
+}
+/* 样品 mode: the 原型图 grid (the row's 图片, at their positions; view only) and, in compare, the two frames' labels */
+let protoKey = '';
+function renderProtos(r, s){
+  const sample = viewer.kind === 'sample', protos = sample && viewer.protos;
+  $('ivProtoBox').classList.toggle('hidden', !(protos && protos.length));
+  if (!sample) return;
+  const key = viewer.id + '#' + (protos ? protos.length : -1) + '#' + r.thumb;
+  if (protos && key !== protoKey) {
+    protoKey = key;
+    $('ivProtoGrid').innerHTML = protos.map((x, i) =>
+      '<div class="iv-tile" data-pv="' + i + '" title="' + (i ? '图片 ' + (i + 1) : '主图') + ' · 点击设为这张样品的对应原型（再次点击取消）">' +
+        (i ? '<img src="' + x.url + '" alt="" draggable="false"' + tileStyle(x) + '>'
+           : '<img src="' + r.thumb + '" alt="" draggable="false"><span class="tag">主图</span>') +
+      '</div>').join('');
+  }
+  const pi = protoAt(s);                                // the shown sample's own prototype (null: none, or not loaded yet)
+  if (pi !== viewer.proto) { viewer.proto = pi; viewer.pf = null; }
+  $('ivProtoGrid').querySelectorAll('.iv-tile').forEach(t => t.classList.toggle('on', +t.dataset.pv === viewer.proto));
+  const on = viewer.proto != null;
+  $('ivProto').classList.toggle('hidden', !on);
+  $('ivFrameLabel').classList.toggle('hidden', !on || !s);
+  if (on) {
+    $('ivFrameLabel').textContent = '样品 ' + (viewer.idx + 1) + (s && s.title ? ' · ' + s.title : '');
+    $('ivProtoLabel').textContent = '原型 · ' + (viewer.proto ? '图片 ' + (viewer.proto + 1) : '主图');
+  }
+  layoutViewerFrame();
+}
+/* link prototype i to the shown sample (saved; the same one again = unlink) */
+function toggleProto(i){
+  const r = viewer && viewer.kind === 'sample' && byId(viewer.id);
+  const s = r && viewer.list && r.samples[viewer.idx], im = s && viewer.protos && viewer.protos[i];
+  if (!im) return;
+  const id = protoId(im);
+  if (s.proto === id) delete s.proto;
+  else s.proto = id;
+  saveRow(r);
+  renderViewer();
+}
+/* 图片 have no ids and their order changes (设为主图, delete), so a sample links to its prototype by a fingerprint of the
+   image itself: FNV-1a over the data URL, base36. Cached per image object */
+const protoIds = new WeakMap();
+function protoId(im){
+  if (!protoIds.has(im)) {
+    const u = im.url || '';
+    let h = 0x811c9dc5;
+    for (let k = 0; k < u.length; k++) { h ^= u.charCodeAt(k); h = Math.imul(h, 0x01000193); }
+    protoIds.set(im, (h >>> 0).toString(36) + u.length.toString(36));
+  }
+  return protoIds.get(im);
+}
+/* index of sample s's prototype among the viewer's 图片; null when unlinked, not loaded yet, or that 图片 is gone */
+function protoAt(s){
+  const protos = viewer && viewer.protos;
+  if (!s || !s.proto || !protos) return null;
+  const i = protos.findIndex(im => protoId(im) === s.proto);
+  return i < 0 ? null : i;
 }
 /* size the square to the stage and place the image in it (a stand-in shows while the full image decodes) */
 function layoutViewerFrame(){
   if (!viewer) return;
   const st = $('ivStage'), fr = $('ivFrame'), im = $('ivFrameImg'), r = byId(viewer.id);
-  const size = Math.max(120, Math.floor(Math.min(st.clientWidth - 176, st.clientHeight - 64)));
+  const pair = viewer.kind === 'sample' && viewer.proto != null && viewer.protos && viewer.protos[viewer.proto];
+  const GAP = 24;
+  const size = Math.max(120, Math.floor(pair ? Math.min((st.clientWidth - 176 - GAP) / 2, st.clientHeight - 64)
+                                             : Math.min(st.clientWidth - 176, st.clientHeight - 64)));
   fr.style.width = fr.style.height = size + 'px';
+  /* a pair is centred as one block (each frame keeps margin:auto vertically) */
+  const left = Math.round((st.clientWidth - 2 * size - GAP) / 2);
+  [[fr, left], [$('ivProto'), left + size + GAP]].forEach(([el, x]) => {
+    el.style.left = pair ? x + 'px' : '';
+    el.style.right = pair ? 'auto' : '';
+    el.style.marginLeft = el.style.marginRight = pair ? '0' : '';
+  });
+  if (pair) layoutProto(r, pair, size);
   if (viewer.f) return layoutFrame(im, fr.clientWidth, viewer.f, viewer.c);
   const cur = viewer.list && viewer.list[viewer.idx];
+  if (viewer.kind === 'sample') {                      // no photo, or one without a stored size (shown plain)
+    im.style.cssText = '';
+    if (!cur) im.removeAttribute('src');
+    else if (im.getAttribute('src') !== cur.url) im.src = cur.url;
+    return;
+  }
   const src = cur && viewer.idx ? cur.url : r && r.thumb;
   im.style.cssText = '';
   if (src && im.getAttribute('src') !== src) im.src = src;
 }
 window.addEventListener('resize', layoutViewerFrame);
+/* the compared prototype at its 图片 position: the 主图 at thumbCrop, an extra at its own crop (a stand-in while it decodes) */
+function layoutProto(r, im, size){
+  const pr = $('ivProto'), pi = $('ivProtoImg');
+  pr.style.width = pr.style.height = size + 'px';
+  if (viewer.pf && viewer.pf.main === im) return layoutFrame(pi, pr.clientWidth, viewer.pf, viewer.pc);
+  pi.style.cssText = '';
+  const stand = viewer.proto ? im.url : r.thumb;
+  if (stand && pi.getAttribute('src') !== stand) pi.src = stand;
+  const v = viewer, i = viewer.proto;
+  decodeImg(im).then(f => {
+    if (viewer !== v || v.proto !== i || v.pf) return;
+    v.pf = f;
+    v.pc = i ? CROP.cropOf(im.crop, f.W, f.H) : cropFor(r, f.W, f.H);
+    layoutViewerFrame();
+  }).catch(() => {});
+}
 
 /* save the viewer's position. The main image: the table thumb and the 主图 tile follow at once;
    any other image: its crop in images.json and its tile */
@@ -1571,6 +1803,10 @@ function viewerSave(){
   const r = byId(viewer.id), f = viewer.f, list = viewer.list;
   if (!r || !f || !list) return;
   const i = list.indexOf(f.main);
+  if (viewer.kind === 'sample') {                      // a sample photo: its crop in meta.samples
+    if (r.samples[i]) setSampleCrop(r, r.samples[i], viewer.c);
+    return;
+  }
   if (i === 0) {
     if (!commitCrop(r, f, viewer.c)) return;
     render();
@@ -1614,6 +1850,7 @@ $('ivBack').addEventListener('wheel', e => {
   if (!e.ctrlKey && !e.metaKey) return;
   e.preventDefault();
   if (!viewer || !viewer.f || viewer.drag) return;
+  if (e.target.closest && e.target.closest('#ivProto')) return;   // the prototype is view only
   const fr = $('ivFrame'), b = fr.getBoundingClientRect(), size = fr.clientWidth;
   const at = v => Math.min(1, Math.max(0, v));
   zoomCrop(viewer.c, viewer.f.W, viewer.f.H, wheelFactor(e),
@@ -1627,6 +1864,7 @@ $('ivBack').addEventListener('wheel', e => {
 function viewerStep(d){ if (viewer) viewerShow(viewer.idx + d); }
 function viewerRow(d){
   if (!viewer) return;
+  if (viewer.kind === 'sample') return viewerStep(d);   // sample photos: ← → step photos, never rows
   const order = viewerOrder();
   const i = order.findIndex(x => x.id === viewer.id);
   const n = i > -1 ? order[i + d] : null;
@@ -1661,6 +1899,12 @@ async function viewerAdd(files){
   viewerBusy = true;
   try {
     viewerSaveNow();
+    if (viewer.kind === 'sample') {                     // addSamples writes, toasts and redraws the viewer itself
+      if (await addSamples(r, files) && viewer && viewer.id === r.id && viewer.kind === 'sample') {
+        viewer.idx = viewer.list.length - 1; viewerChanged(r, 'sample');
+      }
+      return;
+    }
     if (await addRowImages(r, list, files) && viewer && viewer.id === r.id) { viewer.idx = list.length - 1; viewerChanged(r); }
   } catch (e) {
     imgCache.delete(r.id);
@@ -1684,6 +1928,11 @@ async function viewerReplaceMain(file){
   }
 }
 async function viewerDelete(i){
+  if (viewer && viewer.kind === 'sample') {             // any sample photo may go, the last one too
+    const r = byId(viewer.id);
+    if (r && viewer.list && !viewerBusy && confirm('删除这张样品图片及其备注？')) await deleteSample(r, i);
+    return;
+  }
   const r = viewer && byId(viewer.id), list = viewer && viewer.list;
   if (!r || !list || list.length < 2 || viewerBusy) return;
   if (!confirm(i ? '删除这张图片？' : '删除主图？下一张图片将成为主图。')) return;
@@ -1739,21 +1988,219 @@ $('ivGrid').addEventListener('click', e => {
   const i = +t.dataset.i;
   if (t.dataset.iv === 'del') viewerDelete(i);
   else if (t.dataset.iv === 'pick') {
-    if (i === 0 && viewer.idx === 0 && viewer.list && viewer.list.length) pickImage(f => viewerReplaceMain(f));   // second click on 主图
+    if (viewer.kind === 'img' && i === 0 && viewer.idx === 0 && viewer.list && viewer.list.length) pickImage(f => viewerReplaceMain(f));   // second click on 主图
     else viewerShow(i);
   }
   else if (t.dataset.iv === 'add') pickImage(files => viewerAdd(files), true);
 });
 $('ivMakeMain').addEventListener('click', () => { if (viewer) viewerMakeMain(viewer.idx); });
+$('ivProtoGrid').addEventListener('click', e => {
+  const t = e.target.closest('[data-pv]');
+  if (t) toggleProto(+t.dataset.pv);
+});
+$('ivProtoClose').addEventListener('click', () => { if (viewer && viewer.proto != null) toggleProto(viewer.proto); });   // unlink
 $('ivPrev').addEventListener('click', () => viewerStep(-1));
 $('ivNext').addEventListener('click', () => viewerStep(1));
 $('ivClose').addEventListener('click', closeViewer);
 $('ivBack').addEventListener('mousedown', e => { if (e.target === $('ivBack')) closeViewer(); });
 document.addEventListener('keydown', e => {
   if (!viewer) return;
-  if (e.key === 'Escape') { e.preventDefault(); closeViewer(); }
+  if (e.key === 'Escape') { e.preventDefault(); closeViewer(); }                 // links stay
+  else if (typing()) return;                            // ← → move the cursor in the notes box
   else if (e.key === 'ArrowLeft') { e.preventDefault(); viewerRow(-1); }
   else if (e.key === 'ArrowRight') { e.preventDefault(); viewerRow(1); }
+});
+
+/* ============ 上架 → 样品: title, notes, 样品通过, position and prototype per photo ============
+   rows/<id>/samples.json {images:[{id,url,w,h}]}: up to IMG_LIMIT photos (several MB: read when the panel or the viewer needs
+   them, never rewritten while typing). meta.samples [{id, title, note, ok, crop?, proto?}] in the same order: each photo's title,
+   notes, 样品通过, square position (shared/crop.js; none = the whole photo) and linked prototype 图片 (protoId), small
+   enough to autosave with the row and to give the 上架 pill its mark without loading photos. All of it is edited in the image
+   viewer's 样品 mode (the 上架 pill). Independent of the row's 图片. Approval never changes status */
+const samplesPath = r => 'rows/' + r.id + '/samples.json';
+const sampleCache = new Map();    // row id → [{id,url,w,h}], kept in step with every write
+const sampleIdx = new Map();      // row id → the photo the 样品 viewer last showed (this session): it reopens there
+const saveSamples = (r, list) => api.put(samplesPath(r), { images: list });
+const newSampleId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+let sampleBusy = false;           // one add / delete at a time
+
+/* meta.samples in photo order: each photo keeps its {title, note, ok, crop} by id, a new one starts empty, unapproved and whole.
+   Drops the fields of the first version (sampleOk: one mark per row; sampleCount). True when anything changed */
+function syncSampleMeta(r, list){
+  const by = new Map((r.samples || []).map(s => [s.id, s]));
+  const next = list.map(im => {
+    const s = by.get(im.id) || {};
+    const o = { id: im.id, title: s.title || '', note: s.note || '', ok: !!s.ok };
+    if (s.crop) o.crop = s.crop;
+    if (s.proto) o.proto = s.proto;
+    return o;
+  });
+  const changed = JSON.stringify(next) !== JSON.stringify(r.samples || []) || 'sampleCount' in r || 'sampleOk' in r;
+  r.samples = next;
+  delete r.sampleCount;
+  delete r.sampleOk;
+  return changed;
+}
+async function loadSamples(r){
+  if (sampleCache.has(r.id)) return sampleCache.get(r.id);
+  const d = await api.get(samplesPath(r)) || {};
+  if (sampleCache.has(r.id)) return sampleCache.get(r.id);    // another call finished first
+  const list = (Array.isArray(d.images) ? d.images : []).filter(x => x && x.url);
+  const noId = list.filter(im => !im.id);                       // photos from the first version
+  noId.forEach(im => { im.id = newSampleId(); });
+  sampleCache.set(r.id, list);
+  if (noId.length) saveSamples(r, list).catch(() => {});
+  if (syncSampleMeta(r, list)) { saveRow(r); render(); }
+  return list;
+}
+/* 上架: the row's sample photos in the image viewer, on the photo it last showed */
+function openSamples(r){
+  if (drafts.has(r.id)) return toast('请先添加图片和类目，产品才会保存', true);
+  openViewer(r, 'sample', sampleIdx.get(r.id) || 0);
+}
+/* how a sample is named in labels: its title, else 第 n 张 */
+const sampleName = (s, i) => s && s.title || '第 ' + (i + 1) + ' 张';
+/* square positions: a sample photo starts whole (zoomed out until the long edge fits, white padding) */
+function wholeCrop(W, H){
+  const L = Math.max(W, H);
+  return { x: (W - L) / 2 / W, y: (H - L) / 2 / H, s: L / Math.min(W, H) };
+}
+const sampleCrop = (s, W, H) => CROP.cropOf(s && s.crop || wholeCrop(W, H), W, H);
+/* a stored photo knows its size, so it can be placed without decoding (layoutFrame's f) */
+const sampleFrame = im => ({ main: im, W: im.w, H: im.h });
+/* a tile <img> at the photo's square (percentages of the tile) */
+const sampleTile = (im, s) => im.w && im.h ? tileStyle({ w: im.w, h: im.h, crop: sampleCrop(s, im.w, im.h) }) : '';
+
+/* add image files as sample photos (stored like the row's images: longest side IMG_STORE_MAX). Resolves to the number added */
+async function addSamples(r, files){
+  const imgs = files.filter(f => f && /^image\//.test(f.type));
+  if (!imgs.length) { toast('请选择图片文件', true); return 0; }
+  if (sampleBusy) { toast('正在处理上一张图片…'); return 0; }
+  sampleBusy = true;
+  try {
+    const list = await loadSamples(r);
+    const room = IMG_LIMIT - list.length;
+    if (room <= 0) { toast('每个产品最多 ' + IMG_LIMIT + ' 张样品图片', true); return 0; }
+    const take = imgs.slice(0, room);
+    for (const f of take) list.push(Object.assign({ id: newSampleId() }, drawScaled(await loadImg(await readFile(f)), IMG_STORE_MAX, 0.85)));
+    await saveSamples(r, list);
+    syncSampleMeta(r, list);
+    saveRow(r); render();
+    viewerChanged(r, 'sample');
+    toast(imgs.length > room
+      ? '已添加 ' + take.length + ' 张；每个产品最多 ' + IMG_LIMIT + ' 张样品图片，其余 ' + (imgs.length - room) + ' 张未添加'
+      : '已添加 ' + take.length + ' 张样品图片', imgs.length > room);
+    return take.length;
+  } catch (e) {
+    sampleCache.delete(r.id);
+    if (!e.offline) toast(e.message, true);
+    return 0;
+  } finally {
+    sampleBusy = false;
+  }
+}
+/* a photo goes with its notes and its mark */
+async function deleteSample(r, i){
+  if (sampleBusy) return;
+  sampleBusy = true;
+  try {
+    const list = await loadSamples(r);
+    if (!list[i]) return;
+    list.splice(i, 1);
+    await saveSamples(r, list);
+    syncSampleMeta(r, list);
+    saveRow(r); render();
+    viewerChanged(r, 'sample');
+    toast('已删除样品图片');
+  } catch (e) {
+    sampleCache.delete(r.id);
+    if (!e.offline) toast(e.message, true);
+  } finally {
+    sampleBusy = false;
+  }
+}
+/* 样品通过 of one photo: the viewer and the 上架 pill's mark follow */
+function toggleSampleOk(r, s){
+  if (!s) return;
+  s.ok = !s.ok;
+  saveRow(r);
+  render();
+  if (viewer && viewer.kind === 'sample' && viewer.id === r.id) renderViewer();
+}
+function setSampleNote(r, s, text){
+  s.note = text;
+  saveRow(r);                                           // debounced; flushed on pagehide
+}
+/* show photo s's field (note / title) in a box; the text being typed is left alone */
+function fillField(box, s, key){
+  const sid = s ? s.id : '';
+  if (box.dataset.sid !== sid || document.activeElement !== box) box.value = s ? s[key] || '' : '';
+  box.dataset.sid = sid;
+}
+/* a sample's title (confirmed on Enter / blur); the labels follow */
+function setSampleTitle(r, s, text){
+  if ((s.title || '') === text) return;
+  s.title = text;
+  saveRow(r);
+  if (viewer && viewer.kind === 'sample' && viewer.id === r.id) renderViewer();
+}
+/* a sample photo's new square position (viewer frame): saved with the row; its grid tile follows */
+function setSampleCrop(r, s, c){
+  const n = roundCrop(c), o = s.crop;
+  if (![n.x, n.y, n.s].every(Number.isFinite) || (o && o.x === n.x && o.y === n.y && o.s === n.s)) return;
+  s.crop = n;
+  saveRow(r);
+  const i = r.samples.indexOf(s), list = sampleCache.get(r.id), im = list && list[i];
+  if (!im) return;
+  const tile = viewer && viewer.kind === 'sample' && viewer.id === r.id && $('ivGrid').querySelector('.iv-tile[data-i="' + i + '"] img');
+  if (tile) tile.outerHTML = '<img src="' + im.url + '" alt="" draggable="false"' + sampleTile(im, s) + '>';
+}
+/* 样品通过 button: light green until approved, then solid green */
+function okButton(btn, s, i){
+  btn.classList.toggle('hidden', !s);
+  if (!s) return;
+  btn.textContent = s.ok ? '✓ 已通过' : '✓ 样品通过';
+  btn.className = 'btn btn-sm ' + (s.ok ? 'btn-ok' : 'btn-okish');
+  btn.title = '第 ' + (i + 1) + ' 张：' + (s.ok ? '已通过，点击撤销' : '点击标记为通过');
+}
+
+/* ---- sample titles: click to edit; Enter / click away keeps it, Esc cancels ---- */
+[['ivSTitle', () => viewer && viewer.kind === 'sample' && byId(viewer.id)]].forEach(([id, rowOf]) => {
+  const el = $(id);
+  const sampleOf = () => { const r = rowOf(); return r && (r.samples || []).find(x => x.id === el.dataset.sid) ? r : null; };
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+    else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();                              // only the edit is cancelled, the viewer stays open
+      const r = sampleOf();
+      el.value = r ? r.samples.find(x => x.id === el.dataset.sid).title || '' : '';
+      el.blur();
+    }
+  });
+  el.addEventListener('change', () => {
+    const r = sampleOf();
+    if (r) setSampleTitle(r, r.samples.find(x => x.id === el.dataset.sid), el.value.trim());
+  });
+});
+
+/* the viewer's sample mode: the upload area (no photos yet) and 产品备注 (autosaved with the row) */
+$('ivEmpty').addEventListener('click', () => pickImage(files => viewerAdd(files), true));
+$('ivProduct').addEventListener('input', () => {
+  const r = viewer && viewer.kind === 'sample' && byId(viewer.id);
+  if (!r || $('ivProduct').dataset.rid !== r.id) return;
+  r.productNotes = $('ivProduct').value;
+  saveRow(r);
+});
+/* the viewer's sample mode: the shown photo's notes and 样品通过 */
+$('ivNote').addEventListener('input', () => {
+  const r = viewer && viewer.kind === 'sample' && byId(viewer.id);
+  const s = r && (r.samples || []).find(x => x.id === $('ivNote').dataset.sid);
+  if (s) setSampleNote(r, s, $('ivNote').value);
+});
+$('ivOk').addEventListener('click', () => {
+  const r = viewer && viewer.kind === 'sample' && byId(viewer.id);
+  if (r && viewer.list) toggleSampleOk(r, r.samples[viewer.idx]);
 });
 
 /* ============ 下单 pop-up (Step 2) ============
@@ -2036,7 +2483,8 @@ function openPicker(r){
       .filter(x => ['sku', 'price', 'l', 'w', 'h'].some(k => String(x[k] == null ? '' : x[k]).trim()));
     const known = mq && mq.qty ? mq.qty : {};
     const qty = new Map(lines.map(l => [l, qtyKey(l) && known[qtyKey(l)] != null ? String(known[qtyKey(l)]) : '']));
-    order.pick = { r, list, slots: list.map((im, i) => ({ im, name: '', main: !i })), lines, on: new Set(lines), qty };   // every image + every line
+    order.pick = { r, list, slots: list.map((im, i) => ({ im, name: '', main: !i })), lines, on: new Set(lines), qty,   // every image + every line
+                   peak: !!(s1 && s1.peak) };                                                                       // 报价's 旺季 switch
     renderPicker();
   }).catch(() => {});
 }
@@ -2080,7 +2528,7 @@ function renderPickLines(){
       '<th>尺寸 / 规格</th><th>工厂价 (￥)</th><th>内盒尺寸</th><th>建议售价 ($)</th><th style="width:130px">下单数量</th></tr></thead><tbody>' +
     pk.lines.map((l, i) => {
       const L = parseFloat(l.l), W = parseFloat(l.w), H = parseFloat(l.h), fp = parseFloat(l.price);   // as in the 报价 panel
-      const r = L > 0 && W > 0 && H > 0 ? PRICING.computeRow(isNaN(fp) ? 0 : fp, L, W, H, P) : null;
+      const r = L > 0 && W > 0 && H > 0 ? PRICING.computeRow(isNaN(fp) ? 0 : fp, L, W, H, P, pk.peak) : null;
       const sale = r && r.price != null ? r.price.toFixed(2) : '';   // oversize: no price
       const on = pk.on.has(l);
       return '<tr class="' + (on ? '' : 'off') + '" data-pk="line" data-i="' + i + '">' +
@@ -2420,13 +2868,13 @@ document.querySelector('.tabs').addEventListener('click', e => {
   if (t && !t.disabled) showTab(t.dataset.tab);
 });
 
-/* ---- 报价 → 查看详情: tools/pricing-detail.html (a copy of Updated Pricing.html) for the 报价 table's lines.
-   A what-if sandbox: it starts from the line and 设置 → 报价, and nothing is written back. ---- */
+/* ---- 报价 → 查看详情: tools/pricing-detail.html (a copy of Pricer Updated.html) for the 报价 table's lines.
+   A what-if sandbox: it starts from the line, the table's 旺季 switch and 设置 → 报价, and nothing is written back. ---- */
 const pdFrame = $('pdFrame');
-let detail = null;          // { id, lines:[{sku, price, l, w, h}], i, ready }
-function openDetail(r, lines){
+let detail = null;          // { id, lines:[{sku, price, l, w, h}], peak, i, ready }
+function openDetail(r, lines, peak){
   if (viewer) closeViewer();
-  detail = { id: r.id, lines, i: 0, ready: false };
+  detail = { id: r.id, lines, peak, i: 0, ready: false };
   $('pdBack').classList.remove('hidden');
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   pdFrame.src = 'tools/pricing-detail.html';            // fresh each time: the sandbox starts from 设置 → 报价
@@ -2449,11 +2897,11 @@ function renderDetailHead(){
   $('pdPrev').disabled = detail.i === 0;
   $('pdNext').disabled = detail.i === n - 1;
 }
-/* first = the pop-up just opened: also send 设置 → 报价 (after that, line switches keep the pop-up's own assumptions) */
+/* first = the pop-up just opened: also send 设置 → 报价 and 旺季 (after that, line switches keep the pop-up's own assumptions and season) */
 function sendLine(first){
   if (!detail || !detail.ready) return;
   const l = detail.lines[detail.i];
-  hubEmbed.send(pdFrame, 'load-line', Object.assign({ unitRmb: l.price, l: l.l, w: l.w, h: l.h }, first ? { settings: settings.step1 } : {}));
+  hubEmbed.send(pdFrame, 'load-line', Object.assign({ unitRmb: l.price, l: l.l, w: l.w, h: l.h }, first ? { settings: settings.step1, peak: detail.peak } : {}));
 }
 function stepDetail(d){
   if (!detail) return;
@@ -2618,7 +3066,10 @@ $('facList').addEventListener('click', e => {
 (async function init(){
   try {
     settings = await api.settings();
-    rows = (await api.rows()).map(ROWS.normalize);
+    const raw = await api.rows();
+    rows = raw.map(ROWS.normalize);
+    /* 总备注 (sampleNotes) was removed on 2026-10-19 together with the 样品 panel: drop the saved text */
+    raw.forEach((x, k) => { if (x && 'sampleNotes' in x) saveRow(rows[k]); });
   } catch (e) {
     $('emptyBox').innerHTML = '<b>未连接到本地服务</b>请双击项目文件夹中的 启动.bat 打开本页面。';
     $('emptyBox').classList.remove('hidden');
