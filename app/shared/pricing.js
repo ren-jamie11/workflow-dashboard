@@ -1,14 +1,16 @@
 /* Workflow Hub — 报价 (Step 1) price calculation, shared by tools/step1.html and the hub's 下单计划 picker.
-   The fee / cost / minimum-price logic is copied UNCHANGED from `Pricer Updated.html` (the reference), except that the
-   assumptions `A` are passed in instead of read from the page's closure, and computeRow sets the fee SEASON (the
-   page's Peak switch) from its argument. Keep the arithmetic identical so the prices match that file to the cent. */
+   The fee / cost / minimum-price logic is copied UNCHANGED from `Pricer_Updated.html` (the reference: 2027 non-peak fees,
+   optional unit weight), except that the assumptions `A` and the unit weight `wt` (oz, null = not entered) are passed in
+   instead of read from the page's closure, and computeRow sets the fee SEASON (the page's Peak switch) from its argument. Keep the arithmetic identical so the prices match that file to the cent. */
 (function () {
 'use strict';
 
-  /* ================= 计算逻辑（与 Pricer Updated.html 完全一致） ================= */
+  /* ================= 计算逻辑（与 Pricer_Updated.html 完全一致） ================= */
   const EPS = 1e-6;
 
-  // Fee season. Peak runs Oct 15 – Jan 14.
+  const OZ_PER_KG = 35.27396195;
+
+  // Fee season. Peak runs Oct 15 – Jan 14. Non-peak = 2027 rates (Jan 15 – Oct 14, 2027).
   let SEASON = 'nonpeak';   /* HUB: set by computeRow */
 
   // `fees` / `over` always return the rates for the selected SEASON.
@@ -19,9 +21,9 @@
       labels:['2 oz or less','2+ to 4 oz','4+ to 6 oz','6+ to 8 oz','8+ to 10 oz','10+ to 12 oz','12+ to 14 oz','14+ to 16 oz'],
       feesBy:{
         nonpeak:{
-          low: [2.43,2.49,2.56,2.66,2.77,2.82,2.92,2.95],
-          mid: [3.32,3.42,3.45,3.54,3.68,3.78,3.91,3.96],
-          high:[3.58,3.68,3.71,3.80,3.94,4.04,4.17,4.22]
+          low: [2.64,2.72,2.80,2.83,2.87,2.92,2.96,2.99],
+          mid: [3.75,3.78,3.92,3.97,4.06,4.16,4.30,4.32],
+          high:[4.31,4.34,4.47,4.53,4.62,4.73,4.85,4.88]
         },
         peak:{
           low: [2.62,2.68,2.76,2.86,2.98,3.03,3.14,3.17],
@@ -38,8 +40,8 @@
       feesBy:{
         nonpeak:{
           low: [2.91,3.13,3.38,3.78,4.22,4.60,4.75,5.00,5.10,5.28,5.44,5.85],
-          mid: [3.73,3.95,4.20,4.60,5.04,5.42,5.57,5.82,5.92,6.10,6.26,6.67],
-          high:[3.99,4.21,4.46,4.86,5.30,5.68,5.83,6.08,6.18,6.36,6.52,6.93]
+          mid: [3.79,4.01,4.26,4.67,5.19,5.57,5.72,5.98,6.08,6.26,6.42,6.85],
+          high:[4.35,4.57,4.83,5.23,5.75,6.14,6.29,6.54,6.64,6.83,6.99,7.41]
         },
         peak:{
           low: [3.15,3.39,3.66,4.07,4.52,4.91,5.07,5.33,5.47,5.67,5.84,6.26],
@@ -48,7 +50,7 @@
         }
       },
       overBy:{                                   // + $0.08 per 4 oz above 3 lb, up to 20 lb (both seasons)
-        nonpeak:{ low:6.15, mid:6.97, high:7.23 },
+        nonpeak:{ low:6.15, mid:7.16, high:7.73 },
         peak:   { low:6.69, mid:7.51, high:7.77 }
       },
       get fees(){ return this.feesBy[SEASON]; },
@@ -136,13 +138,19 @@
     return cm3/5000;
   }
 
+  // Freight to the US is billed on chargeable weight: the greater of volumetric and actual weight.
+  function freightKg(dims, scen, WT){   /* HUB: WT passed in */
+    const vol = volKgOf(dims, scen), act = WT != null ? WT/OZ_PER_KG : 0;
+    return { kg: Math.max(vol, act), actual: act > vol + EPS };
+  }
+
   // All per-unit costs in USD at a given retail price. `scen` (optional) = a selected cheaper tier { oz, label }.
-  function costsAt(dims, unitRmb, price, scen, A){   /* HUB: A passed in */
-    const r = compute(dims, null, price);
+  function costsAt(dims, unitRmb, price, scen, A, WT){   /* HUB: A, WT passed in */
+    const r = compute(dims, WT, price);
     if (!r.tier) return null;
-    const volKg = volKgOf(dims, scen);
+    const fk = freightKg(dims, scen, WT), volKg = fk.kg;
     const c = {
-      r, volKg, scen: scen || null,
+      r, volKg, actualKg: fk.actual, scen: scen || null,
       unit: unitRmb / A.fx,
       ship: volKg * A.shipRmbKg / A.fx,
       fee: scen ? bandOf(r.tier, scen.oz, r.pb).fee : r.band.fee,
@@ -159,17 +167,17 @@
 
   // Lowest price (to the cent) whose gross margin meets the target.
   // The fulfillment fee depends on the price band, so solve per band and keep the first one that's consistent.
-  function minPrice(dims, unitRmb, scen, A){   /* HUB: A passed in */
+  function minPrice(dims, unitRmb, scen, A, WT){   /* HUB: A, WT passed in */
     const varPct = (A.comm + A.ads + A.wh + A.target)/100;
     if (varPct >= 1) return { err:'Commission, ads, warehousing and target margin add up to 100% or more, so no price can reach the target.' };
-    const fixed = unitRmb/A.fx + volKgOf(dims, scen)*A.shipRmbKg/A.fx;
+    const fixed = unitRmb/A.fx + freightKg(dims, scen, WT).kg*A.shipRmbKg/A.fx;
     for (const probe of [5, 20, 60]){            // representative price in each band: <$10, $10–$50, >$50
-      const r = compute(dims, null, probe);
+      const r = compute(dims, WT, probe);
       if (!r.tier) return { err:'oversize' };
       const fee = scen ? bandOf(r.tier, scen.oz, r.pb).fee : r.band.fee;
       let p = ceil2((fixed + fee*(1 + A.fuel/100))/(1 - varPct));
       for (let k=0;k<3;k++){                     // confirm at the rounded price with that price's real fee
-        const c = costsAt(dims, unitRmb, p, scen, A);
+        const c = costsAt(dims, unitRmb, p, scen, A, WT);
         if (c.pct >= A.target/100 - 1e-9) return { price:p };
         p = ceil2(p + 0.01);
       }
@@ -178,19 +186,25 @@
   }
   /* ============================================================== */
 
-  /* One 报价 line → the table's columns. Unit weight is never entered, so (as in Pricer Updated.html) the
-     shipping weight is the dimensional weight. peak = the line's fee season (falsy = non-peak).
+  /* One 报价 line → the table's columns. peak = the line's fee season (falsy = non-peak).
+     weightLb = the line's actual packaged weight in lb (the 计费重量 cell; blank / ≤ 0 = not entered → dimensional
+     weight, as in Pricer_Updated.html with no unit weight). Out: weightLb = the billed (shipping) weight, dimLb = the
+     dimensional weight, basis = 'Unit weight' when the actual weight is billed.
      deliveryFee (尾程运费) = the FBA fee + its fuel surcharge (baseFee + fuel); it is in cost too.
      price / cost / deliveryFee are null when oversize or unsolvable. */
-  function computeRow(factoryPrice, length, width, height, A, peak){
+  function computeRow(factoryPrice, length, width, height, A, peak, weightLb){
     SEASON = peak ? 'peak' : 'nonpeak';
     const dims = [length, width, height];
-    const m = minPrice(dims, factoryPrice, undefined, A);
-    const out = { weightLb: dimOz(dims)/16, shippingFee: volKgOf(dims) * A.shipRmbKg / A.fx,
+    const WT = weightLb > 0 ? weightLb * 16 : null;
+    const m = minPrice(dims, factoryPrice, undefined, A, WT);
+    const dimLb = dimOz(dims)/16;
+    const out = { weightLb: WT != null ? Math.max(WT/16, dimLb) : dimLb, dimLb, basis: null,
+                  shippingFee: freightKg(dims, undefined, WT).kg * A.shipRmbKg / A.fx,
                   deliveryFee: null, baseFee: null, fuel: null, cost: null, price: null, oversize: m.err === 'oversize', err: null };
     if (m.err) { if (!out.oversize) out.err = m.err; return out; }
-    const c = costsAt(dims, factoryPrice, m.price, undefined, A);
+    const c = costsAt(dims, factoryPrice, m.price, undefined, A, WT);
     out.weightLb = c.r.shipOz/16;
+    out.basis = c.r.basis;
     out.shippingFee = c.ship;
     out.baseFee = c.fee;
     out.fuel = c.fuel;
@@ -200,7 +214,7 @@
     return out;
   }
 
-  /* settings.step1 → the assumptions computeRow expects (defaults = Pricer Updated.html's) */
+  /* settings.step1 → the assumptions computeRow expects (defaults = Pricer_Updated.html's) */
   const DEFAULTS = { fx:6.7, shipRmbKg:6, fuel:3.5, comm:15, ads:12, wh:5, target:18 };
   function params(P){
     P = P || {};

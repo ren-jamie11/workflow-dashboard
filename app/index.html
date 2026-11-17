@@ -407,7 +407,7 @@ table.pk .pk-qty:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0
     </div>
     <div class="modal-body hidden" data-body="quote">
       <div class="set-grid">
-        <!-- 与 Pricer Updated.html 的 Assumptions 相同 -->
+        <!-- 与 Pricer_Updated.html 的 Assumptions 相同 -->
         <div><label class="form-label">美元对人民币汇率</label><input type="number" min="0" step="0.01" class="form-control" data-p="fx"></div>
         <div><label class="form-label">头程运费 (￥/kg)</label><input type="number" min="0" step="0.1" class="form-control" data-p="shipRmbKg"></div>
         <div><label class="form-label">FBA 燃油附加费 (%)</label><input type="number" min="0" step="0.1" class="form-control" data-p="fuel"></div>
@@ -2528,7 +2528,7 @@ function renderPickLines(){
       '<th>尺寸 / 规格</th><th>工厂价 (￥)</th><th>内盒尺寸</th><th>建议售价 ($)</th><th style="width:130px">下单数量</th></tr></thead><tbody>' +
     pk.lines.map((l, i) => {
       const L = parseFloat(l.l), W = parseFloat(l.w), H = parseFloat(l.h), fp = parseFloat(l.price);   // as in the 报价 panel
-      const r = L > 0 && W > 0 && H > 0 ? PRICING.computeRow(isNaN(fp) ? 0 : fp, L, W, H, P, pk.peak) : null;
+      const r = L > 0 && W > 0 && H > 0 ? PRICING.computeRow(isNaN(fp) ? 0 : fp, L, W, H, P, pk.peak, parseFloat(l.wt)) : null;   // wt: 计费重量 (lb), optional
       const sale = r && r.price != null ? r.price.toFixed(2) : '';   // oversize: no price
       const on = pk.on.has(l);
       return '<tr class="' + (on ? '' : 'off') + '" data-pk="line" data-i="' + i + '">' +
@@ -2868,10 +2868,10 @@ document.querySelector('.tabs').addEventListener('click', e => {
   if (t && !t.disabled) showTab(t.dataset.tab);
 });
 
-/* ---- 报价 → 查看详情: tools/pricing-detail.html (a copy of Pricer Updated.html) for the 报价 table's lines.
+/* ---- 报价 → 查看详情: tools/pricing-detail.html (a copy of Pricer_Updated.html) for the 报价 table's lines.
    A what-if sandbox: it starts from the line, the table's 旺季 switch and 设置 → 报价, and nothing is written back. ---- */
 const pdFrame = $('pdFrame');
-let detail = null;          // { id, lines:[{sku, price, l, w, h}], peak, i, ready }
+let detail = null;          // { id, lines:[{sku, price, l, w, h, wt}], peak, i, ready }
 function openDetail(r, lines, peak){
   if (viewer) closeViewer();
   detail = { id: r.id, lines, peak, i: 0, ready: false };
@@ -2892,7 +2892,8 @@ function renderDetailHead(){
   const l = detail.lines[detail.i], n = detail.lines.length;
   if (r.thumb) $('pdThumb').src = r.thumb; else $('pdThumb').removeAttribute('src');
   $('pdTitle').innerHTML = '<span class="step-tag">售价详情 · 仅试算</span>' + esc(rowLabel(r));
-  $('pdMeta').textContent = [l.sku || '第 ' + (detail.i + 1) + ' 行', '工厂价 ￥' + l.price, l.l + '×' + l.w + '×' + l.h + ' cm'].join(' · ');
+  $('pdMeta').textContent = [l.sku || '第 ' + (detail.i + 1) + ' 行', '工厂价 ￥' + l.price, l.l + '×' + l.w + '×' + l.h + ' cm']
+    .concat(l.wt ? [l.wt + ' lb'] : []).join(' · ');
   $('pdPos').textContent = (detail.i + 1) + ' / ' + n;
   $('pdPrev').disabled = detail.i === 0;
   $('pdNext').disabled = detail.i === n - 1;
@@ -2901,7 +2902,7 @@ function renderDetailHead(){
 function sendLine(first){
   if (!detail || !detail.ready) return;
   const l = detail.lines[detail.i];
-  hubEmbed.send(pdFrame, 'load-line', Object.assign({ unitRmb: l.price, l: l.l, w: l.w, h: l.h }, first ? { settings: settings.step1, peak: detail.peak } : {}));
+  hubEmbed.send(pdFrame, 'load-line', Object.assign({ unitRmb: l.price, l: l.l, w: l.w, h: l.h, wt: l.wt || null }, first ? { settings: settings.step1, peak: detail.peak } : {}));
 }
 function stepDetail(d){
   if (!detail) return;

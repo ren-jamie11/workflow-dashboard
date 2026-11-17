@@ -106,7 +106,7 @@ body{background:transparent}
 .saved-note b{color:var(--dark);font-weight:500}
 .actions .push{margin-left:auto;display:flex;gap:.75rem;align-items:center}
 #saveBtn{min-width:5.2rem;justify-content:center}
-/* HUB: 旺季 switch (as in Pricer Updated.html), left of 查看详情 */
+/* HUB: 旺季 switch (as in Pricer_Updated.html), left of 查看详情 */
 .season{display:flex;align-items:center;gap:.5rem}
 .season-label{font-size:.88rem;font-weight:500;color:var(--muted);cursor:pointer;user-select:none}
 .switch{position:relative;flex:none;width:44px;height:24px;padding:0;border:none;border-radius:999px;background:#94a3b8;cursor:pointer;transition:background .2s}
@@ -137,7 +137,7 @@ body{background:transparent}
             <th style="width:78px">长 (cm)</th>
             <th style="width:78px">宽 (cm)</th>
             <th style="width:78px">高 (cm)</th>
-            <th class="out" style="width:96px">计费重量 (lb)</th><!-- HUB: was 重量 (lb); now Amazon's dimensional weight -->
+            <th style="width:96px" title="选填：实际包装重量 (lb)。留空 = 按体积重计费（灰色提示值）。大号标准件按实际重量与体积重中较大者计费，小号标准件按实际重量计费；头程运费同样按两者中较大者计。">计费重量 (lb)</th><!-- HUB: was 重量 (lb); editable actual weight, placeholder = dimensional weight -->
             <th class="out" style="width:98px">头程运费 ($)</th>
             <!-- HUB: 入库配置费 removed (Updated Pricing) -->
             <th class="out" style="width:150px">尾程运费 ($)</th>
@@ -184,7 +184,7 @@ body{background:transparent}
 (function(){
   const tbody = document.getElementById('tbody');
   const DEFAULT_ROWS = 3;   /* HUB: empty rows for a new table / after 清空 (was 6) */
-  /* HUB: 计算逻辑 lives in shared/pricing.js — Pricer Updated.html's model (the hub's 下单计划 picker shows 建议售价 too) */
+  /* HUB: 计算逻辑 lives in shared/pricing.js — Pricer_Updated.html's model (the hub's 下单计划 picker shows 建议售价 too) */
   const computeRow = PRICING.computeRow;
 
   /* HUB: parameters are global and live — read from settings.step1 instead of the page */
@@ -209,7 +209,7 @@ body{background:transparent}
       <td><input type="number" step="any" class="cell-input num f-l" placeholder="0"></td>
       <td><input type="number" step="any" class="cell-input num f-w" placeholder="0"></td>
       <td><input type="number" step="any" class="cell-input num f-h" placeholder="0"></td>
-      <td class="out-cell empty o-weight">—</td>
+      <td><input type="number" step="any" min="0" class="cell-input num f-wt" placeholder="—"></td>
       <td class="out-cell empty o-ship">—</td>
       <td class="out-cell empty o-delivery">—</td>
       <td class="out-cell empty o-cost">—</td>
@@ -233,7 +233,9 @@ body{background:transparent}
 
   function clearRowOutputs(tr){
     tr.classList.remove('warn');
-    ['.o-weight','.o-ship','.o-delivery','.o-cost','.o-price'].forEach(sel=>{
+    const wt = tr.querySelector('.f-wt');   /* HUB: 计费重量 is an input — only its hint resets */
+    wt.placeholder = '—'; wt.title = '';
+    ['.o-ship','.o-delivery','.o-cost','.o-price'].forEach(sel=>{
       const c = tr.querySelector(sel);
       c.textContent = '—';
       c.classList.add('empty');
@@ -248,18 +250,24 @@ body{background:transparent}
       const length = parseFloat(tr.querySelector('.f-l').value);
       const width  = parseFloat(tr.querySelector('.f-w').value);
       const height = parseFloat(tr.querySelector('.f-h').value);
+      const wtEl   = tr.querySelector('.f-wt');   /* HUB: actual packaged weight (lb), blank = dimensional weight */
+      const wt     = parseFloat(wtEl.value);
 
       // 尺寸必须齐全且为正数，否则该行留空
       if (!(length > 0 && width > 0 && height > 0)) { clearRowOutputs(tr); return; }
 
-      const r = computeRow(isNaN(price) ? 0 : price, length, width, height, P, peak);
+      const r = computeRow(isNaN(price) ? 0 : price, length, width, height, P, peak, wt);
 
       const set = (sel, val) => {
         const c = tr.querySelector(sel);
         c.textContent = val;
         c.classList.remove('empty');
       };
-      set('.o-weight',   r.weightLb.toFixed(2));
+      /* HUB: 计费重量 — placeholder = dimensional weight; the title says which weight is billed */
+      wtEl.placeholder = r.dimLb.toFixed(2);
+      wtEl.title = !(wt > 0) ? '按体积重计费：' + r.dimLb.toFixed(2) + ' lb（如实际重量更重，请填写）'
+        : r.basis === 'Unit weight' ? '按实际重量计费：' + r.weightLb.toFixed(2) + ' lb（体积重 ' + r.dimLb.toFixed(2) + ' lb）'
+        : '实际重量 ' + wt.toFixed(2) + ' lb ≤ 体积重，按体积重计费：' + r.weightLb.toFixed(2) + ' lb';
       set('.o-ship',     r.shippingFee.toFixed(2));
 
       /* HUB: oversize (not small / large standard) or no solution → no 尾程 / 成本 / 售价, as in Pricer Updated */
@@ -306,7 +314,7 @@ body{background:transparent}
   });
 
   /* ================= HUB: 存储（每个产品一张表，自动保存到 data/rows/<id>/step1.json） ================= */
-  const ROW_FIELDS = [['sku','.f-sku'],['price','.f-price'],['l','.f-l'],['w','.f-w'],['h','.f-h']];
+  const ROW_FIELDS = [['sku','.f-sku'],['price','.f-price'],['l','.f-l'],['w','.f-w'],['h','.f-h'],['wt','.f-wt']];   /* wt: actual weight (lb), optional */
   const ROW_ID = embed.row;
   const DATA_PATH = 'rows/' + ROW_ID + '/step1.json';
   const savedNote = document.getElementById('savedNote');
@@ -391,7 +399,8 @@ body{background:transparent}
      in this table's season. A what-if pop-up: nothing comes back to this table. */
   document.getElementById('detailBtn').addEventListener('click', () => {
     const lines = readRows()
-      .map(r => ({ sku: String(r.sku || '').trim(), price: parseFloat(r.price), l: parseFloat(r.l), w: parseFloat(r.w), h: parseFloat(r.h) }))
+      .map(r => ({ sku: String(r.sku || '').trim(), price: parseFloat(r.price), l: parseFloat(r.l), w: parseFloat(r.w), h: parseFloat(r.h),
+                   wt: parseFloat(r.wt) > 0 ? parseFloat(r.wt) : null }))
       .filter(r => r.l > 0 && r.w > 0 && r.h > 0)
       .map(r => Object.assign(r, { price: isNaN(r.price) ? 0 : r.price }));   // as calcAll: no 工厂价 = 0
     if (!lines.length) return note('请先填写长宽高');

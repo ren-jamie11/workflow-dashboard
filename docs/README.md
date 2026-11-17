@@ -23,7 +23,7 @@ app/
   server.py            static files + JSON API (below)
   index.html           Hub: main table, 报价 panel, 下单 pop-up, image viewer (图片 and 样品 modes), Settings modal (tabs 通用 / 报价 / 下单 / 工厂 / 上架)
   tools/step1..3.html  copies of the original tools, adapted for embedded mode   (stages 2–4)
-  tools/pricing-detail.html  copy of Pricer Updated.html: the 报价 → 查看详情 pop-up (what-if, never saves)
+  tools/pricing-detail.html  copy of Pricer_Updated.html: the 报价 → 查看详情 pop-up (what-if, never saves)
   tools/vendor/        exceljs.min.js, moved out of the Step 2 original unchanged
   shared/
     theme.css          tokens and components copied from the existing tools' :root
@@ -32,7 +32,7 @@ app/
     rows.js            status order, journey state, stage() sort tier, filter + sort (hub and sidebar)
     embed.js           iframe ↔ parent postMessage (resize, settings-changed, load-row, events)
     crop.js            square image positions (thumbCrop / crop): pan, zoom, render — hub and Step 2
-    pricing.js         报价 price calculation (Pricer Updated.html's fee / minimum-price logic, copied unchanged;
+    pricing.js         报价 price calculation (Pricer_Updated.html's fee / minimum-price logic, copied unchanged;
                        computeRow wraps it and sets the season) — Step 1 and the 下单计划 picker
     datepicker.js      small popover calendar that can open on a given month
     combo.js           type-to-filter dropdown on a text input (existing values only; optional '+ 添加「X」' for 工厂)
@@ -42,7 +42,7 @@ data/                  the saved data; back up this folder to back up everything
 下单计划/<product>/      Step 2 outputs: one folder per product (meta.orderFolder); the files are the record
 下单计划 Order Forms/    examples from before 2026-09-29; no longer used
 Step 1/2/3 - *.html    ORIGINALS: never edit; they are the reference implementation
-Pricer Updated.html    ORIGINAL: the Step 1 pricing reference since 2026-10-27 (peak fees + 3.5% fuel surcharge).
+Pricer_Updated.html    ORIGINAL: the Step 1 pricing reference since 2026-10-27 (peak fees + 3.5% fuel surcharge; 2027 non-peak fees + unit weight since 2026-11-17).
                        Old Pricing.html (the 2026-10-14 reference) and Step 1 - Price Quotes (outdated).html are kept for history only
 ```
 
@@ -65,7 +65,7 @@ browser.
 settings.json         { categories:["XK","MUG"], materials:["树脂","金属","实木","陶瓷","塑料"],
                         factories:[{name, taxRate, category, material}]   (工厂 list in a fixed order, new ones at the end; '' = not set),
                         rowFactoriesFilled   (the one-time 工厂 fill of existing rows ran; no longer used)
-                        step1:{fx,shipRmbKg,fuel,comm,ads,wh,target}   (Pricer Updated's Assumptions; fuel missing → 3.5; older
+                        step1:{fx,shipRmbKg,fuel,comm,ads,wh,target}   (Pricer_Updated's Assumptions; fuel missing → 3.5; older
                           {exchangeRate,shippingPrice,…} loads as fx / shipRmbKg, the rest dropped — api.settings()),
                         step2:{operator,store}, step3:{targetDays:90, invTargetDays:180} }
 rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, status, liveDate,
@@ -79,7 +79,7 @@ rows/<id>/meta.json   { id, name, factory, category, material, sku, parentAsin, 
                       (sampleOk is dropped, every photo starts unapproved)
                       orderFolder = the product's folder in 下单计划/, named after the product the first time it is
                       needed and never renamed (a clash with another row adds " 2")
-rows/<id>/step1.json  { rows:[{sku,price,l,w,h}], specs, peak }   peak = the 旺季 switch (missing = non-peak)
+rows/<id>/step1.json  { rows:[{sku,price,l,w,h,wt}], specs, peak }   peak = the 旺季 switch (missing = non-peak); wt = actual weight in lb (blank / missing = dimensional)
 rows/<id>/images.json { main:{url,w,h}, extra:[{url,w,h,crop}] }  the row's images: main + up to 8 more (image viewer,
                       下单计划 picker)
 rows/<id>/samples.json { images:[{id,url,w,h}] }  the row's sample photos (up to 9; the 样品 viewer only), never
@@ -240,7 +240,7 @@ a new one is built in a picker (images × 报价 lines) as one 货号 card with 
 | # | Decision |
 |---|---|
 | P1 | The 报价 table prices with `Updated Pricing.html`: 建议售价 = its minimum price for the target margin, equal to the cent (same assumptions, unit weight never entered → dimensional weight). Verified on 32k cases with strict equality |
-| P2 | Columns: 尺寸/规格 · 工厂价 · 长宽高 · 计费重量 (lb, dimensional) · 头程运费 (L×W×H ÷ 5000 kg × ￥/kg ÷ 汇率) · 尾程运费 (FBA fee) · 成本 (工厂价$ + 头程 + 尾程) · 建议售价. 入库配置费 and 旺季 removed |
+| P2 | Columns: 尺寸/规格 · 工厂价 · 长宽高 · 计费重量 (lb; editable actual weight, placeholder = dimensional — see P10) · 头程运费 (L×W×H ÷ 5000 kg × ￥/kg ÷ 汇率) · 尾程运费 (FBA fee) · 成本 (工厂价$ + 头程 + 尾程) · 建议售价. 入库配置费 and 旺季 removed |
 | P3 | Outside small / large standard: `⚠ 超出标准尺寸`, no 尾程 / 成本 / 售价. 佣金 + 广告 + 仓储 + 目标 ≥ 100%: `无解` |
 | P4 | Settings → 报价 = Updated Pricing's Assumptions: 汇率 · 头程 ￥/kg · 佣金 % · 广告 % · 仓储/退货 % · 目标毛利率 % (6.7 / 6 / 15 / 12 / 5 / 18) |
 | P5 | **查看详情** (where 导入 was) opens `tools/pricing-detail.html` over the hub for the table's lines with L/W/H, ‹ › between lines (buttons only; ← → in the tool step tiers). A what-if sandbox: it starts from the line and 设置 → 报价; edits (inputs, ⚙ assumptions) stay in the pop-up and are kept across ‹ ›, gone on close. × / Esc / backdrop close |
@@ -248,10 +248,16 @@ a new one is built in a picker (images × 报价 lines) as one 货号 card with 
 ### 报价 = Pricer Updated (2026-10-27): peak season + fuel surcharge
 | # | Decision |
 |---|---|
-| P6 | `shared/pricing.js` and `tools/pricing-detail.html` follow `Pricer Updated.html`: non-peak and peak fee tables (peak = Oct 15 – Jan 14) and a fuel & logistics surcharge (% of the FBA fee, 3.5% since 2026-04-17) in 成本 and the minimum price. Logic copied unchanged |
+| P6 | `shared/pricing.js` and `tools/pricing-detail.html` follow `Pricer_Updated.html`: non-peak and peak fee tables (peak = Oct 15 – Jan 14) and a fuel & logistics surcharge (% of the FBA fee, 3.5% since 2026-04-17) in 成本 and the minimum price. Logic copied unchanged |
 | P7 | **旺季** switch left of 查看详情, per product: saved in `step1.json` (`peak`) and the 售价计算 file; starts off (non-peak) for new / older tables. The 下单计划 picker's 建议售价 uses the product's season; 查看详情 opens in it (its own Peak switch then works as a what-if) |
 | P8 | 尾程运费 = FBA fee + fuel surcharge (one column); its tooltip shows the season, base fee and surcharge. 成本 = 工厂价$ + 头程 + 尾程 |
 | P9 | Settings → 报价 adds **FBA 燃油附加费 (%)** (default 3.5), live like the other assumptions; settings saved before it load with 3.5 |
+
+### 报价 = Pricer_Updated (2026-11-17): 2027 fees + actual weight
+| # | Decision |
+|---|---|
+| P10 | 2027 US **non-peak** FBA fees (from Jan 15, 2027) in `shared/pricing.js` and `tools/pricing-detail.html`; peak rates and the 3.5% fuel surcharge unchanged. Logic still copied unchanged from `Pricer_Updated.html` (cross-checked to the cent) |
+| P11 | **计费重量 (lb)** is an optional input: the actual packaged weight, saved as `wt`. Blank = dimensional weight (shown as the grey placeholder). Large standard bills max(actual, dimensional); small standard bills actual; 头程运费 uses max(actual kg, L×W×H ÷ 5000). The cell's tooltip says which weight is billed. The 下单计划 picker and 查看详情 (weight pre-filled in lb) use it too |
 
 **Out of scope for now:** Amazon upload templates, price preview in the collapsed row, bundling
 several rows into one Excel, Step 3 numbers in the main table.
