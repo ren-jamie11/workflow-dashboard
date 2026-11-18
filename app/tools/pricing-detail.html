@@ -804,18 +804,18 @@ table.fees td.cur-cell{font-weight:700;color:var(--cost)}
     kpis.innerHTML = `
       <div class="fee-sum">
         <div class="fs-label">Fulfillment fee</div>
-        <div class="fs-fee"><span class="fs-num" tabindex="0" aria-describedby="fsTip">${money(c.fee)}<span class="fs-tip" id="fsTip" role="tooltip"><div>${wtTxt} <span>shipping weight${scen ? '' : ' · ' + basisTxt(c.r)}</span></div><div>+${money(c.fuel)} <span>fuel surcharge (${fmtPct(A.fuel)})</span></div><div>${((c.fee+c.fuel)/price*100).toFixed(1)}% <span>of price incl. surcharge</span></div></span></span></div>
+        <div class="fs-fee"><span class="fs-num" tabindex="0" aria-describedby="fsTip">${money(c.fee + c.fuel)}<span class="fs-tip" id="fsTip" role="tooltip"><div>${wtTxt} <span>shipping weight${scen ? '' : ' · ' + basisTxt(c.r)}</span></div><div>${money(c.fee)} <span>base fee + ${money(c.fuel)} fuel surcharge (${fmtPct(A.fuel)})</span></div><div>${((c.fee+c.fuel)/price*100).toFixed(1)}% <span>of price</span></div></span></span></div>
         <div class="fs-sub"><span class="pill">${TIERS[c.r.tier].name}</span><span>${scen ? scen.label : c.r.band.label}</span></div>
       </div>
       ${S ? `<ol class="train mini" aria-label="Weight tier">${trainNodes()}</ol>` : ''}`;
 
     const r = c.r;
-    const was = (k) => base && money(base[k]) !== money(c[k]) ? ` · was ${money(base[k])}` : '';
+    // Unit cost includes shipping to US; fulfillment fee includes the fuel & logistics surcharge.
+    const unitAll = c => c.unit + c.ship, feeAll = c => c.fee + c.fuel;
+    const was = (f) => base && money(f(base)) !== money(f(c)) ? ` · was ${money(f(base))}` : '';
     const rows = [
-      ['unit','Unit cost',`¥${P.unitRmb.toFixed(2)} ÷ ${A.fx}`, c.unit],
-      ['ship','Shipping to US',`${c.volKg.toFixed(2)} kg ${c.actualKg ? 'actual' : 'vol.'} × ¥${A.shipRmbKg}/kg${was('ship')}`, c.ship],
-      ['fee','Fulfillment fee',`${TIERS[r.tier].name} · ${scen ? scen.label : r.band.label}${scen ? '' : ' · ' + basisTxt(r)}${was('fee')}`, c.fee],
-      ['fuel','Fuel & logistics surcharge',`${fmtPct(A.fuel)} of fulfillment fee${was('fuel')}`, c.fuel],
+      ['unit','Unit cost',`¥${P.unitRmb.toFixed(2)} + ¥${(c.volKg * A.shipRmbKg).toFixed(2)} shipping${was(unitAll)}`, unitAll(c)],
+      ['fee','Fulfillment fee',`${scen ? scen.label : r.band.label} · +${fmtPct(A.fuel)} fuel${was(feeAll)}`, feeAll(c)],
       ['comm','Amazon commission',`${fmtPct(A.comm)} of price`, c.comm],
       ['ads','Ad budget',`${fmtPct(A.ads)} of price`, c.ads],
       ['wh','Warehousing / returns',`${fmtPct(A.wh)} of price`, c.wh]
